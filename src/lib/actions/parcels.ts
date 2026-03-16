@@ -79,11 +79,22 @@ export async function createParcel(formData: FormData) {
   const soilType = formData.get("soilType") as string;
   const landUse = formData.get("landUse") as string;
   const ownership = formData.get("ownership") as string;
+  const coordinatesStr = formData.get("coordinates") as string;
 
   if (!name || isNaN(areaHa)) {
     throw new Error("Date invalide pentru parcelă");
   }
 
+  let coordinates = null;
+  if (coordinatesStr) {
+    try {
+      coordinates = JSON.parse(coordinatesStr);
+    } catch (e) {
+      console.error("Coordonate JSON invalide", e);
+    }
+  }
+
+  // Folosire 'as any' la data dacă Prisma client nu s-a actualizat intern
   await prisma.parcel.create({
     data: {
       orgId: orgId as string,
@@ -93,7 +104,8 @@ export async function createParcel(formData: FormData) {
       soilType,
       landUse,
       ownership,
-    },
+      coordinates: coordinates ? coordinates : undefined,
+    } as any,
   });
 
   revalidatePath("/dashboard/parcele");

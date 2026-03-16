@@ -29,6 +29,8 @@ model Organization {
   users              User[]
   parcels            Parcel[]
   seasons            Season[]
+  operations         AgriculturalOperation[]
+  inventoryItems     InventoryItem[]
 
   @@map("organizations")
 }
@@ -58,7 +60,7 @@ model Parcel {
   name          String
   cadastralCode String?   @map("cadastral_code")
   areaHa        Decimal   @map("area_ha") @db.Decimal(10, 2)
-  // geometry (PostGIS) o vom adăuga ulterior direct din SQL pentru scalabilitate
+  coordinates   Json?     // Format GeoJSON pentru hartă
   soilType      String?   @map("soil_type")
   landUse       String    @default("arabil") @map("land_use") // arabil, pasune, vie, livada
   ownership     String    @default("owned") // owned, rented
@@ -66,8 +68,9 @@ model Parcel {
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
-  organization  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  cropPlans     CropPlan[]
+  organization     Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  cropPlans        CropPlan[]
+  operationParcels OperationParcel[]
 
   @@map("parcels")
 }
@@ -105,4 +108,78 @@ model CropPlan {
   @@map("crop_plans")
   @@index([seasonId])
   @@index([parcelId])
+}
+
+// -----------------------------------------------------------------------------
+// Agricultural Operations (Modul Lucrări)
+// -----------------------------------------------------------------------------
+
+model AgriculturalOperation {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId       String   @map("org_id") @db.Uuid
+  name        String   // Arătură, Semănat, Erbicidat etc.
+  date        DateTime @db.Date
+  notes       String?
+  totalAreaHa Decimal  @map("total_area_ha") @db.Decimal(10, 2)
+  status      String   @default("completed") // planned, in_progress, completed
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  organization Organization        @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  parcels      OperationParcel[]
+  resources    OperationResource[]
+
+  @@map("agricultural_operations")
+}
+
+model OperationParcel {
+  id               String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  operationId      String  @map("operation_id") @db.Uuid
+  parcelId         String  @map("parcel_id") @db.Uuid
+  operatedAreaHa   Decimal @map("operated_area_ha") @db.Decimal(10, 2) // Cât din parcelă a fost lucrat
+
+  operation AgriculturalOperation @relation(fields: [operationId], references: [id], onDelete: Cascade)
+  parcel    Parcel                @relation(fields: [parcelId], references: [id], onDelete: Restrict)
+
+  @@map("operation_parcels")
+  @@unique([operationId, parcelId])
+}
+
+model OperationResource {
+  id               String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  operationId      String  @map("operation_id") @db.Uuid
+  inventoryItemId  String? @map("inventory_item_id") @db.Uuid // Opțional, legătură cu magazia
+  name             String  // ex: Motorină (din stoc sau manual)
+  type             String  // combustibil, chimic, samanta, ingrasamant
+  quantityPerHa    Decimal @map("quantity_per_ha") @db.Decimal(10, 2)
+  totalConsumed    Decimal? @map("total_consumed") @db.Decimal(10, 2) // Cantitatea finala consumată la sfârșitul lucrării
+  unit             String  // L, kg, tone
+  pricePerUnit     Decimal @map("price_per_unit") @db.Decimal(10, 2)
+  
+  operation     AgriculturalOperation @relation(fields: [operationId], references: [id], onDelete: Cascade)
+  inventoryItem InventoryItem?        @relation(fields: [inventoryItemId], references: [id], onDelete: SetNull)
+
+  @@map("operation_resources")
+}
+
+// -----------------------------------------------------------------------------
+// Inventory Management (Magazie & Stocuri)
+// -----------------------------------------------------------------------------
+
+model InventoryItem {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId           String   @map("org_id") @db.Uuid
+  name            String   // Adengo, Uree, Motorina Standard
+  category        String   // combustibil, chimic, ingrasamant, samanta
+  stockQuantity   Decimal  @map("stock_quantity") @db.Decimal(10, 2)
+  unit            String   // L, kg, doze, tone
+  pricePerUnit    Decimal  @map("price_per_unit") @db.Decimal(10, 2)
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  organization    Organization        @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  resources       OperationResource[]
+
+  @@map("inventory_items")
 }

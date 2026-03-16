@@ -16,6 +16,7 @@ import {
   Settings,
   ChevronsLeft,
   ChevronsRight,
+  CalendarDays, // Added CalendarDays import
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -24,12 +25,16 @@ import { AgralLogo } from "@/components/ui/agral-logo";
 const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard", group: "principal" },
   { href: "/parcele", icon: MapPin, label: "Parcele", group: "principal" },
-  { href: "/sezoane", icon: Sprout, label: "Sezoane & Culturi", group: "principal" },
+  { href: "/campanii", icon: CalendarDays, label: "Plan de Culturi", group: "principal" },
+  { href: "/operatiuni", icon: Tractor, label: "Lucrări Agricole", group: "principal" },
+  { href: "/stocuri", icon: Package, label: "Magazie & Stocuri", group: "principal" },
+  
   { href: "/contracte", icon: FileText, label: "Contracte Arendă", group: "afacere" },
   { href: "/financiar", icon: BarChart3, label: "Financiar", group: "afacere" },
-  { href: "/stocuri", icon: Package, label: "Stocuri", group: "afacere" },
+  
   { href: "/vreme", icon: CloudSun, label: "Vreme", group: "utilitar" },
   { href: "/stiri", icon: Newspaper, label: "Știri Agricole", group: "utilitar" },
+  
   { href: "/utilaje", icon: Tractor, label: "Utilaje", group: "avansate" },
   { href: "/angajati", icon: Users, label: "Angajați", group: "avansate" },
 ];

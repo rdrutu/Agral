@@ -2,6 +2,8 @@
 
 import { Bell, ChevronDown, LogOut, Settings, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -19,12 +21,21 @@ interface HeaderProps {
 }
 
 export function Header({ title = "Dashboard", farmName = "Ferma Demo", userName = "Ion Popa" }: HeaderProps) {
+  const router = useRouter();
+  const supabase = createClient();
+
   const initials = userName
     .split(" ")
     .map((n) => n[0])
     .join("")
     .toUpperCase()
     .slice(0, 2);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push("/login");
+    router.refresh();
+  };
 
   return (
     <header className="h-16 border-b border-border bg-background/95 backdrop-blur flex items-center px-6 gap-4 sticky top-0 z-40">
@@ -67,7 +78,7 @@ export function Header({ title = "Dashboard", farmName = "Ferma Demo", userName 
               <Settings className="w-4 h-4" /> Setări fermă
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="gap-2 text-destructive">
+            <DropdownMenuItem className="gap-2 text-destructive cursor-pointer" onClick={handleLogout}>
               <LogOut className="w-4 h-4" /> Deconectare
             </DropdownMenuItem>
           </DropdownMenuContent>

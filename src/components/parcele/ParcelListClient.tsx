@@ -19,6 +19,19 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { createParcel } from "@/lib/actions/parcels";
+import dynamic from "next/dynamic";
+
+const MapPolygonPicker = dynamic(
+  () => import("./MapPolygonPicker").then((mod) => mod.MapPolygonPicker),
+  { 
+    ssr: false, 
+    loading: () => (
+      <div className="h-[400px] w-full bg-muted animate-pulse rounded-xl flex items-center justify-center border-2 border-primary/20">
+        <Loader2 className="w-8 h-8 animate-spin text-primary/50" />
+      </div>
+    )
+  }
+);
 
 const statusColors: Record<string, string> = {
   growing: "bg-green-100 text-green-700 border-green-200",
@@ -38,6 +51,8 @@ export default function ParcelListClient({ initialParcels }: { initialParcels: a
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [coordinates, setCoordinates] = useState<any>(null);
+  const [autoArea, setAutoArea] = useState<number | "">("");
 
   const filtered = initialParcels.filter(
     (p) =>
@@ -49,6 +64,10 @@ export default function ParcelListClient({ initialParcels }: { initialParcels: a
 
   async function handleSubmit(formData: FormData) {
     setIsSubmitting(true);
+    if (coordinates) {
+      formData.set("coordinates", JSON.stringify(coordinates));
+    }
+    
     try {
       await createParcel(formData);
       setShowForm(false);
@@ -94,9 +113,20 @@ export default function ParcelListClient({ initialParcels }: { initialParcels: a
                   <Label htmlFor="cadastralCode">Cod cadastral</Label>
                   <Input id="cadastralCode" name="cadastralCode" placeholder="ex: 1234/A" className="h-11" />
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 flex flex-col justify-end">
                   <Label htmlFor="areaHa">Suprafață (ha) *</Label>
-                  <Input id="areaHa" name="areaHa" type="number" step="0.01" required placeholder="0.00" className="h-11" />
+                  <Input 
+                    id="areaHa" 
+                    name="areaHa" 
+                    type="number" 
+                    step="0.01" 
+                    required 
+                    placeholder="0.00" 
+                    className="h-11" 
+                    value={autoArea} 
+                    onChange={(e) => setAutoArea(e.target.value ? Number(e.target.value) : "")} 
+                    readOnly={!!coordinates} 
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="soilType">Tip sol</Label>
@@ -120,6 +150,17 @@ export default function ParcelListClient({ initialParcels }: { initialParcels: a
                   </select>
                 </div>
               </div>
+              
+              <div className="mt-6 mb-4">
+                <Label className="mb-2 block text-sm font-semibold">Desenează conturul parcelei (opțional, calculează automat aria)</Label>
+                <MapPolygonPicker 
+                  onPolygonComplete={(geoJson, area) => {
+                    setCoordinates(geoJson);
+                    if (area > 0) setAutoArea(area);
+                  }} 
+                />
+              </div>
+
               <div className="flex gap-3 mt-4">
                 <Button type="submit" disabled={isSubmitting} className="agral-gradient text-white font-semibold">
                   {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
