@@ -1,0 +1,108 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// -----------------------------------------------------------------------------
+// Core Models
+// -----------------------------------------------------------------------------
+
+model Organization {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name               String
+  cui                String?   // Cod fiscal opțional pentru MVP
+  address            String?
+  county             String?
+  subscriptionTier   String    @default("trial") @map("subscription_tier") // starter, pro, enterprise, trial
+  subscriptionStatus String    @default("active") @map("subscription_status")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  users              User[]
+  parcels            Parcel[]
+  seasons            Season[]
+
+  @@map("organizations")
+}
+
+model User {
+  id         String    @id @db.Uuid // Supabase Auth User ID
+  orgId      String?   @map("org_id") @db.Uuid
+  email      String    @unique
+  firstName  String?   @map("first_name")
+  lastName   String?   @map("last_name")
+  role       String    @default("owner") // owner, agronomist, worker
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  organization Organization? @relation(fields: [orgId], references: [id])
+
+  @@map("users")
+}
+
+// -----------------------------------------------------------------------------
+// Farm Management
+// -----------------------------------------------------------------------------
+
+model Parcel {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId         String    @map("org_id") @db.Uuid
+  name          String
+  cadastralCode String?   @map("cadastral_code")
+  areaHa        Decimal   @map("area_ha") @db.Decimal(10, 2)
+  // geometry (PostGIS) o vom adăuga ulterior direct din SQL pentru scalabilitate
+  soilType      String?   @map("soil_type")
+  landUse       String    @default("arabil") @map("land_use") // arabil, pasune, vie, livada
+  ownership     String    @default("owned") // owned, rented
+  notes         String?
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  organization  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  cropPlans     CropPlan[]
+
+  @@map("parcels")
+}
+
+model Season {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId       String   @map("org_id") @db.Uuid
+  name        String   // ex: "Toamnă 2025 - Primăvară 2026"
+  startDate   DateTime @map("start_date") @db.Date
+  endDate     DateTime @map("end_date") @db.Date
+  isActive    Boolean  @default(false) @map("is_active")
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  cropPlans    CropPlan[]
+
+  @@map("seasons")
+}
+
+model CropPlan {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seasonId             String    @map("season_id") @db.Uuid
+  parcelId             String    @map("parcel_id") @db.Uuid
+  cropType             String    @map("crop_type") // grâu, porumb etc.
+  variety              String?
+  sownAreaHa           Decimal   @map("sown_area_ha") @db.Decimal(10, 2)
+  sownDate             DateTime? @map("sown_date") @db.Date
+  estimatedHarvestDate DateTime? @map("estimated_harvest_date") @db.Date
+  estimatedYieldTha    Decimal?  @map("estimated_yield_t_ha") @db.Decimal(10, 2)
+  actualYieldTha       Decimal?  @map("actual_yield_t_ha") @db.Decimal(10, 2)
+  status               String    @default("planned") // planned, sown, growing, harvested
+
+  season               Season    @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  parcel               Parcel    @relation(fields: [parcelId], references: [id], onDelete: Restrict)
+
+  @@map("crop_plans")
+  @@index([seasonId])
+  @@index([parcelId])
+}
