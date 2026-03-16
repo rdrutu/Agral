@@ -39,19 +39,17 @@ export function Header({ title = "Dashboard", farmName = "Ferma Demo", userName 
 
         {/* User menu */}
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="flex items-center gap-2 h-10 px-3 rounded-xl">
-              <Avatar className="w-8 h-8">
-                <AvatarFallback className="agral-gradient text-white text-sm font-bold">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
-              <div className="hidden md:flex flex-col items-start">
-                <span className="text-sm font-semibold text-foreground leading-none">{userName}</span>
-                <span className="text-xs text-muted-foreground leading-none mt-0.5">{farmName}</span>
-              </div>
-              <ChevronDown className="w-4 h-4 text-muted-foreground" />
-            </Button>
+          <DropdownMenuTrigger className="flex items-center gap-2 h-10 px-3 rounded-xl hover:bg-accent transition-colors outline-none">
+            <Avatar className="w-8 h-8">
+              <AvatarFallback className="agral-gradient text-white text-sm font-bold">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="hidden md:flex flex-col items-start text-left">
+              <span className="text-sm font-semibold text-foreground leading-none">{userName}</span>
+              <span className="text-xs text-muted-foreground leading-none mt-0.5">{farmName}</span>
+            </div>
+            <ChevronDown className="w-4 h-4 text-muted-foreground" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <div className="px-2 py-1.5">

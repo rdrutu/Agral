@@ -1,171 +1,153 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CloudSun, Cloud, CloudRain, Snowflake, Wind, Droplets, Thermometer, Eye } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CloudSun, CloudDrizzle, Sun, CloudRain, Snowflake, Wind, Droplets } from "lucide-react";
 
 interface WeatherData {
-  temperature: number;
-  windspeed: number;
-  weathercode: number;
-  time: string;
+  current: {
+    temperature_2m: number;
+    relative_humidity_2m: number;
+    wind_speed_10m: number;
+    weather_code: number;
+  };
+  daily: {
+    time: string[];
+    temperature_2m_max: number[];
+    temperature_2m_min: number[];
+    weather_code: number[];
+  };
 }
 
-interface Forecast {
-  date: string;
-  maxTemp: number;
-  minTemp: number;
-  weathercode: number;
-}
+// Coduri WMO pentru vreme (simplificat)
+const getWeatherIcon = (code: number, className = "w-6 h-6") => {
+  if (code === 0) return <Sun className={`${className} text-amber-500`} />;
+  if (code >= 1 && code <= 3) return <CloudSun className={`${className} text-amber-400`} />;
+  if (code >= 51 && code <= 67) return <CloudDrizzle className={`${className} text-blue-400`} />;
+  if (code >= 80 && code <= 82) return <CloudRain className={`${className} text-blue-500`} />;
+  if (code >= 71 && code <= 77) return <Snowflake className={`${className} text-sky-300`} />;
+  return <CloudSun className={`${className} text-gray-500`} />;
+};
 
-function getWeatherIcon(code: number, size = 6) {
-  const cls = `w-${size} h-${size}`;
-  if (code === 0) return <CloudSun className={`${cls} text-amber-400`} />;
-  if (code <= 3) return <Cloud className={`${cls} text-gray-400`} />;
-  if (code <= 67) return <CloudRain className={`${cls} text-blue-400`} />;
-  if (code <= 77) return <Snowflake className={`${cls} text-blue-200`} />;
-  return <CloudRain className={`${cls} text-blue-600`} />;
-}
-
-function getWeatherDesc(code: number): string {
-  if (code === 0) return "Cer senin";
-  if (code <= 1) return "Predominant senin";
-  if (code <= 3) return "Parțial noros";
-  if (code <= 48) return "Ceață";
-  if (code <= 57) return "Burniță";
-  if (code <= 67) return "Ploaie";
-  if (code <= 77) return "Ninsoare";
-  if (code <= 82) return "Averse";
-  return "Furtună";
-}
-
-function getDayName(dateStr: string, index: number): string {
-  if (index === 0) return "Azi";
-  if (index === 1) return "Mâine";
-  const date = new Date(dateStr);
-  return date.toLocaleDateString("ro-RO", { weekday: "short" });
-}
-
-// Locație default: București
-const DEFAULT_LAT = 44.4268;
-const DEFAULT_LNG = 26.1025;
+const getWeatherDesc = (code: number) => {
+  if (code === 0) return "Senin";
+  if (code === 1 || code === 2) return "Parțial Noros";
+  if (code === 3) return "Noros";
+  if (code >= 51 && code <= 67) return "Ploaie Ușoară / Burniță";
+  if (code >= 80 && code <= 82) return "Averse de Ploaie";
+  if (code >= 71 && code <= 77) return "Ninsoare";
+  return "Variabil";
+};
 
 export function WeatherWidget() {
-  const [current, setCurrent] = useState<WeatherData | null>(null);
-  const [forecast, setForecast] = useState<Forecast[]>([]);
+  const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [location, setLocation] = useState("București");
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    async function fetchWeather(lat: number, lng: number) {
-      try {
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current_weather=true&daily=temperature_2m_max,temperature_2m_min,weathercode&timezone=Europe/Bucharest&forecast_days=7`;
-        const res = await fetch(url);
-        const data = await res.json();
+    // Coordonate pentru test (București/Ilfov, zona agricolă)
+    const lat = 44.4268;
+    const lon = 26.1025;
 
-        setCurrent({
-          temperature: Math.round(data.current_weather.temperature),
-          windspeed: Math.round(data.current_weather.windspeed),
-          weathercode: data.current_weather.weathercode,
-          time: data.current_weather.time,
-        });
-
-        const days: Forecast[] = data.daily.time.map((d: string, i: number) => ({
-          date: d,
-          maxTemp: Math.round(data.daily.temperature_2m_max[i]),
-          minTemp: Math.round(data.daily.temperature_2m_min[i]),
-          weathercode: data.daily.weathercode[i],
-        }));
-        setForecast(days);
-      } catch (err) {
-        console.error("Weather fetch error:", err);
-      } finally {
+    fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto`
+    )
+      .then((res) => {
+        if (!res.ok) throw new Error("Weather fetch failed");
+        return res.json();
+      })
+      .then((data) => {
+        setWeather(data);
         setLoading(false);
-      }
-    }
-
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          fetchWeather(pos.coords.latitude, pos.coords.longitude);
-          setLocation("Locația mea");
-        },
-        () => {
-          fetchWeather(DEFAULT_LAT, DEFAULT_LNG);
-        }
-      );
-    } else {
-      fetchWeather(DEFAULT_LAT, DEFAULT_LNG);
-    }
+      })
+      .catch((err) => {
+        console.error(err);
+        setError(true);
+        setLoading(false);
+      });
   }, []);
 
-  if (loading) {
-    return (
-      <Card className="col-span-2">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CloudSun className="w-5 h-5 text-amber-400" />
-            Vreme
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="h-32 flex items-center justify-center">
-            <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!current) return null;
-
   return (
-    <Card className="col-span-2">
+    <Card className="h-full overflow-hidden relative">
+      <div className="absolute top-0 right-0 w-64 h-64 bg-amber-50 rounded-full blur-3xl -mr-20 -mt-20 opacity-60 pointer-events-none" />
+      
       <CardHeader className="pb-2">
-        <CardTitle className="flex items-center justify-between">
+        <CardTitle className="text-base flex items-center justify-between">
           <span className="flex items-center gap-2">
-            <CloudSun className="w-5 h-5 text-amber-400" />
-            Vreme — {location}
+            <CloudSun className="w-5 h-5 text-amber-500" />
+            Condiții Meteo Live
           </span>
-          <span className="text-xs text-muted-foreground font-normal">Open-Meteo</span>
+          <span className="text-sm font-normal text-muted-foreground">Ferma Sud (București-Ilfov)</span>
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {/* Current weather */}
-        <div className="flex items-center gap-6 mb-6 p-4 bg-gradient-to-r from-primary/5 to-amber-50 rounded-xl">
-          <div>{getWeatherIcon(current.weathercode, 12)}</div>
-          <div>
-            <div className="text-5xl font-extrabold text-foreground">{current.temperature}°C</div>
-            <div className="text-muted-foreground font-medium">{getWeatherDesc(current.weathercode)}</div>
+        {loading ? (
+          <div className="animate-pulse space-y-4 py-4">
+            <div className="h-12 bg-gray-200 rounded w-1/3"></div>
+            <div className="h-4 bg-gray-200 rounded w-full"></div>
+            <div className="h-16 bg-gray-200 rounded w-full"></div>
           </div>
-          <div className="ml-auto grid grid-cols-1 gap-2 text-sm">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Wind className="w-4 h-4" />
-              <span>{current.windspeed} km/h vânt</span>
-            </div>
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Thermometer className="w-4 h-4" />
-              <span>Resimțit ca {current.temperature - 2}°C</span>
-            </div>
+        ) : error || !weather ? (
+          <div className="py-8 text-center text-sm text-destructive">
+            Nu am putut încărca datele meteo.
           </div>
-        </div>
+        ) : (
+          <div className="flex flex-col md:flex-row gap-6 lg:gap-8 mt-2 items-center">
+            {/* Current Weather */}
+            <div className="flex items-center gap-6">
+              <div className="relative">
+                {getWeatherIcon(weather.current.weather_code, "w-16 h-16")}
+              </div>
+              <div>
+                <div className="text-4xl font-extrabold text-foreground tracking-tighter">
+                  {Math.round(weather.current.temperature_2m)}°
+                </div>
+                <div className="text-sm font-medium text-muted-foreground">
+                  {getWeatherDesc(weather.current.weather_code)}
+                </div>
+              </div>
+            </div>
 
-        {/* 7-day forecast */}
-        <div className="grid grid-cols-7 gap-1">
-          {forecast.map((day, i) => (
-            <div
-              key={day.date}
-              className="flex flex-col items-center p-2 rounded-xl hover:bg-accent transition-colors"
-            >
-              <span className="text-xs font-semibold text-muted-foreground mb-1">
-                {getDayName(day.date, i)}
-              </span>
-              {getWeatherIcon(day.weathercode, 5)}
-              <span className="text-sm font-bold mt-1">{day.maxTemp}°</span>
-              <span className="text-xs text-muted-foreground">{day.minTemp}°</span>
+            {/* Current Details */}
+            <div className="flex gap-4 md:border-l md:border-border md:pl-6">
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Wind className="w-3.5 h-3.5" /> Vânt
+                </div>
+                <div className="font-semibold text-sm">{weather.current.wind_speed_10m} km/h</div>
+              </div>
+              <div className="flex flex-col gap-1 ml-4">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Droplets className="w-3.5 h-3.5" /> Umiditate
+                </div>
+                <div className="font-semibold text-sm">{Math.round(weather.current.relative_humidity_2m)}%</div>
+              </div>
             </div>
-          ))}
-        </div>
+
+            {/* Forecast 3 Days */}
+            <div className="flex-1 w-full grid grid-cols-3 gap-2 md:border-l md:border-border md:pl-6 mt-4 md:mt-0">
+              {[1, 2, 3].map((dayOffset) => {
+                const date = new Date(weather.daily.time[dayOffset]);
+                const dayName = new Intl.DateTimeFormat('ro-RO', { weekday: 'short' }).format(date);
+                
+                return (
+                  <div key={dayOffset} className="flex flex-col items-center justify-center p-2 rounded-xl bg-accent/30">
+                    <span className="text-xs font-medium text-muted-foreground capitalize mb-1">
+                      {dayName}
+                    </span>
+                    {getWeatherIcon(weather.daily.weather_code[dayOffset], "w-6 h-6 mb-1")}
+                    <div className="text-xs font-bold text-foreground">
+                      {Math.round(weather.daily.temperature_2m_max[dayOffset])}° 
+                      <span className="text-muted-foreground font-normal ml-1">
+                        {Math.round(weather.daily.temperature_2m_min[dayOffset])}°
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

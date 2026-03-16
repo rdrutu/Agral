@@ -17,13 +17,13 @@ export default function AuthLayout({
         <div className="relative text-center max-w-sm">
           {/* Logo pe fundal verde — versiune albă */}
           <div className="flex items-center justify-center mb-8">
-            <div className="bg-white/15 backdrop-blur rounded-2xl px-8 py-5">
+            <div className="bg-white rounded-2xl px-8 py-5 shadow-xl">
               <Image
                 src="/logo_agral.png"
                 alt="Agral — Portalul Fermierilor"
                 width={180}
                 height={80}
-                className="object-contain brightness-0 invert"
+                className="object-contain"
                 priority
               />
             </div>
