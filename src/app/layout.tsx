@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Nunito, Raleway } from "next/font/google";
 import "./globals.css";
+import { Toaster } from "react-hot-toast";
 
 // Raleway — matching logo-ul Agral (geometric, bold caps)
 const raleway = Raleway({
@@ -33,8 +34,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ro">
-      <body className={`${raleway.variable} ${nunito.variable} antialiased`}>
+    <html lang="ro" suppressHydrationWarning>
+      <body className={`${raleway.variable} ${nunito.variable} antialiased`} suppressHydrationWarning>
+        <Toaster position="top-center" reverseOrder={false} />
         {children}
       </body>
     </html>

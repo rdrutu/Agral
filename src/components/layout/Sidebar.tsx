@@ -44,13 +44,35 @@ const groups: Record<string, string> = {
   afacere: "Afacere",
   utilitar: "Utilitar",
   avansate: "Avansate",
+  admin: "Administrare Platformă",
 };
 
-export function Sidebar() {
+export function Sidebar({ 
+  userRole = "owner", 
+  userName = "Utilizator", 
+  subTier = "trial" 
+}: { 
+  userRole?: string;
+  userName?: string;
+  subTier?: string;
+}) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
 
-  const grouped = navItems.reduce((acc, item) => {
+  const initials = userName
+    .split(" ")
+    .filter(Boolean)
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2) || "U";
+
+  // Dacă utilizatorul e superadmin, arătăm doar panelul de admin, ascunzând datele de fermă
+  const effectiveNavItems = userRole === "superadmin" 
+    ? [{ href: "/admin", icon: Settings, label: "Admin Panel", group: "admin" }]
+    : navItems;
+
+  const grouped = effectiveNavItems.reduce((acc, item) => {
     if (!acc[item.group]) acc[item.group] = [];
     acc[item.group].push(item);
     return acc;
@@ -77,6 +99,21 @@ export function Sidebar() {
           {collapsed ? <ChevronsRight className="w-4 h-4" /> : <ChevronsLeft className="w-4 h-4" />}
         </button>
       </div>
+      
+      {/* User Info (Stânga Sus) */}
+      {!collapsed && (
+        <div className="px-4 py-4 flex items-center gap-3 border-b border-sidebar-border bg-sidebar-accent/30 animate-in fade-in slide-in-from-left-2">
+          <div className="w-10 h-10 rounded-xl agral-gradient flex items-center justify-center text-white font-extrabold text-sm shadow-sm shrink-0">
+            {initials}
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-sm font-bold text-foreground truncate">{userName}</span>
+            <span className="text-[10px] uppercase font-bold text-primary/70 tracking-tighter truncate">
+              {userRole === 'owner' ? 'Proprietar' : userRole === 'superadmin' ? 'Super Admin' : userRole === 'agronomist' ? 'Agronom' : 'Lucrător'}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto p-2">

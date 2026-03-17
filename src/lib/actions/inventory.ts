@@ -12,7 +12,12 @@ export async function getInventory() {
     orderBy: { name: "asc" },
   });
 
-  return inventory;
+  // Convertim Decimal în number pentru serializare (RSC -> Client)
+  return inventory.map(item => ({
+    ...item,
+    stockQuantity: Number(item.stockQuantity),
+    pricePerUnit: Number(item.pricePerUnit),
+  }));
 }
 
 export async function createInventoryItem(formData: FormData) {
@@ -29,20 +34,41 @@ export async function createInventoryItem(formData: FormData) {
     throw new Error("Date invalide pentru stoc");
   }
 
-  const item = await prisma.inventoryItem.create({
-    data: {
-      orgId: orgId as string,
-      name,
-      category,
-      stockQuantity,
-      unit,
-      pricePerUnit,
-      notes,
-    },
+  const item = await prisma.$transaction(async (tx) => {
+    const newItem = await tx.inventoryItem.create({
+      data: {
+        orgId: orgId as string,
+        name,
+        category,
+        stockQuantity,
+        unit,
+        pricePerUnit,
+        notes,
+      },
+    });
+
+    // Record initial stock purchase expense
+    const totalCost = stockQuantity * pricePerUnit;
+    if (totalCost > 0) {
+      await (tx as any).financialTransaction.create({
+        data: {
+          orgId: orgId as string,
+          type: "expense",
+          category: "initial_stock",
+          amount: totalCost,
+          description: `Achiziție inițială stoc: ${name} (${stockQuantity} ${unit})`,
+          referenceId: newItem.id
+        }
+      });
+    }
+
+    return newItem;
   });
 
+  revalidatePath("/magazie");
   revalidatePath("/stocuri");
   revalidatePath("/dashboard");
+  revalidatePath("/financiar");
   return item;
 }
 

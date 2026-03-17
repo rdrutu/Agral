@@ -20,8 +20,6 @@ export async function getUserOrganization() {
   });
 
   if (!dbUser) {
-    // Dacă utilizatorul s-a conectat pentru prima dată în Supabase
-    // și nu are înregistrare în Prisma
     dbUser = await prisma.user.create({
       data: {
         id: user.id,
@@ -29,6 +27,17 @@ export async function getUserOrganization() {
       },
       include: { organization: true }
     });
+  }
+
+  // DACĂ E SUPERADMIN, NU ARE VOIE SĂ AIBĂ ORG
+  if (dbUser.role === "superadmin") {
+    if (dbUser.orgId) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { orgId: null }
+      });
+    }
+    return null;
   }
 
   let orgId = dbUser.orgId;
@@ -67,7 +76,7 @@ export async function getParcels() {
     }
   });
 
-  return parcels;
+  return JSON.parse(JSON.stringify(parcels));
 }
 
 export async function createParcel(formData: FormData) {
@@ -110,4 +119,55 @@ export async function createParcel(formData: FormData) {
 
   revalidatePath("/dashboard/parcele");
   revalidatePath("/dashboard");
+}
+
+export async function getParcelDetails(id: string) {
+  const orgId = await getUserOrganization();
+  if (!orgId) throw new Error("Neautorizat");
+
+  const parcel = await prisma.parcel.findUnique({
+    where: { id, orgId: orgId as string },
+    include: {
+      cropPlans: {
+        include: { season: true },
+        orderBy: { season: { startDate: "desc" } }
+      },
+      operationParcels: {
+        include: {
+          operation: {
+            include: { resources: true }
+          }
+        },
+        orderBy: { operation: { date: "desc" } }
+      }
+    }
+  });
+
+  if (!parcel) throw new Error("Parcela nu a fost găsită.");
+
+  // Calculate some aggregate stats
+  const totalOperations = parcel.operationParcels.length;
+  const currentPlan = parcel.cropPlans.find(cp => cp.status !== "harvested");
+  
+  // Prorated costs
+  let totalCost = 0;
+  parcel.operationParcels.forEach(opParcel => {
+    const totalOpArea = Number(opParcel.operation.totalAreaHa);
+    const parcelArea = Number(opParcel.operatedAreaHa);
+    const share = parcelArea / totalOpArea;
+    
+    opParcel.operation.resources.forEach(res => {
+      const qty = res.totalConsumed ? Number(res.totalConsumed) : (Number(res.quantityPerHa) * totalOpArea);
+      totalCost += (qty * share * Number(res.pricePerUnit));
+    });
+  });
+
+  return JSON.parse(JSON.stringify({
+    ...parcel,
+    stats: {
+      totalOperations,
+      totalCost,
+      currentPlan
+    }
+  }));
 }

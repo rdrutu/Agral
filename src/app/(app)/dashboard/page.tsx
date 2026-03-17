@@ -1,4 +1,4 @@
-import { WeatherWidget } from "@/components/dashboard/WeatherWidget";
+import { WeatherWidget, NewsWidget } from "@/components/dashboard/DashboardWidgets";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -9,73 +9,15 @@ import {
   CheckCircle2,
   Clock,
   ArrowRight,
+  Banknote,
+  Tractor,
 } from "lucide-react";
 import Link from "next/link";
-
-const kpis = [
-  {
-    title: "Total Hectare",
-    value: "320",
-    unit: "ha",
-    change: "+12 față de sezonul trecut",
-    positive: true,
-    icon: MapPin,
-    color: "text-green-600",
-    bg: "bg-green-50",
-  },
-  {
-    title: "Parcele Active",
-    value: "47",
-    unit: "parcele",
-    change: "3 parcele adăugate recent",
-    positive: true,
-    icon: Sprout,
-    color: "text-blue-600",
-    bg: "bg-blue-50",
-  },
-  {
-    title: "Sezon Activ",
-    value: "2025-2026",
-    unit: "toamnă-primăvară",
-    change: "8 luni rămase",
-    positive: true,
-    icon: Clock,
-    color: "text-amber-600",
-    bg: "bg-amber-50",
-  },
-  {
-    title: "Cheltuieli Sezon",
-    value: "68,400",
-    unit: "RON",
-    change: "71% din buget utilizat",
-    positive: false,
-    icon: TrendingUp,
-    color: "text-purple-600",
-    bg: "bg-purple-50",
-  },
-];
-
-const recentParcels = [
-  { id: 1, name: "La Iaz — Lot A", area: 45.2, crop: "Grâu de toamnă", status: "growing", statusLabel: "În creștere" },
-  { id: 2, name: "Câmpia Dunăre", area: 78.5, crop: "Porumb", status: "planned", statusLabel: "Planificat" },
-  { id: 3, name: "Dealul Mic", area: 12.3, crop: "Floarea soarelui", status: "harvested", statusLabel: "Recoltat" },
-  { id: 4, name: "Luncă Sud", area: 34.8, crop: "Rapiță", status: "growing", statusLabel: "În creștere" },
-];
-
-const alerts = [
-  { type: "warning", text: "Contract arendă — Ion Vasile expiră în 14 zile", href: "/contracte" },
-  { type: "info", text: "Fertilizare planificată pentru Câmpia Dunăre — Luni, 20 Mar", href: "/sezoane" },
-  { type: "success", text: "Plata arendă primită de la Maria Ionescu — 1,200 RON", href: "/contracte" },
-];
-
-const tips = [
-  "🌱 Primăvara, evitați tratamentele în zilele cu vânt > 15 km/h pentru a preveni deriva.",
-  "🌽 Porumbul semănat la 35,000 boabe/ha produce cu 8-12% mai mult decât la 28,000.",
-  "💧 Irigarea înainte de antesis la grâu crește producția cu 400-600 kg/ha.",
-  "🐝 Tratamentele fitosanitare aplicate seara protejează polenizatorii.",
-];
-
-const todayTip = tips[new Date().getDate() % tips.length];
+import { createClient } from "@/lib/supabase/server";
+import prisma from "@/lib/prisma";
+import { redirect } from "next/navigation";
+import { getWeatherData, countyCoords } from "@/lib/weather";
+import { getAgriNews } from "@/lib/actions/news";
 
 const statusColors: Record<string, string> = {
   growing: "bg-green-100 text-green-700 border-green-200",
@@ -84,17 +26,175 @@ const statusColors: Record<string, string> = {
   sown: "bg-amber-100 text-amber-700 border-amber-200",
 };
 
-export default function DashboardPage() {
+const tips = [
+  "🌱 Primăvara, evitați tratamentele în zilele cu vânt > 15 km/h pentru a preveni deriva.",
+  "🌽 Porumbul semănat la 35,000 boabe/ha produce cu 8-12% mai mult decât la 28,000.",
+  "💧 Irigarea înainte de antesis la grâu crește producția cu 400-600 kg/ha.",
+  "🐝 Tratamentele fitosanitare aplicate seara protejează polenizatorii.",
+];
+const todayTip = tips[new Date().getDate() % tips.length];
+
+export default async function DashboardPage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const dbUser = await prisma.user.findUnique({
+    where: { id: user.id },
+    include: { organization: true }
+  });
+
+  // Izolare Superadmin
+  if (dbUser?.role === 'superadmin') {
+    redirect("/admin");
+  }
+
+  const firstName = dbUser?.firstName || "Fermier";
+  const org = dbUser?.organization;
+
+  let subscriptionText = "Fără Abonament";
+  let daysLeftText = "";
+  let isExpired = false;
+
+  if (org) {
+    const hasExpiry = !!(org as any).subscriptionExpiresAt;
+    const tierName = org.subscriptionTier === 'enterprise' ? 'Enterprise' : 
+                     org.subscriptionTier === 'pro' ? 'Pro' : 
+                     org.subscriptionTier === 'starter' ? 'Starter' : 'Trial';
+    
+    // Dacă are dată de expirare, înseamnă că nu mai e în Trial (sau e un Trial cu dată fixă, oricum scoatem "Nelimitat")
+    subscriptionText = hasExpiry ? `Plan ${tierName}` : "Trial";
+
+    if ((org as any).subscriptionExpiresAt) {
+      const expiry = new Date((org as any).subscriptionExpiresAt);
+      isExpired = expiry < new Date();
+      if (isExpired) {
+        daysLeftText = " (Expirat)";
+      } else {
+        const days = Math.ceil((expiry.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+        daysLeftText = ` • ${days} zile rămase`;
+      }
+    }
+  }
+
+  // Dashboard real logic
+  const orgId = org?.id;
+
+  // 1. Fetch Real KPI Values
+  const [totalArea, parcelCount, activeSeason, operationalExpenses, hrExpenses] = await Promise.all([
+    prisma.parcel.aggregate({
+      where: { orgId: orgId || "" },
+      _sum: { areaHa: true }
+    }),
+    prisma.parcel.count({
+      where: { orgId: orgId || "" }
+    }),
+    prisma.season.findFirst({
+      where: { orgId: orgId || "", isActive: true } as any,
+      orderBy: { startDate: "desc" }
+    }),
+    (prisma as any).agriculturalOperation.aggregate({
+      where: { orgId: orgId || "" },
+      _sum: { totalAreaHa: true }
+    }),
+    (prisma.user.aggregate({
+      where: { orgId: orgId || "" },
+      _sum: { monthlySalary: true }
+    }) as any)
+  ]);
+
+  const totalMonthlyCost = Number((hrExpenses as any)._sum.monthlySalary || 0);
+  const totalOpArea = Number(operationalExpenses._sum.totalAreaHa || 0);
+
+  const kpis = [
+    {
+      title: "Cheltuieli Lunare",
+      value: totalMonthlyCost.toLocaleString(),
+      unit: "lei",
+      change: "Salarii & Gestiune",
+      positive: false,
+      icon: Banknote,
+      color: "text-red-600",
+      bg: "bg-red-50",
+    },
+    {
+      title: "Activitate Totală",
+      value: totalOpArea.toLocaleString(),
+      unit: "ha",
+      change: "Operațiuni înregistrate",
+      positive: true,
+      icon: Tractor,
+      color: "text-amber-600",
+      bg: "bg-amber-50",
+    },
+    {
+      title: todayTip.split(' ')[0], // Dynamic
+      value: "Info",
+      unit: "Util",
+      change: "Sfatul agronomului",
+      positive: true,
+      icon: CheckCircle2,
+      color: "text-amber-600",
+      bg: "bg-amber-50",
+    },
+  ];
+
+  // 2. Fetch Recent Parcels
+  const recentParcels = await prisma.parcel.findMany({
+    where: { orgId: orgId || "" },
+    orderBy: { createdAt: "desc" },
+    take: 4,
+    include: { cropPlans: { where: { status: "growing" }, take: 1 } }
+  });
+
+  // 3. Simple Real Alerts
+  const realAlerts = [];
+  if (isExpired) {
+    realAlerts.push({ type: "warning", text: "Abonament expirat! Contactați administratorul pentru prelungire.", href: "/setari" });
+  }
+  if (parcelCount === 0) {
+    realAlerts.push({ type: "info", text: "Nu ai desenat nicio parcelă. Începe acum!", href: "/parcele" });
+  }
+  
+  // Contracts alerts
+  const expiringContracts = await (prisma as any).leaseContract?.findMany({
+    where: { orgId: orgId || "", endDate: { lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) } },
+    take: 2
+  });
+  
+  expiringContracts?.forEach((c: any) => {
+    realAlerts.push({ type: "warning", text: `Contractul cu ${c.landownerName} expiră curând!`, href: `/contracte` });
+  });
+
+  if (realAlerts.length === 0) {
+    realAlerts.push({ type: "success", text: "Toate sistemele sunt în parametri optimi.", href: "#" });
+  }
+
+  // Fetch Weather & News
+  const county = (org as any)?.county || "Olt";
+  const baseLat = (org as any)?.baseLat ? Number((org as any).baseLat) : null;
+  const baseLng = (org as any)?.baseLng ? Number((org as any).baseLng) : null;
+  
+  const coords = (baseLat && baseLng) 
+    ? { lat: baseLat, lon: baseLng }
+    : (countyCoords[county] || countyCoords["Bucuresti"]);
+    
+  const weather = await getWeatherData(coords.lat, coords.lon);
+  const news = await getAgriNews();
+
   return (
     <div className="space-y-6 max-w-7xl">
       {/* Greeting */}
       <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-2xl font-extrabold text-foreground">Bună ziua, Ion! 👋</h2>
-          <p className="text-muted-foreground mt-1">Iată ce se întâmplă la ferma ta azi, 16 Martie 2026.</p>
+          <h2 className="text-2xl font-extrabold text-foreground">Bună ziua, {firstName}! 👋</h2>
+          <p className="text-muted-foreground mt-1">Iată ce se întâmplă la ferma ta azi, {new Date().toLocaleDateString('ro-RO')}.</p>
         </div>
-        <Badge className="bg-green-100 text-green-800 border-green-200 font-semibold">
-          Plan Pro • 28 zile trial
+        <Badge className={`font-semibold ${daysLeftText.includes('Expirat') ? 'bg-destructive/10 text-destructive border-destructive/20' : 'bg-green-100 text-green-800 border-green-200'}`}>
+          {subscriptionText}{daysLeftText}
         </Badge>
       </div>
 
@@ -121,50 +221,60 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Weather + Alerts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Weather spans 2 cols */}
-        <div className="lg:col-span-2">
-          <WeatherWidget />
+      {/* Weather & News & Alerts */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* News - 2 cols on tablet/desktop */}
+        <div className="lg:col-span-2 order-2 lg:order-1">
+          <NewsWidget news={news} />
         </div>
 
-        {/* Alerts */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <AlertCircle className="w-5 h-5 text-amber-500" />
-              Alerte & Notificări
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {alerts.map((alert, i) => (
-              <Link
-                key={i}
-                href={alert.href}
-                className={`flex items-start gap-3 p-3 rounded-xl border transition-colors hover:opacity-80 ${
-                  alert.type === "warning"
-                    ? "bg-amber-50 border-amber-200"
-                    : alert.type === "success"
-                    ? "bg-green-50 border-green-200"
-                    : "bg-blue-50 border-blue-200"
-                }`}
-              >
-                {alert.type === "success" ? (
-                  <CheckCircle2 className="w-4 h-4 text-green-600 mt-0.5 shrink-0" />
-                ) : (
-                  <AlertCircle className={`w-4 h-4 mt-0.5 shrink-0 ${alert.type === "warning" ? "text-amber-600" : "text-blue-600"}`} />
-                )}
-                <p className="text-sm text-foreground">{alert.text}</p>
-              </Link>
-            ))}
+        {/* Weather - 1 col */}
+        <div className="lg:col-span-1 order-1 lg:order-2">
+          <WeatherWidget weather={weather} county={county} />
+        </div>
 
-            {/* Sfat agricol */}
-            <div className="mt-4 p-3 bg-primary/5 border border-primary/20 rounded-xl">
-              <p className="text-xs font-bold text-primary mb-1">💡 Sfatul zilei</p>
-              <p className="text-sm text-foreground">{todayTip}</p>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Alerts - 1 col */}
+        <div className="lg:col-span-1 order-3">
+          <Card className="h-full">
+            <CardHeader className="pb-3 px-4">
+              <CardTitle className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-muted-foreground/60">
+                <AlertCircle className="w-4 h-4 text-amber-500" />
+                Sistem Alerte
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2.5 px-4 overflow-y-auto max-h-[350px]">
+              {realAlerts.map((alert, i) => (
+                <Link
+                  key={i}
+                  href={alert.href}
+                  className={`flex items-start gap-3 p-3 rounded-xl border transition-all hover:translate-x-1 ${
+                    alert.type === "warning"
+                      ? "bg-amber-50/50 border-amber-100"
+                      : alert.type === "success"
+                      ? "bg-green-50/50 border-green-100"
+                      : "bg-blue-50/50 border-blue-100"
+                  }`}
+                >
+                  {alert.type === "success" ? (
+                    <CheckCircle2 className="w-4 h-4 text-green-600 mt-0.5 shrink-0" />
+                  ) : (
+                    <AlertCircle className={`w-4 h-4 mt-0.5 shrink-0 ${alert.type === "warning" ? "text-amber-600" : "text-blue-600"}`} />
+                  )}
+                  <p className="text-xs text-foreground font-bold leading-tight">{alert.text}</p>
+                </Link>
+              ))}
+
+              {/* Sfat agricol */}
+              <div className="mt-2 p-3 bg-primary/5 border border-primary/10 rounded-xl relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-2 opacity-5 group-hover:scale-125 transition-transform">
+                  <Sprout className="w-12 h-12 text-primary" />
+                </div>
+                <p className="text-[10px] font-black text-primary mb-1 uppercase tracking-tighter">💡 Sfatul agronomului</p>
+                <p className="text-xs text-foreground font-medium leading-relaxed">{todayTip}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* Recent Parcels */}
@@ -200,17 +310,26 @@ export default function DashboardPage() {
                         {parcel.name}
                       </Link>
                     </td>
-                    <td className="py-3 pr-4 text-muted-foreground">{parcel.area} ha</td>
-                    <td className="py-3 pr-4 text-foreground">{parcel.crop}</td>
+                    <td className="py-3 pr-4 text-muted-foreground">{Number(parcel.areaHa).toFixed(2)} ha</td>
+                    <td className="py-3 pr-4 text-foreground truncate max-w-[120px]">
+                      {parcel.cropPlans?.[0]?.cropType || "Fără cultură"}
+                    </td>
                     <td className="py-3">
                       <Badge
-                        className={`text-xs border ${statusColors[parcel.status] || "bg-gray-100 text-gray-600"}`}
+                        className={`text-[10px] uppercase font-bold border ${statusColors[parcel.cropPlans?.[0]?.status || 'planned'] || "bg-gray-100 text-gray-600"}`}
                       >
-                        {parcel.statusLabel}
+                        {parcel.cropPlans?.[0]?.status || "Planificat"}
                       </Badge>
                     </td>
                   </tr>
                 ))}
+                {recentParcels.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="py-12 text-center text-muted-foreground italic">
+                      Nu ai adăugat parcele încă.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

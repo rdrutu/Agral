@@ -34,7 +34,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Rute protejate — dacă nu ești logat, redirect la /login
-  const protectedPaths = ["/dashboard", "/parcele", "/sezoane", "/contracte", "/setari"];
+  const protectedPaths = ["/dashboard", "/parcele", "/sezoane", "/campanii", "/operatiuni", "/stocuri", "/contracte", "/financiar", "/vreme", "/stiri", "/utilaje", "/angajati", "/setari", "/profil"];
   const isProtected = protectedPaths.some((p) => pathname.startsWith(p));
 
   if (isProtected && !user) {

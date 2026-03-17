@@ -15,26 +15,68 @@ import {
   AlertCircle,
   Loader2,
   Trash2,
-  Sprout
+  Sprout,
+  TrendingUp,
+  ChevronDown,
+  ChevronUp,
+  Wheat,
 } from "lucide-react";
-import { createSeason, setActiveSeason, allocateParcelsToCrop, deleteSeason, removeCropPlan } from "@/lib/actions/seasons";
+import {
+  createSeason,
+  setActiveSeason,
+  allocateParcelsToCrop,
+  deleteSeason,
+  removeCropPlan,
+  harvestCropPlan,
+  getParcelReport,
+} from "@/lib/actions/seasons";
 import { useRouter } from "next/navigation";
 
-const CROPS = ["Grâu", "Porumb", "Floarea Soarelui", "Rapiță", "Orz", "Soia", "Lucernă", "Mazăre", "Sfeclă de zahăr", "Fâneață", "Pârloagă"];
+const CROPS = [
+  "Grâu", "Porumb", "Floarea Soarelui", "Rapiță", "Orz",
+  "Soia", "Lucernă", "Mazăre", "Sfeclă de zahăr", "Fâneață", "Pârloagă"
+];
 
-export default function SeasonsClient({ 
-  initialSeasons, 
-  allParcels, 
-  initialPlans 
-}: { 
-  initialSeasons: any[]; 
-  allParcels: any[]; 
-  initialPlans: any[] 
+const CROP_EMOJI: Record<string, string> = {
+  "Grâu": "🌾", "Porumb": "🌽", "Floarea Soarelui": "🌻",
+  "Rapiță": "🌿", "Orz": "🌾", "Soia": "🫘",
+  "Lucernă": "🍀", "Mazăre": "🫛", "Sfeclă de zahăr": "🫚",
+  "Fâneață": "🌱", "Pârloagă": "⬜",
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  planned: "bg-blue-100 text-blue-800 border-blue-200",
+  sown: "bg-amber-100 text-amber-800 border-amber-200",
+  growing: "bg-green-100 text-green-800 border-green-200",
+  harvested: "bg-gray-100 text-gray-600 border-gray-300",
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  planned: "Planificat",
+  sown: "Semănat",
+  growing: "În creștere",
+  harvested: "Recoltat ✓",
+};
+
+export default function SeasonsClient({
+  initialSeasons,
+  allParcels,
+  initialPlans,
+  seedItems,
+}: {
+  initialSeasons: any[];
+  allParcels: any[];
+  initialPlans: any[];
+  seedItems?: any[];
 }) {
   const router = useRouter();
   const [seasons, setSeasons] = useState(initialSeasons);
-  const [activeSeasonId, setActiveSeasonId] = useState<string | null>(initialSeasons.find(s => s.isActive)?.id || initialSeasons[0]?.id || null);
+  const [activeSeasonId, setActiveSeasonId] = useState<string | null>(
+    initialSeasons.find((s) => s.isActive)?.id || initialSeasons[0]?.id || null
+  );
   const [plans, setPlans] = useState(initialPlans);
+  const [seeds, setSeeds] = useState(seedItems || []);
+  const [selectedSeedId, setSelectedSeedId] = useState<string>("none");
 
   // UI States
   const [showNewSeason, setShowNewSeason] = useState(false);
@@ -42,48 +84,56 @@ export default function SeasonsClient({
   const [selectedParcels, setSelectedParcels] = useState<string[]>([]);
   const [bulkCrop, setBulkCrop] = useState(CROPS[0]);
 
-  // Form State ptr Sezon nou
+  // Harvest modal state
+  const [harvestPlanId, setHarvestPlanId] = useState<string | null>(null);
+  const [harvestYield, setHarvestYield] = useState("");
+
+  // Report state
+  const [reportParcelId, setReportParcelId] = useState<string | null>(null);
+  const [reportData, setReportData] = useState<any>(null);
+  const [loadingReport, setLoadingReport] = useState(false);
+
+  // Form State for new season
   const [sName, setSName] = useState("");
   const [sStart, setSStart] = useState("");
   const [sEnd, setSEnd] = useState("");
 
-  const activeSeasonData = seasons.find(s => s.id === activeSeasonId);
+  const activeSeasonData = seasons.find((s) => s.id === activeSeasonId);
 
-  // Creare Campanie
+  // ─── Create Season ────────────────────────────────────────────
   async function handleCreateSeason() {
     if (!sName || !sStart || !sEnd) return alert("Completați toate datele sezonului!");
     setIsSubmitting(true);
     try {
       const newS = await createSeason({ name: sName, startDate: sStart, endDate: sEnd });
-      setSeasons(prev => [newS, ...prev]);
+      setSeasons((prev) => [newS, ...prev]);
       setActiveSeasonId(newS.id);
       setShowNewSeason(false);
       setSName(""); setSStart(""); setSEnd("");
       router.refresh();
-    } catch(e) {
-      alert("Eroare creare");
+    } catch {
+      alert("Eroare la crearea campaniei.");
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  // Setare Campanie Curentă
+  // ─── Set Active Season ────────────────────────────────────────
   async function handleSetActive(id: string) {
-    if (activeSeasonData?.isActive && id === activeSeasonId) return; // e deja activ oficial
     setIsSubmitting(true);
     try {
       await setActiveSeason(id);
-      setSeasons(prev => prev.map(s => ({ ...s, isActive: s.id === id })));
+      setSeasons((prev) => prev.map((s) => ({ ...s, isActive: s.id === id })));
       setActiveSeasonId(id);
-      router.refresh(); 
-    } catch(e) {
-      alert("Eroare");
+      router.refresh();
+    } catch {
+      alert("Eroare la activarea campaniei.");
     } finally {
-        setIsSubmitting(false);
+      setIsSubmitting(false);
     }
   }
 
-  // Alocare Culturi
+  // ─── Allocate Parcels to Crop ─────────────────────────────────
   async function handleAllocate() {
     if (selectedParcels.length === 0 || !activeSeasonId) return alert("Selectați parcele!");
     setIsSubmitting(true);
@@ -91,57 +141,113 @@ export default function SeasonsClient({
       await allocateParcelsToCrop({
         seasonId: activeSeasonId,
         parcelIds: selectedParcels,
-        cropType: bulkCrop
+        cropType: bulkCrop,
+        inventoryItemId: selectedSeedId !== "none" ? selectedSeedId : undefined
       });
 
-      setPlans(prev => [
-        ...prev.filter(p => !selectedParcels.includes(p.parcelId)),
+      // Update local state for immediate feedback
+      setPlans((prev) => [
+        ...prev.filter((p) => !selectedParcels.includes(p.parcelId)),
         ...selectedParcels.map((pId: string) => ({
-            id: Math.random().toString(), // fallback temporary id
-            seasonId: activeSeasonId,
-            parcelId: pId,
-            cropType: bulkCrop,
-            status: "planned",
-            parcel: allParcels.find(ap => ap.id === pId)
-        }))
+          id: Math.random().toString(),
+          seasonId: activeSeasonId,
+          parcelId: pId,
+          cropType: bulkCrop,
+          status: "planned",
+          parcel: allParcels.find((ap) => ap.id === pId),
+        })),
       ]);
 
+      if (selectedSeedId !== "none") {
+        // Logic for local stock deduction if needed
+      }
+
       setSelectedParcels([]);
+      setSelectedSeedId("none");
       router.refresh();
-    } catch (e) {
-      alert("Eroare alocare");
+    } catch {
+      alert("Eroare la alocarea culturii.");
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  // Stergere Plan dintr-o parcela pe sezonul curent
+  // ─── Remove Plan ──────────────────────────────────────────────
   async function handleRemovePlan(planId: string) {
-    if (confirm("Golești parcela pentru această campanie?")) {
+    if (confirm("Golești parcela pentru această campanie? Acțiunea e ireversibilă.")) {
       await removeCropPlan(planId);
-      setPlans(prev => prev.filter(p => p.id !== planId));
+      setPlans((prev) => prev.filter((p) => p.id !== planId));
       router.refresh();
     }
   }
 
+  // ─── Delete Season ────────────────────────────────────────────
   async function handleDeleteSeason(id: string) {
-    if (confirm("Stergi definitv Campania si tot istoricul planificat pe ea?")) {
-        await deleteSeason(id);
-        window.location.reload();
+    if (confirm("Stergi definitiv Campania și tot istoricul planificat pe ea?")) {
+      await deleteSeason(id);
+      window.location.reload();
     }
   }
 
-  // Helpe ptr a bifa/debifa randul in tabel
-  const toggleSelection = (parcelId: string) => {
-    if (selectedParcels.includes(parcelId)) {
-      setSelectedParcels(prev => prev.filter(p => p !== parcelId));
-    } else {
-      setSelectedParcels(prev => [...prev, parcelId]);
+  // ─── Harvest Plan ─────────────────────────────────────────────
+  async function handleHarvest() {
+    if (!harvestPlanId) return;
+    const yieldTha = parseFloat(harvestYield);
+    if (isNaN(yieldTha) || yieldTha < 0) {
+      alert("Introduceți o producție validă (t/ha).");
+      return;
     }
+    setIsSubmitting(true);
+    try {
+      await harvestCropPlan(harvestPlanId, yieldTha);
+      setPlans((prev) =>
+        prev.map((p) =>
+          p.id === harvestPlanId ? { ...p, status: "harvested", actualYieldTha: yieldTha } : p
+        )
+      );
+      setHarvestPlanId(null);
+      setHarvestYield("");
+      router.refresh();
+    } catch {
+      alert("Eroare la înregistrarea recoltei.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  // ─── Parcel Report ────────────────────────────────────────────
+  async function handleToggleReport(parcelId: string) {
+    if (reportParcelId === parcelId) {
+      setReportParcelId(null);
+      setReportData(null);
+      return;
+    }
+    setReportParcelId(parcelId);
+    setLoadingReport(true);
+    try {
+      const data = await getParcelReport(parcelId, activeSeasonId!);
+      setReportData(data);
+    } catch {
+      alert("Nu s-au putut încărca datele raportului.");
+    } finally {
+      setLoadingReport(false);
+    }
+  }
+
+  // ─── Helpers ──────────────────────────────────────────────────
+  const toggleSelection = (parcelId: string) => {
+    setSelectedParcels((prev) =>
+      prev.includes(parcelId) ? prev.filter((p) => p !== parcelId) : [...prev, parcelId]
+    );
   };
 
-  const getPlanForParcel = (parcelId: string) => {
-    return plans.find(p => p.parcelId === parcelId);
+  const getPlanForParcel = (parcelId: string) =>
+    plans.find((p) => p.parcelId === parcelId);
+
+  // O parcelă e "ocupată" dacă are un plan activ (nu recoltat) în sezonul curent
+  const isParcelOccupied = (parcelId: string) => {
+    const plan = getPlanForParcel(parcelId);
+    return plan && plan.status !== "harvested";
   };
 
   return (
@@ -153,7 +259,9 @@ export default function SeasonsClient({
             <CalendarDays className="w-7 h-7 text-primary" />
             Campanii Agricole (Plan Culturi)
           </h2>
-          <p className="text-muted-foreground mt-1">Organizează Rotația Culturilor și istoricizează Anii Agricoli pentru fiecare sol în parte.</p>
+          <p className="text-muted-foreground mt-1">
+            Organizează Rotația Culturilor și istoricizează Anii Agricoli pentru fiecare sol în parte.
+          </p>
         </div>
       </div>
 
@@ -162,7 +270,12 @@ export default function SeasonsClient({
         <div className="lg:col-span-1 space-y-4">
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-bold text-lg">Campaniile Tale</h3>
-            <Button size="sm" variant="outline" className="h-8 gap-1 border-primary/30 text-primary" onClick={() => setShowNewSeason(!showNewSeason)}>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 gap-1 border-primary/30 text-primary"
+              onClick={() => setShowNewSeason(!showNewSeason)}
+            >
               <Plus className="w-4 h-4" /> Nouă
             </Button>
           </div>
@@ -172,16 +285,21 @@ export default function SeasonsClient({
               <CardContent className="p-4 space-y-3">
                 <div>
                   <Label className="text-xs text-muted-foreground">Nume Campanie</Label>
-                  <Input className="h-8 text-sm placeholder:text-muted-foreground/50" placeholder="ex: Toamnă 25 - Primăvară 26" value={sName} onChange={e => setSName(e.target.value)} />
+                  <Input
+                    className="h-8 text-sm"
+                    placeholder="ex: Toamnă 25 - Primăvară 26"
+                    value={sName}
+                    onChange={(e) => setSName(e.target.value)}
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <Label className="text-xs text-muted-foreground">Început</Label>
-                    <Input type="date" className="h-8 text-sm" value={sStart} onChange={e => setSStart(e.target.value)} />
+                    <Input type="date" className="h-8 text-sm" value={sStart} onChange={(e) => setSStart(e.target.value)} />
                   </div>
                   <div>
                     <Label className="text-xs text-muted-foreground">Sfârșit</Label>
-                    <Input type="date" className="h-8 text-sm" value={sEnd} onChange={e => setSEnd(e.target.value)} />
+                    <Input type="date" className="h-8 text-sm" value={sEnd} onChange={(e) => setSEnd(e.target.value)} />
                   </div>
                 </div>
                 <Button className="w-full h-8 mt-2" size="sm" onClick={handleCreateSeason} disabled={isSubmitting}>
@@ -191,62 +309,107 @@ export default function SeasonsClient({
             </Card>
           )}
 
-          {seasons.map(s => (
-            <div 
-              key={s.id} 
-              className={`p-3 rounded-xl border flex flex-col gap-2 cursor-pointer transition-all ${activeSeasonId === s.id ? "bg-primary text-primary-foreground shadow-md scale-[1.02] border-primary" : "bg-card hover:border-primary/40"}`}
-              onClick={() => { if (activeSeasonId !== s.id) { setActiveSeasonId(s.id); window.location.href = '?season=' + s.id; } }}
+          {seasons.map((s) => (
+            <div
+              key={s.id}
+              className={`p-3 rounded-xl border flex flex-col gap-2 cursor-pointer transition-all ${
+                activeSeasonId === s.id
+                  ? "bg-primary text-primary-foreground shadow-md scale-[1.02] border-primary"
+                  : "bg-card hover:border-primary/40"
+              }`}
+              onClick={() => {
+                if (activeSeasonId !== s.id) {
+                  setActiveSeasonId(s.id);
+                  setPlans([]);
+                  setReportParcelId(null);
+                  setReportData(null);
+                }
+              }}
             >
               <div className="flex items-center justify-between">
                 <span className="font-bold">{s.name}</span>
-                {s.isActive && <Badge variant="secondary" className="bg-white/20 hover:bg-white/20 border-none text-xs"><CheckCircle2 className="w-3 h-3 mr-1"/> Activă</Badge>}
+                {s.isActive && (
+                  <Badge variant="secondary" className="bg-white/20 hover:bg-white/20 border-none text-xs">
+                    <CheckCircle2 className="w-3 h-3 mr-1" /> Activă
+                  </Badge>
+                )}
               </div>
-              <div className={`text-xs flex items-center justify-between ${activeSeasonId === s.id ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
-                <span>{new Date(s.startDate).toLocaleDateString('ro')} - {new Date(s.endDate).toLocaleDateString('ro')}</span>
+              <div className={`text-xs ${activeSeasonId === s.id ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+                {new Date(s.startDate).toLocaleDateString("ro")} — {new Date(s.endDate).toLocaleDateString("ro")}
               </div>
-              
+
               {activeSeasonId === s.id && (
-                  <div className="flex gap-2 mt-2 pt-2 border-t border-white/20">
-                      {!s.isActive && (
-                        <Button size="sm" variant="secondary" className="flex-1 h-7 text-xs" onClick={(e) => { e.stopPropagation(); handleSetActive(s.id); }}>
-                            Setează ca Activă 
-                        </Button>
-                      )}
-                      {seasons.length > 1 && (
-                         <Button size="icon" variant="destructive" className="h-7 w-7 opacity-80" onClick={(e) => { e.stopPropagation(); handleDeleteSeason(s.id); }}>
-                             <Trash2 className="w-3 h-3" />
-                         </Button>
-                      )}
-                  </div>
+                <div className="flex gap-2 mt-2 pt-2 border-t border-white/20">
+                  {!s.isActive && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="flex-1 h-7 text-xs"
+                      onClick={(e) => { e.stopPropagation(); handleSetActive(s.id); }}
+                    >
+                      Setează ca Activă
+                    </Button>
+                  )}
+                  {seasons.length > 1 && (
+                    <Button
+                      size="icon"
+                      variant="destructive"
+                      className="h-7 w-7 opacity-80"
+                      onClick={(e) => { e.stopPropagation(); handleDeleteSeason(s.id); }}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
           ))}
         </div>
 
-        {/* PANEL DREAPTA: Parcele & Alocări ptr Sezonul Activ în UI */}
+        {/* PANEL DREAPTA: Parcele & Alocări */}
         <div className="lg:col-span-3">
           <Card className="shadow-lg border-border">
             <CardHeader className="bg-muted/10 pb-4 border-b">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <CardTitle className="text-xl text-primary flex items-center gap-2">
-                    <Sprout className="w-5 h-5"/> Plan de Culturi: {activeSeasonData?.name}
+                    <Sprout className="w-5 h-5" /> Plan de Culturi: {activeSeasonData?.name}
                   </CardTitle>
-                  <CardDescription>Bifați parcelele libere și atribuiți grupat o cultură.</CardDescription>
+                  <CardDescription>
+                    Bifați parcelele <strong>libere sau recoltate</strong> și atribuiți grupat o cultură.
+                    Parcelele ocupate (🔒) nu pot fi re-alocate.
+                  </CardDescription>
                 </div>
-                
+
                 {selectedParcels.length > 0 && (
                   <div className="p-2 bg-primary/10 border border-primary/20 rounded-lg flex items-center gap-2 animate-in fade-in slide-in-from-right-4">
                     <span className="text-sm font-semibold text-primary">{selectedParcels.length} parcele alese</span>
-                    <select 
+                    <select
                       className="h-8 rounded-md border border-input bg-background px-2 text-sm"
                       value={bulkCrop}
-                      onChange={e => setBulkCrop(e.target.value)}
+                      onChange={(e) => setBulkCrop(e.target.value)}
                     >
-                      {CROPS.map(c => <option key={c} value={c}>{c}</option>)}
+                      {CROPS.map((c) => (
+                        <option key={c} value={c}>{CROP_EMOJI[c] || "🌱"} {c}</option>
+                      ))}
                     </select>
+                    
+                    <select
+                      className="h-8 rounded-md border border-input bg-background px-2 text-xs font-bold text-primary"
+                      value={selectedSeedId}
+                      onChange={(e) => setSelectedSeedId(e.target.value)}
+                    >
+                      <option value="none">Sămânță din stoc (opțional)</option>
+                      {seeds.map((s: any) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name} ({s.stockQuantity} {s.unit})
+                        </option>
+                      ))}
+                    </select>
+
                     <Button size="sm" className="h-8 gap-1 shadow-sm" onClick={handleAllocate} disabled={isSubmitting}>
-                      {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin"/> : <CheckCircle2 className="w-4 h-4" />} Aplică 
+                      {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                      Aplică
                     </Button>
                   </div>
                 )}
@@ -259,56 +422,233 @@ export default function SeasonsClient({
                     <tr>
                       <th className="px-4 py-3 w-10">Bifă</th>
                       <th className="px-4 py-3">Nume Parcelă</th>
-                      <th className="px-4 py-3">Suprafață (Ha)</th>
-                      <th className="px-4 py-3">Cultură Curentă</th>
+                      <th className="px-4 py-3">Suprafață</th>
+                      <th className="px-4 py-3">Cultură & Status</th>
                       <th className="px-4 py-3 text-right">Acțiuni</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {allParcels.map(p => {
+                    {allParcels.map((p) => {
                       const plan = getPlanForParcel(p.id);
+                      const occupied = isParcelOccupied(p.id);
                       const isSelected = selectedParcels.includes(p.id);
-                      
+                      const isHarvested = plan?.status === "harvested";
+                      const isReportOpen = reportParcelId === p.id;
+
                       return (
-                        <tr key={p.id} className={`hover:bg-muted/20 transition-colors ${isSelected ? "bg-primary/5" : ""}`}>
-                          <td className="px-4 py-3">
-                            <input 
-                              type="checkbox" 
-                              className="w-4 h-4 rounded border-gray-300 text-primary cursor-pointer accent-primary"
-                              checked={isSelected}
-                              onChange={() => toggleSelection(p.id)}
-                            />
-                          </td>
-                          <td className="px-4 py-3 font-semibold text-foreground flex items-center gap-2">
-                            <MapPin className="w-4 h-4 text-muted-foreground" /> {p.name}
-                          </td>
-                          <td className="px-4 py-3 text-muted-foreground">{p.areaHa?.toString()} ha</td>
-                          <td className="px-4 py-3">
-                            {plan ? (
-                              <Badge className="bg-amber-100 text-amber-800 border-amber-200 hover:bg-amber-200 gap-1 rounded-sm px-2">
-                                <Leaf className="w-3 h-3" /> {plan.cropType}
-                              </Badge>
-                            ) : (
-                              <span className="text-muted-foreground italic text-xs">Neocupat (Liber)</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            {plan && (
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10" onClick={() => handleRemovePlan(plan.id)} title="Golește cultura">
+                        <>
+                          <tr
+                            key={p.id}
+                            className={`transition-colors ${
+                              isSelected ? "bg-primary/5" : occupied ? "bg-amber-50/40" : "hover:bg-muted/20"
+                            }`}
+                          >
+                            <td className="px-4 py-3">
+                              <input
+                                type="checkbox"
+                                className="w-4 h-4 rounded border-gray-300 cursor-pointer accent-primary disabled:opacity-40 disabled:cursor-not-allowed"
+                                checked={isSelected}
+                                disabled={!!occupied}
+                                onChange={() => toggleSelection(p.id)}
+                                title={occupied ? `Parcelă ocupată cu ${plan?.cropType}` : "Selectează"}
+                              />
+                            </td>
+                            <td className="px-4 py-3 font-semibold text-foreground">
+                              <div className="flex items-center gap-2">
+                                {occupied && !isHarvested ? (
+                                  <span title="Parcelă cu cultură activă">🔒</span>
+                                ) : (
+                                  <MapPin className="w-4 h-4 text-muted-foreground" />
+                                )}
+                                {p.name}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-muted-foreground">{p.areaHa?.toString()} ha</td>
+                            <td className="px-4 py-3">
+                              {plan ? (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-lg">{CROP_EMOJI[plan.cropType] || "🌱"}</span>
+                                  <div>
+                                    <div className="font-medium text-foreground">{plan.cropType}</div>
+                                    <Badge className={`text-[10px] border px-1.5 py-0 ${STATUS_COLORS[plan.status]}`}>
+                                      {STATUS_LABELS[plan.status] || plan.status}
+                                    </Badge>
+                                    {isHarvested && plan.actualYieldTha && (
+                                      <span className="text-xs text-muted-foreground ml-1">
+                                        {Number(plan.actualYieldTha).toFixed(1)} t/ha
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground italic text-xs">Liberă</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center justify-end gap-1">
+                                {plan && plan.status !== "harvested" && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 px-2 text-xs gap-1 border-amber-300 text-amber-700 hover:bg-amber-50"
+                                    onClick={() => { setHarvestPlanId(plan.id); setHarvestYield(""); }}
+                                    title="Înregistrează recolta"
+                                  >
+                                    <Wheat className="w-3 h-3" /> Recoltează
+                                  </Button>
+                                )}
+                                {plan && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-blue-600 hover:bg-blue-50"
+                                    onClick={() => handleToggleReport(p.id)}
+                                    title="Raport parcelă"
+                                  >
+                                    {isReportOpen ? <ChevronUp className="w-4 h-4" /> : <TrendingUp className="w-4 h-4" />}
+                                  </Button>
+                                )}
+                                {plan && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-destructive hover:bg-destructive/10"
+                                    onClick={() => handleRemovePlan(plan.id)}
+                                    title="Șterge alocarea"
+                                  >
                                     <Trash2 className="w-4 h-4" />
-                                </Button>
-                            )}
-                          </td>
-                        </tr>
-                      )
+                                  </Button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+
+                          {/* Report Panel (inline expansion) */}
+                          {isReportOpen && (
+                            <tr key={`report-${p.id}`}>
+                              <td colSpan={5} className="px-4 py-3 bg-blue-50/60 border-b">
+                                {loadingReport ? (
+                                  <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                                    <Loader2 className="w-4 h-4 animate-spin" /> Se încarcă raportul...
+                                  </div>
+                                ) : reportData ? (
+                                  <div className="space-y-3">
+                                    <div className="flex items-center gap-2">
+                                      <TrendingUp className="w-4 h-4 text-blue-600" />
+                                      <span className="font-bold text-blue-900">Fișa Parcelei — {reportData.parcelName}</span>
+                                    </div>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                      <div className="bg-white rounded-lg p-2 border text-center">
+                                        <div className="text-lg font-extrabold text-primary">{reportData.totalCost} RON</div>
+                                        <div className="text-[10px] text-muted-foreground">Cost total sezon</div>
+                                      </div>
+                                      <div className="bg-white rounded-lg p-2 border text-center">
+                                        <div className="text-lg font-extrabold text-orange-600">{reportData.costPerHa} RON</div>
+                                        <div className="text-[10px] text-muted-foreground">Cost / hectar</div>
+                                      </div>
+                                      <div className="bg-white rounded-lg p-2 border text-center">
+                                        <div className="text-lg font-extrabold text-green-600">
+                                          {reportData.actualYieldTha ? `${reportData.actualYieldTha} t/ha` : "—"}
+                                        </div>
+                                        <div className="text-[10px] text-muted-foreground">Producție reală</div>
+                                      </div>
+                                      <div className="bg-white rounded-lg p-2 border text-center">
+                                        <div className="text-lg font-extrabold text-gray-700">{reportData.areaHa} ha</div>
+                                        <div className="text-[10px] text-muted-foreground">Suprafață</div>
+                                      </div>
+                                    </div>
+                                    {reportData.breakdown.length > 0 && (
+                                      <div className="bg-white rounded-lg border overflow-hidden">
+                                        <div className="px-3 py-1.5 bg-muted/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                          Detaliu costuri
+                                        </div>
+                                        {reportData.breakdown.map((b: any, i: number) => (
+                                          <div key={i} className="flex justify-between items-center px-3 py-1.5 text-xs border-t">
+                                            <span className="text-foreground">{b.name}</span>
+                                            <span className="font-semibold text-primary">{b.totalCost} RON</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                    {reportData.breakdown.length === 0 && (
+                                      <p className="text-xs text-muted-foreground italic">
+                                        Nu există lucrări înregistrate pe această parcelă în sezonul curent.
+                                      </p>
+                                    )}
+                                  </div>
+                                ) : null}
+                              </td>
+                            </tr>
+                          )}
+                        </>
+                      );
                     })}
                   </tbody>
                 </table>
+
+                {allParcels.length === 0 && (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <MapPin className="w-10 h-10 mx-auto mb-2 opacity-40" />
+                    <p>Nu ai parcele înregistrate. Adaugă parcele în secțiunea <strong>Parcele</strong>.</p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
         </div>
       </div>
+
+      {/* HARVEST MODAL */}
+      {harvestPlanId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md mx-4 shadow-2xl">
+            <CardHeader className="border-b bg-amber-50">
+              <CardTitle className="flex items-center gap-2 text-amber-900">
+                <Wheat className="w-5 h-5" /> Înregistrare Recoltă
+              </CardTitle>
+              <CardDescription>
+                Introduceti producția obținută pentru a închide planul de cultură.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-5 space-y-4">
+              <div>
+                <Label htmlFor="yieldInput">Producție reală (tone / hectar)</Label>
+                <Input
+                  id="yieldInput"
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  placeholder="ex: 5.5"
+                  className="mt-1.5 h-11 text-lg font-bold"
+                  value={harvestYield}
+                  onChange={(e) => setHarvestYield(e.target.value)}
+                  autoFocus
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Dacă nu cunoașteți exact, puneți 0 — îl puteți actualiza mai târziu.
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => { setHarvestPlanId(null); setHarvestYield(""); }}
+                >
+                  Anulează
+                </Button>
+                <Button
+                  className="flex-1 bg-amber-600 hover:bg-amber-700 text-white gap-2"
+                  onClick={handleHarvest}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                  Confirmă Recolta
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { 
+  Card, 
+  CardContent, 
+  CardHeader, 
+  CardTitle, 
+  CardDescription 
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,15 +22,19 @@ import {
   Fuel,
   Edit2,
   Trash2,
-  Loader2
+  Loader2,
+  ArrowUpRight
 } from "lucide-react";
 import { createInventoryItem, updateInventoryStock } from "@/lib/actions/inventory";
+import { sellCrop } from "@/lib/actions/finance";
+import { DollarSign } from "lucide-react";
 
 const categoryConfig: Record<string, { icon: any, color: string, label: string }> = {
   chimic: { icon: FlaskConical, color: "text-purple-600 bg-purple-100", label: "Erbicid/Tratament" },
   ingrasamant: { icon: Droplets, color: "text-blue-600 bg-blue-100", label: "Îngrășământ" },
   samanta: { icon: Wheat, color: "text-green-600 bg-green-100", label: "Sămânță" },
   combustibil: { icon: Fuel, color: "text-amber-600 bg-amber-100", label: "Motorină/Combustibil" },
+  recolta: { icon: Wheat, color: "text-amber-700 bg-amber-50", label: "Recoltă Fermă" },
 };
 
 export default function InventoryClient({ initialInventory }: { initialInventory: any[] }) {
@@ -36,6 +46,11 @@ export default function InventoryClient({ initialInventory }: { initialInventory
   // Edit State
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editVal, setEditVal] = useState<string>("");
+
+  // Sale Modal State
+  const [sellingItem, setSellingItem] = useState<any | null>(null);
+  const [isSelling, setIsSelling] = useState(false);
+  const [saleData, setSaleData] = useState({ quantity: 0, price: 0, buyer: "" });
 
   const filtered = items.filter(i => i.name.toLowerCase().includes(search.toLowerCase()) || i.category.toLowerCase().includes(search.toLowerCase()));
 
@@ -65,6 +80,27 @@ export default function InventoryClient({ initialInventory }: { initialInventory
       setEditingId(null);
     } catch (e) {
       alert("Eroare la actualizarea stocului");
+    }
+  }
+  async function handleSell() {
+    if (!sellingItem || saleData.quantity <= 0 || saleData.price <= 0) return;
+    
+    setIsSelling(true);
+    try {
+      await sellCrop({
+        inventoryItemId: sellingItem.id,
+        quantity: saleData.quantity,
+        pricePerUnit: saleData.price,
+        buyer: saleData.buyer
+      });
+      
+      setItems(prev => prev.map(i => i.id === sellingItem.id ? { ...i, stockQuantity: Number(i.stockQuantity) - saleData.quantity } : i));
+      setSellingItem(null);
+      setSaleData({ quantity: 0, price: 0, buyer: "" });
+    } catch (e: any) {
+      alert(e.message || "Eroare la vânzare");
+    } finally {
+      setIsSelling(false);
     }
   }
 
@@ -212,6 +248,20 @@ export default function InventoryClient({ initialInventory }: { initialInventory
                     </td>
                     <td className="px-5 py-4 text-right w-24">
                       <div className="flex items-center justify-end gap-1">
+                        {item.category === "recolta" && (
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
+                            onClick={() => {
+                              setSellingItem(item);
+                              setSaleData({ quantity: Number(item.stockQuantity), price: item.pricePerUnit || 0, buyer: "" });
+                            }}
+                            title="Vinde din recoltă"
+                          >
+                            <DollarSign className="w-4 h-4" />
+                          </Button>
+                        )}
                         <Button 
                           variant="ghost" 
                           size="icon" 
@@ -243,6 +293,65 @@ export default function InventoryClient({ initialInventory }: { initialInventory
           </table>
         </div>
       </div>
+      {/* Modal Vânzare */}
+      {sellingItem && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 animate-in zoom-in-95 backdrop-blur-sm p-4">
+          <Card className="w-full max-w-md shadow-2xl border-none">
+            <CardHeader className="bg-muted/20 border-b">
+              <CardTitle className="flex items-center gap-2">
+                <DollarSign className="w-5 h-5 text-green-600" />
+                Vânzare Recoltă: {sellingItem.name}
+              </CardTitle>
+              <CardDescription>Înregistrează o vânzare din stocul de recoltă.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-6">
+              <div className="space-y-2">
+                <Label className="text-xs uppercase font-bold text-muted-foreground">Cantitate ({sellingItem.unit})</Label>
+                <Input 
+                  type="number" 
+                  value={saleData.quantity} 
+                  onChange={e => setSaleData(prev => ({ ...prev, quantity: parseFloat(e.target.value) || 0 }))} 
+                  className="font-bold h-12 text-lg"
+                  max={Number(sellingItem.stockQuantity)}
+                />
+                <p className="text-[10px] text-muted-foreground italic">Disponibil: {Number(sellingItem.stockQuantity).toLocaleString()} {sellingItem.unit}</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs uppercase font-bold text-muted-foreground">Preț per {sellingItem.unit} (RON)</Label>
+                <Input 
+                  type="number" 
+                  value={saleData.price} 
+                  onChange={e => setSaleData(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))} 
+                  className="font-bold h-12 text-lg text-green-600"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs uppercase font-bold text-muted-foreground">Cumpărător (Opțional)</Label>
+                <Input 
+                  value={saleData.buyer} 
+                  onChange={e => setSaleData(prev => ({ ...prev, buyer: e.target.value }))} 
+                  placeholder="ex: Siloz Roman / Client"
+                />
+              </div>
+
+              <div className="bg-green-50 p-4 rounded-xl border border-green-100 flex justify-between items-center">
+                <span className="text-xs font-bold text-green-800 uppercase">Total de încasat:</span>
+                <span className="text-xl font-black text-green-700">{(saleData.quantity * saleData.price).toLocaleString()} RON</span>
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <Button variant="ghost" className="flex-1 font-bold" onClick={() => setSellingItem(null)} disabled={isSelling}>Anulare</Button>
+                <Button className="flex-1 agral-gradient text-white font-bold" disabled={isSelling} onClick={handleSell}>
+                  {isSelling ? <Loader2 className="w-4 h-4 animate-spin"/> : <ArrowUpRight className="w-4 h-4"/>}
+                  Confirmă Vânzarea
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

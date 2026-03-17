@@ -18,11 +18,23 @@ datasource db {
 model Organization {
   id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name               String
-  cui                String?   // Cod fiscal opțional pentru MVP
+  legalName          String?   @map("legal_name")
+  registrationNumber String?   @map("registration_number")
+  cui                String?
+  caen               String?
   address            String?
   county             String?
   subscriptionTier   String    @default("trial") @map("subscription_tier") // starter, pro, enterprise, trial
   subscriptionStatus String    @default("active") @map("subscription_status")
+  maxUsers           Int       @default(1) @map("max_users")
+  phone              String?
+  activeDiscount     Decimal?  @default(0) @map("active_discount") @db.Decimal(10, 2)
+  subscriptionExpiresAt DateTime? @map("subscription_expires_at")
+  
+  // Locația bazei fermei pentru vreme și hartă
+  baseLat           Decimal?  @map("base_lat") @db.Decimal(10, 8)
+  baseLng           Decimal?  @map("base_lng") @db.Decimal(10, 8)
+  
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @updatedAt @map("updated_at")
 
@@ -31,8 +43,77 @@ model Organization {
   seasons            Season[]
   operations         AgriculturalOperation[]
   inventoryItems     InventoryItem[]
+  payments           SubscriptionPayment[]
+  vehicles           Vehicle[]
+  weatherPOIs        WeatherPOI[]
+  financialTransactions FinancialTransaction[]
+  sales              Sale[]
 
   @@map("organizations")
+}
+
+model WeatherPOI {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId     String   @map("org_id") @db.Uuid
+  name      String   // ex: "Ferma de la deal", "Depozit"
+  lat       Decimal  @db.Decimal(10, 8)
+  lng       Decimal  @db.Decimal(10, 8)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@map("weather_pois")
+}
+
+model SubscriptionPayment {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId     String   @map("org_id") @db.Uuid
+  amount    Decimal  @db.Decimal(10, 2)
+  months    Int
+  tier      String
+  date      DateTime @default(now())
+  amountBeforeDiscount Decimal? @map("amount_before_discount") @db.Decimal(10, 2)
+  discountApplied     Decimal? @map("discount_applied") @db.Decimal(10, 2)
+  notes     String?
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@map("subscription_payments")
+}
+
+model Vehicle {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId           String   @map("org_id") @db.Uuid
+  name            String   // ex: Tractor John Deere
+  type            String   // tractor, combine, trailer, pickup
+  brand           String?
+  model           String?
+  year            Int?
+  vin             String?  @map("vin_number")
+  licensePlate    String?  @map("license_plate")
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  organization    Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  maintenanceLogs VehicleMaintenance[]
+
+  @@map("vehicles")
+}
+
+model VehicleMaintenance {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  vehicleId   String   @map("vehicle_id") @db.Uuid
+  type        String   // service, fuel, insurance_rca, insurance_casco, itp, other
+  date        DateTime
+  cost        Decimal? @db.Decimal(10, 2)
+  details     String?  // Ex: "Schimb ulei", "Alimentare 200L"
+  documentUrl String?  @map("document_url")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  vehicle     Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@map("vehicle_maintenance")
 }
 
 model User {
@@ -41,7 +122,13 @@ model User {
   email      String    @unique
   firstName  String?   @map("first_name")
   lastName   String?   @map("last_name")
-  role       String    @default("owner") // owner, agronomist, worker
+  role       String    @default("owner") // owner, superadmin, agronomist, worker
+  canLogin   Boolean   @default(true) @map("can_login")
+
+  // Detalii HR / Salarizare
+  monthlySalary Decimal? @map("monthly_salary") @db.Decimal(10, 2) // Brut
+  employmentType String? @map("employment_type") // full-time, part-time, seasonal
+
   createdAt  DateTime  @default(now()) @map("created_at")
   updatedAt  DateTime  @updatedAt @map("updated_at")
 
@@ -170,7 +257,7 @@ model InventoryItem {
   id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   orgId           String   @map("org_id") @db.Uuid
   name            String   // Adengo, Uree, Motorina Standard
-  category        String   // combustibil, chimic, ingrasamant, samanta
+  category        String   // combustibil, chimic, ingrasamant, samanta, recolta
   stockQuantity   Decimal  @map("stock_quantity") @db.Decimal(10, 2)
   unit            String   // L, kg, doze, tone
   pricePerUnit    Decimal  @map("price_per_unit") @db.Decimal(10, 2)
@@ -180,6 +267,40 @@ model InventoryItem {
 
   organization    Organization        @relation(fields: [orgId], references: [id], onDelete: Cascade)
   resources       OperationResource[]
+  sales           Sale[]
 
   @@map("inventory_items")
+}
+
+model FinancialTransaction {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId       String   @map("org_id") @db.Uuid
+  type        String   // income, expense
+  category    String   // sale, operation, salary, maintenance, initial_stock, other
+  amount      Decimal  @db.Decimal(12, 2)
+  date        DateTime @default(now())
+  description String?
+  referenceId String?  @map("reference_id") // UUID of Sale, Operation, etc.
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@map("financial_transactions")
+}
+
+model Sale {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId           String   @map("org_id") @db.Uuid
+  inventoryItemId String   @map("inventory_item_id") @db.Uuid
+  quantity        Decimal  @db.Decimal(10, 2)
+  unit            String
+  pricePerUnit    Decimal  @map("price_per_unit") @db.Decimal(10, 2)
+  totalAmount     Decimal  @map("total_amount") @db.Decimal(12, 2)
+  buyer           String?
+  date            DateTime @default(now())
+  notes           String?
+
+  organization  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Restrict)
+
+  @@map("sales")
 }
