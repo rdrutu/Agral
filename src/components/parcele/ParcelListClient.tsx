@@ -176,6 +176,8 @@ export default function ParcelListClient({
                     setCoordinates(geoJson);
                     if (area > 0) setAutoArea(area);
                   }} 
+                  baseLat={farmBase?.lat ?? null}
+                  baseLng={farmBase?.lng ?? null}
                 />
               </div>
 

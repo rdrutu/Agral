@@ -42,6 +42,9 @@ export function ParcelMapView({ geoJson }: ParcelMapViewProps) {
           url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
           attribution="&copy; Esri"
         />
+        <TileLayer
+          url="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
+        />
         <GeoJSON 
           data={geoJson} 
           style={() => ({

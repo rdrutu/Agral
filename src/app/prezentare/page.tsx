@@ -181,7 +181,7 @@ export default function Home() {
           </Badge>
           <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold text-foreground mb-6 leading-tight tracking-tight">
             Digitalizarea fermei tale <br className="hidden md:block" /> 
-            <span className="text-transparent bg-clip-text agral-gradient inline-block mt-2">
+            <span className="text-transparent bg-clip-text bg-gradient-to-br from-green-700 to-green-500 inline-block mt-2">
               începe aici
             </span>
           </h1>
@@ -438,7 +438,7 @@ export default function Home() {
             <div className="absolute inset-0 bg-gradient-to-tr from-green-600/5 to-emerald-400/5 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 -z-10" />
             <h2 className="text-4xl md:text-5xl font-extrabold text-foreground mb-6 leading-tight">
               Începe să folosești Agral <br className="hidden md:block"/>
-              <span className="text-transparent bg-clip-text agral-gradient inline-block mt-2">gratuit chiar acum</span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-br from-green-700 to-green-500 inline-block mt-2">gratuit chiar acum</span>
             </h2>
             <p className="text-xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed">
                Ai 30 de zile de probă în care poți folosi platforma fără restricții. Fără card bancar, fără obligații.

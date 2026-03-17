@@ -42,21 +42,9 @@ export async function getUserOrganization() {
 
   let orgId = dbUser.orgId;
 
-  // Dacă user-ul nu are organizație, îi creăm "Ferma Mea"
+  // Dacă user-ul nu are organizație, în mod normal trebuie să parcurgă onboarding-ul.
   if (!orgId) {
-    const newOrg = await prisma.organization.create({
-      data: {
-        name: "Ferma Mea",
-        subscriptionTier: "trial",
-      },
-    });
-    
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { orgId: newOrg.id }
-    });
-
-    orgId = newOrg.id;
+    throw new Error("Fără organizație. Te rugăm să finalizezi configurarea fermei.");
   }
 
   return orgId;

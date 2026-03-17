@@ -2,6 +2,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { createClient } from "@/lib/supabase/server";
 import prisma from "@/lib/prisma";
+import { redirect } from "next/navigation";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   // Fetch real user data server-side
@@ -23,7 +24,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       include: { organization: true }
     });
 
+    if (!dbUser) {
+      // User din Supabase dar fÄƒrÄƒ rÃ¢nd Ã®n Prisma -> trimitem la onboarding
+      redirect("/onboarding");
+    }
+
     if (dbUser) {
+      userRole = dbUser.role || "owner";
+      
+      // DacÄƒ utilizatorul nu e superadmin È™i nu are organizaÈ›ie, Ã®l trimitem la onboarding
+      if (!dbUser.organization && userRole !== "superadmin") {
+        redirect("/onboarding");
+      }
+
       const firstName = dbUser.firstName || "";
       const lastName = dbUser.lastName || "";
       if (firstName || lastName) {

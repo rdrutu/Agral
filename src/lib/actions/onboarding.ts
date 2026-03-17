@@ -1,0 +1,73 @@
+"use server";
+
+import prisma from "@/lib/prisma";
+import { createClient } from "@/lib/supabase/server";
+
+export async function submitOnboarding(data: {
+  orgName: string;
+  legalName: string;
+  entityType: string;
+  county: string;
+  city: string;
+  address: string;
+  cui: string;
+  phone: string;
+  caen: string;
+  lat: number | null;
+  lng: number | null;
+  parcelData: { geoJson: any; areaHa: number } | null;
+}) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) throw new Error("Neautorizat.");
+
+  let dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+  if (!dbUser) {
+    dbUser = await prisma.user.create({ data: { id: user.id, email: user.email || "" } });
+  }
+
+  if (dbUser.orgId) {
+    // Dacă are deja, doar îl trimitem în dashboard (se poate întâmpla prin repetare apel)
+    return { success: true };
+  }
+
+  // Creăm organizația
+  const newOrg = await prisma.organization.create({
+    data: {
+      name: data.orgName,
+      legalName: data.legalName,
+      entityType: data.entityType,
+      county: data.county,
+      city: data.city,
+      address: data.address,
+      cui: data.cui,
+      phone: data.phone,
+      caen: data.caen,
+      baseLat: data.lat ?? undefined,
+      baseLng: data.lng ?? undefined,
+      subscriptionTier: "trial",
+      maxUsers: 1,
+    }
+  });
+
+  // Setăm orgId al user-ului
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { orgId: newOrg.id }
+  });
+
+  // Dacă a desenat prima parcelă
+  if (data.parcelData) {
+    await prisma.parcel.create({
+      data: {
+        orgId: newOrg.id,
+        name: "Prima Parcela",
+        areaHa: data.parcelData.areaHa,
+        coordinates: data.parcelData.geoJson ? JSON.parse(JSON.stringify(data.parcelData.geoJson)) : undefined,
+      } as any
+    });
+  }
+
+  return { success: true };
+}

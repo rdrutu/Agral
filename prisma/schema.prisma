@@ -20,8 +20,10 @@ model Organization {
   name               String
   legalName          String?   @map("legal_name")
   registrationNumber String?   @map("registration_number")
+  entityType         String?   @default("SRL") @map("entity_type") // SRL, PFA, II, IF, Persoana Fizica
   cui                String?
   caen               String?
+  city               String?
   address            String?
   county             String?
   subscriptionTier   String    @default("trial") @map("subscription_tier") // starter, pro, enterprise, trial

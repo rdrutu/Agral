@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -215,16 +215,6 @@ export function AuthWidget() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="farmName">Numele exploatației</Label>
-                  <Input
-                    id="farmName"
-                    name="farmName"
-                    placeholder="ex: Agro Popa SRL"
-                    required
-                    className="h-11 bg-background/50"
-                  />
-                </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="register-email">Email</Label>
