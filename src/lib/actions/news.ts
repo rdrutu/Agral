@@ -5,11 +5,7 @@ import Parser from "rss-parser";
 const parser = new Parser();
 
 const FEEDS = [
-  { name: "Agrointeligența", url: "https://agrointel.ro/feed/", category: "General" },
-  { name: "Lumea Satului", url: "https://www.lumeasatului.ro/rss.xml", category: "Tehnologie" },
-  { name: "Gazeta de Agricultură", url: "https://www.gazetadeagricultura.ro/index.php?format=feed&type=rss", category: "Legislativ" },
-  { name: "Recolta.eu", url: "https://www.recolta.eu/feed/", category: "Agribusiness" },
-  { name: "Agro TV", url: "https://agrotv.ro/feed/", category: "Media" },
+  { name: "Agrointeligența", url: "https://agrointel.ro/feed/", category: "General" }
 ];
 
 export interface AgriNewsItem {

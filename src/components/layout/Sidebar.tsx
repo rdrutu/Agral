@@ -50,11 +50,15 @@ const groups: Record<string, string> = {
 export function Sidebar({ 
   userRole = "owner", 
   userName = "Utilizator", 
-  subTier = "trial" 
+  subTier = "trial",
+  orgCreatedAt,
+  subExpiresAt
 }: { 
   userRole?: string;
   userName?: string;
   subTier?: string;
+  orgCreatedAt?: string;
+  subExpiresAt?: string;
 }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
@@ -78,26 +82,41 @@ export function Sidebar({
     return acc;
   }, {} as Record<string, typeof navItems>);
 
+  // Calculare zile trial ramase
+  let trialDaysLeft = null;
+  let subscriptionExpiryStr = null;
+
+  if (subTier === "trial" && orgCreatedAt) {
+    const trialExpiry = new Date(new Date(orgCreatedAt).getTime() + 30 * 24 * 60 * 60 * 1000);
+    const msDiff = trialExpiry.getTime() - new Date().getTime();
+    trialDaysLeft = Math.max(0, Math.ceil(msDiff / (1000 * 60 * 60 * 24)));
+  } else if (subExpiresAt) {
+    const expiry = new Date(subExpiresAt);
+    subscriptionExpiryStr = expiry.toLocaleDateString("ro-RO", { day: "2-digit", month: "2-digit", year: "2-digit" });
+  }
+
   return (
     <aside
       className={cn(
-        "h-screen sticky top-0 flex flex-col bg-sidebar border-r border-sidebar-border transition-all duration-300",
-        collapsed ? "w-16" : "w-64"
+        "h-screen sticky top-0 flex flex-col bg-sidebar border-r border-sidebar-border transition-all duration-300 relative",
+        collapsed ? "w-20" : "w-72"
       )}
     >
+      {/* Toggle Button */}
+      <button
+        onClick={() => setCollapsed(!collapsed)}
+        className="absolute -right-3 top-6 bg-sidebar border border-sidebar-border text-muted-foreground hover:text-foreground transition-colors p-1.5 rounded-full hover:bg-accent z-50 flex items-center justify-center shadow-sm"
+      >
+        {collapsed ? <ChevronsRight className="w-4 h-4" /> : <ChevronsLeft className="w-4 h-4" />}
+      </button>
+
       {/* Logo */}
-      <div className="flex items-center gap-3 p-4 border-b border-sidebar-border min-h-[72px]">
+      <div className={cn("flex items-center border-b border-sidebar-border min-h-[80px]", collapsed ? "justify-center p-2" : "gap-3 p-4")}>
         {collapsed ? (
-          <AgralLogo variant="icon" size="md" href="/dashboard" />
+          <AgralLogo variant="icon" size="xl" href="/dashboard" className="w-14 h-14" />
         ) : (
-          <AgralLogo variant="full" size="sm" href="/dashboard" className="h-10 w-auto" />
+          <AgralLogo variant="full" size="xl" href="/dashboard" className="h-14 w-auto" />
         )}
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="ml-auto text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md hover:bg-accent"
-        >
-          {collapsed ? <ChevronsRight className="w-4 h-4" /> : <ChevronsLeft className="w-4 h-4" />}
-        </button>
       </div>
       
       {/* User Info (Stânga Sus) */}
@@ -108,9 +127,22 @@ export function Sidebar({
           </div>
           <div className="flex flex-col min-w-0">
             <span className="text-sm font-bold text-foreground truncate">{userName}</span>
-            <span className="text-[10px] uppercase font-bold text-primary/70 tracking-tighter truncate">
+            <span className="text-[10px] uppercase font-bold text-primary/70 tracking-tighter truncate border-b border-transparent pb-0.5 mb-0.5">
               {userRole === 'owner' ? 'Proprietar' : userRole === 'superadmin' ? 'Super Admin' : userRole === 'agronomist' ? 'Agronom' : 'Lucrător'}
             </span>
+            {subTier === "trial" ? (
+              trialDaysLeft !== null && userRole !== "superadmin" && (
+                <span className="text-[10px] font-black text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 w-fit leading-none mt-0.5 shadow-sm">
+                  TRIAL: {trialDaysLeft} ZILE
+                </span>
+              )
+            ) : (
+              userRole !== "superadmin" && (
+                <span className="text-[10px] font-black text-green-700 bg-green-500/10 px-1.5 py-0.5 rounded border border-green-500/20 w-fit leading-none mt-0.5 shadow-sm uppercase">
+                  {subTier}: {subscriptionExpiryStr ? `EXP. ${subscriptionExpiryStr}` : 'Activ'}
+                </span>
+              )
+            )}
           </div>
         </div>
       )}
@@ -148,15 +180,17 @@ export function Sidebar({
       </nav>
 
       {/* Bottom settings */}
-      <div className="p-2 border-t border-sidebar-border">
-        <Link
-          href="/setari"
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all"
-        >
-          <Settings className="w-5 h-5 shrink-0" />
-          {!collapsed && <span className="text-sm font-medium">Setări</span>}
-        </Link>
-      </div>
+      {userRole !== 'superadmin' && (
+        <div className="p-2 border-t border-sidebar-border">
+          <Link
+            href="/setari"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all"
+          >
+            <Settings className="w-5 h-5 shrink-0" />
+            {!collapsed && <span className="text-sm font-medium">Setări</span>}
+          </Link>
+        </div>
+      )}
     </aside>
   );
 }

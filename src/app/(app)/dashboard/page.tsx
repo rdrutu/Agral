@@ -39,7 +39,7 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login");
+    redirect("/");
   }
 
   const dbUser = await prisma.user.findUnique({
@@ -55,53 +55,33 @@ export default async function DashboardPage() {
   const firstName = dbUser?.firstName || "Fermier";
   const org = dbUser?.organization;
 
-  let subscriptionText = "Fără Abonament";
-  let daysLeftText = "";
-  let isExpired = false;
-
-  if (org) {
-    const hasExpiry = !!(org as any).subscriptionExpiresAt;
-    const tierName = org.subscriptionTier === 'enterprise' ? 'Enterprise' : 
-                     org.subscriptionTier === 'pro' ? 'Pro' : 
-                     org.subscriptionTier === 'starter' ? 'Starter' : 'Trial';
-    
-    // Dacă are dată de expirare, înseamnă că nu mai e în Trial (sau e un Trial cu dată fixă, oricum scoatem "Nelimitat")
-    subscriptionText = hasExpiry ? `Plan ${tierName}` : "Trial";
-
-    if ((org as any).subscriptionExpiresAt) {
-      const expiry = new Date((org as any).subscriptionExpiresAt);
-      isExpired = expiry < new Date();
-      if (isExpired) {
-        daysLeftText = " (Expirat)";
-      } else {
-        const days = Math.ceil((expiry.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-        daysLeftText = ` • ${days} zile rămase`;
-      }
-    }
+  // Izolare Superadmin
+  if (dbUser?.role === 'superadmin') {
+    redirect("/admin");
   }
 
   // Dashboard real logic
-  const orgId = org?.id;
+  const orgId = org?.id || "00000000-0000-0000-0000-000000000000";
 
   // 1. Fetch Real KPI Values
   const [totalArea, parcelCount, activeSeason, operationalExpenses, hrExpenses] = await Promise.all([
     prisma.parcel.aggregate({
-      where: { orgId: orgId || "" },
+      where: { orgId },
       _sum: { areaHa: true }
     }),
     prisma.parcel.count({
-      where: { orgId: orgId || "" }
+      where: { orgId }
     }),
     prisma.season.findFirst({
-      where: { orgId: orgId || "", isActive: true } as any,
+      where: { orgId, isActive: true } as any,
       orderBy: { startDate: "desc" }
     }),
     (prisma as any).agriculturalOperation.aggregate({
-      where: { orgId: orgId || "" },
+      where: { orgId },
       _sum: { totalAreaHa: true }
     }),
     (prisma.user.aggregate({
-      where: { orgId: orgId || "" },
+      where: { orgId },
       _sum: { monthlySalary: true }
     }) as any)
   ]);
@@ -144,7 +124,7 @@ export default async function DashboardPage() {
 
   // 2. Fetch Recent Parcels
   const recentParcels = await prisma.parcel.findMany({
-    where: { orgId: orgId || "" },
+    where: { orgId },
     orderBy: { createdAt: "desc" },
     take: 4,
     include: { cropPlans: { where: { status: "growing" }, take: 1 } }
@@ -152,16 +132,13 @@ export default async function DashboardPage() {
 
   // 3. Simple Real Alerts
   const realAlerts = [];
-  if (isExpired) {
-    realAlerts.push({ type: "warning", text: "Abonament expirat! Contactați administratorul pentru prelungire.", href: "/setari" });
-  }
   if (parcelCount === 0) {
     realAlerts.push({ type: "info", text: "Nu ai desenat nicio parcelă. Începe acum!", href: "/parcele" });
   }
   
   // Contracts alerts
   const expiringContracts = await (prisma as any).leaseContract?.findMany({
-    where: { orgId: orgId || "", endDate: { lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) } },
+    where: { orgId, endDate: { lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) } },
     take: 2
   });
   
@@ -193,9 +170,6 @@ export default async function DashboardPage() {
           <h2 className="text-2xl font-extrabold text-foreground">Bună ziua, {firstName}! 👋</h2>
           <p className="text-muted-foreground mt-1">Iată ce se întâmplă la ferma ta azi, {new Date().toLocaleDateString('ro-RO')}.</p>
         </div>
-        <Badge className={`font-semibold ${daysLeftText.includes('Expirat') ? 'bg-destructive/10 text-destructive border-destructive/20' : 'bg-green-100 text-green-800 border-green-200'}`}>
-          {subscriptionText}{daysLeftText}
-        </Badge>
       </div>
 
       {/* KPI Cards */}

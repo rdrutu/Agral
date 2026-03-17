@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   description: "Gestionează-ți ferma inteligent: parcele, contracte de arendă, vreme, finanțe — totul într-un singur loc.",
   keywords: ["agricultura", "fermier", "parcele", "arenda", "management ferma", "Romania"],
   icons: {
-    icon: "/logo_agral.png",
+    icon: "/logo_agral_mic_cropped.png",
   },
 };
 

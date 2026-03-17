@@ -17,12 +17,12 @@ export default function AuthLayout({
         <div className="relative text-center max-w-sm">
           {/* Logo pe fundal verde — versiune albă */}
           <div className="flex items-center justify-center mb-8">
-            <div className="bg-white rounded-2xl px-8 py-5 shadow-xl">
+            <div className="bg-white rounded-2xl px-10 py-6 shadow-xl">
               <Image
-                src="/logo_agral.png"
+                src="/logo_agral_clar_cropped.png"
                 alt="Agral — Portalul Fermierilor"
-                width={180}
-                height={80}
+                width={260}
+                height={120}
                 className="object-contain"
                 priority
               />
@@ -54,11 +54,11 @@ export default function AuthLayout({
           <div className="md:hidden flex items-center justify-center mb-8">
             <Link href="/">
               <Image
-                src="/logo_agral.png"
+                src="/logo_agral_clar_cropped.png"
                 alt="Agral"
-                width={140}
-                height={60}
-                className="object-contain"
+                width={200}
+                height={90}
+                className="object-contain mix-blend-multiply"
                 priority
               />
             </Link>

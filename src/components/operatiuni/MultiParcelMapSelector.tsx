@@ -84,7 +84,7 @@ export default function MultiParcelMapSelector({
 
   const center: [number, number] = [45.9432, 24.9668]; // Centrul RO by default
 
-  return (
+  return (<>
     <div className="h-[400px] w-full rounded-xl overflow-hidden shadow-inner border border-border/50 relative">
       <MapContainer
         center={center}
@@ -125,7 +125,7 @@ export default function MultiParcelMapSelector({
                 click: () => onToggleParcel(p.id)
               }}
             >
-              <Tooltip sticky direction="top" className="font-sans font-bold text-sm bg-white/90 backdrop-blur border-none shadow-lg">
+              <Tooltip direction="center" className="font-sans font-bold text-sm bg-white/90 backdrop-blur border-none shadow-lg">
                 <div className="flex flex-col items-center">
                   <span className="text-foreground">{p.name} {isSelected && "✅"}</span>
                   <span className="text-primary text-xs">{p.areaHa?.toString()} hectare</span>
@@ -144,15 +144,15 @@ export default function MultiParcelMapSelector({
           );
         })}
 
-        {/* Adăugare Markere cu Iconițe de Cultură */}
+        {/* Adăugare Markere cu Iconițe de Cultură și Pinuri */}
         {parcels.map((p) => {
           if (!p.coordinates?.geometry?.coordinates) return null;
+          
+          const isSelected = selectedIds.includes(p.id);
           const cropType = p.cropPlans?.[0]?.cropType;
-          if (!cropType) return null;
-
           const ring = p.coordinates.geometry.coordinates[0];
           
-          // Calcul centroid rapid (medie) în loc de L.polygon().getBounds()
+          // Calcul centroid
           let latSum = 0, lngSum = 0;
           ring.forEach((c: [number, number]) => {
             lngSum += c[0];
@@ -160,28 +160,124 @@ export default function MultiParcelMapSelector({
           });
           const center: [number, number] = [latSum / ring.length, lngSum / ring.length];
           
-          const icon = cropIcons[cropType] || "🌱";
+          const cropEmoji = cropType && cropIcons[cropType] ? cropIcons[cropType] : "📍";
+          
+          // Custom marker styling with an animated pulse if selected
+          const iconHtml = `
+            <div style="
+              position: relative;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            ">
+              ${isSelected ? `
+                <div style="
+                  position: absolute;
+                  width: 48px;
+                  height: 48px;
+                  background-color: #22c55e;
+                  border-radius: 50%;
+                  opacity: 0.3;
+                  animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+                "></div>
+              ` : ''}
+              <div style="
+                width: 36px; 
+                height: 36px; 
+                background-color: ${isSelected ? '#22c55e' : '#f59e0b'}; 
+                border: 3px solid white; 
+                border-radius: 50% 50% 50% 0; 
+                transform: rotate(-45deg); 
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10;
+              ">
+                <span style="transform: rotate(45deg); font-size: 16px; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));">
+                  ${isSelected ? '✅' : cropEmoji}
+                </span>
+              </div>
+            </div>
+            <style>
+              @keyframes ping {
+                75%, 100% {
+                  transform: scale(2);
+                  opacity: 0;
+                }
+              }
+            </style>
+          `;
 
           return (
             <Marker
               key={`icon-${p.id}`}
               position={center}
+              zIndexOffset={isSelected ? 1000 : 0}
+              eventHandlers={{
+                click: () => onToggleParcel(p.id)
+              }}
               icon={L.divIcon({
-                html: `<div style="font-size: 24px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); transform: translate(-50%, -50%); cursor: pointer; pointer-events: none;">${icon}</div>`,
-                className: 'crop-icon-marker',
-                iconSize: [24, 24],
-                iconAnchor: [12, 12]
+                html: iconHtml,
+                className: 'custom-pin-marker',
+                iconSize: [36, 36],
+                iconAnchor: [18, 36] // Anchor at the bottom tip of the pin
               })}
-            />
+            >
+              <Tooltip direction="top" offset={[0, -36]} className="font-bold text-sm bg-white/90 shadow-lg">
+                <div className="flex flex-col items-center">
+                  <span className="text-foreground">{p.name}</span>
+                  <span className={isSelected ? "text-green-600 font-extrabold" : "text-amber-600"}>
+                    {isSelected ? "Selectată (Click pt deselectare)" : "Apasă pentru selectare"}
+                  </span>
+                </div>
+              </Tooltip>
+            </Marker>
           );
         })}
       </MapContainer>
-      
-      {/* Overlay indicator */}
-      <div className="absolute bottom-4 left-4 z-[400] bg-background/90 backdrop-blur-md px-3 py-2 rounded-lg text-xs font-semibold shadow-xl border flex items-center gap-2">
-        <div className="w-3 h-3 rounded bg-white border border-border shadow-sm"></div>
-        Parcelă selectată ({selectedIds.length})
+
+      {/* Overlay indicator jos harta */}
+      <div className="absolute bottom-4 left-4 z-[400] pointer-events-none bg-background/90 backdrop-blur-md px-3 py-2 rounded-lg text-xs font-semibold shadow-xl border flex flex-col gap-1">
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-[#22c55e] border border-white shadow-sm flex items-center justify-center text-[8px] text-white">✓</div>
+          Selectată activ
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-[#f59e0b] border border-white shadow-sm flex items-center justify-center text-[8px]">📍</div>
+          Disponibilă (Deselectată)
+        </div>
       </div>
     </div>
-  );
+
+    {/* Lista Parcele jos (Sub Hartă) */}
+    <div className="bg-background w-full mt-3 rounded-xl shadow-sm border p-3 flex flex-col gap-2">
+        <div className="pb-2 mb-1 border-b flex items-center justify-between">
+          <h4 className="text-sm font-bold text-foreground">Alege din listă manual ({parcels.length} disponibile)</h4>
+          <span className="text-xs bg-primary/20 text-primary px-3 py-1 rounded-full font-bold">{selectedIds.length} selectate</span>
+        </div>
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-[250px] overflow-y-auto pr-1">
+          {parcels.length === 0 && <p className="text-xs text-muted-foreground col-span-full text-center py-4">Nicio parcelă găsită</p>}
+          {parcels.map(p => {
+            const isSelected = selectedIds.includes(p.id);
+            return (
+              <div 
+                key={`list-${p.id}`}
+                onClick={() => onToggleParcel(p.id)}
+                className={`flex items-center justify-between p-2.5 rounded-lg cursor-pointer border transition-all ${isSelected ? 'bg-green-500/10 border-green-500/50 shadow-sm' : 'hover:bg-muted bg-background border-border/50'}`}
+              >
+                <div className="flex flex-col overflow-hidden mr-2">
+                   <span className="text-sm font-semibold truncate" title={p.name}>{p.name}</span>
+                   <span className="text-[11px] text-muted-foreground">{Number(p.areaHa).toFixed(2)} ha • {p.cropPlans?.[0]?.cropType || p.landUse}</span>
+                </div>
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${isSelected ? 'bg-green-500 border-green-500 text-white' : 'border-muted-foreground'}`}>
+                  {isSelected && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+    </div>
+  </>);
 }

@@ -12,10 +12,18 @@ export async function getCurrentUser() {
 
   const dbUser = await prisma.user.findUnique({
     where: { id: user.id },
-    include: { organization: true }
+    include: { 
+      organization: {
+        include: {
+          payments: {
+            orderBy: { date: 'desc' }
+          }
+        }
+      } 
+    }
   });
 
-  return dbUser;
+  return JSON.parse(JSON.stringify(dbUser));
 }
 
 export async function updateUserProfile(data: {

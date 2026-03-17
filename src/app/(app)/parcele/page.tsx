@@ -1,11 +1,18 @@
 import { getParcels } from "@/lib/actions/parcels";
+import { getCurrentUser } from "@/lib/actions/profile";
 import ParcelListClient from "@/components/parcele/ParcelListClient";
 
-// Optăm pentru dynamic render pt date mereu proaspete (sau revalidate path funcționează oricum)
 export const dynamic = "force-dynamic";
 
 export default async function ParcelelePage() {
-  const parcels = await getParcels();
+  const [parcels, user] = await Promise.all([
+    getParcels(),
+    getCurrentUser()
+  ]);
 
-  return <ParcelListClient initialParcels={parcels} />;
+  const farmBase = user?.organization?.baseLat && user?.organization?.baseLng 
+    ? { lat: Number(user.organization.baseLat), lng: Number(user.organization.baseLng) } 
+    : null;
+
+  return <ParcelListClient initialParcels={parcels} farmBase={farmBase} />;
 }

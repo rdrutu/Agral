@@ -41,7 +41,7 @@ export function Header({
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    router.push("/login");
+    router.push("/");
   };
 
   return (
@@ -78,17 +78,21 @@ export function Header({
                 </p>
               </div>
               <p className="text-xs text-muted-foreground truncate">{userEmail || farmName}</p>
-              <Badge className="mt-1 text-[10px] w-fit h-5 bg-green-100 text-green-800 border-green-200">
-                Plan {subscriptionTier.toUpperCase()}
-              </Badge>
+              {userRole !== 'superadmin' && subscriptionTier !== 'trial' && (
+                <Badge className="mt-1 text-[10px] w-fit h-5 bg-green-100 text-green-800 border-green-200">
+                  Plan {subscriptionTier.toUpperCase()}
+                </Badge>
+              )}
             </div>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => router.push("/profil")}>
               <User className="w-4 h-4" /> Profilul meu
             </DropdownMenuItem>
-            <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => router.push("/setari")}>
-              <Settings className="w-4 h-4" /> Setări fermă
-            </DropdownMenuItem>
+            {userRole !== 'superadmin' && (
+              <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => router.push("/setari")}>
+                <Settings className="w-4 h-4" /> Setări fermă
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="gap-2 text-destructive cursor-pointer"

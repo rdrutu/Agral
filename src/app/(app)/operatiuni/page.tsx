@@ -12,5 +12,10 @@ export default async function OperationsPage() {
     getInventory()
   ]);
 
-  return <OperationsClient initialOperations={operations} parcels={parcels} inventory={inventory} />;
+  // Convertim obiectele complexe (cum ar fi instanțele Decimal sau Date din Prisma) la plain JS
+  const plainOperations = JSON.parse(JSON.stringify(operations));
+  const plainParcels = JSON.parse(JSON.stringify(parcels));
+  const plainInventory = JSON.parse(JSON.stringify(inventory));
+
+  return <OperationsClient initialOperations={plainOperations} parcels={plainParcels} inventory={plainInventory} />;
 }

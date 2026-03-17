@@ -39,12 +39,14 @@ export async function middleware(request: NextRequest) {
 
   if (isProtected && !user) {
     const url = request.nextUrl.clone();
-    url.pathname = "/login";
+    url.pathname = "/";
     return NextResponse.redirect(url);
   }
 
-  // Dacă ești logat și mergi la /login sau /register, redirect la /dashboard
-  if (user && (pathname === "/login" || pathname === "/register")) {
+  // Dacă ești logat și mergi la / (care era login/register), redirect la /dashboard
+  // Dar atenție, / este și landing page. Deci dacă vrem să poată vedea landing-ul logat, îl lăsăm.
+  // Din moment ce AuthWidget e pe "/", dacă e logat ar trebui să fie pe dashboard.
+  if (user && pathname === "/") {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);

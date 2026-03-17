@@ -89,7 +89,8 @@ export async function addSubscriptionMonths(orgId: string, data: {
   tier: string, 
   notes?: string,
   amountBeforeDiscount?: number,
-  discountApplied?: number
+  discountApplied?: number,
+  validUntil?: string
 }) {
   const isSuper = await checkSuperadmin();
   if (!isSuper) throw new Error("Neautorizat");
@@ -97,11 +98,16 @@ export async function addSubscriptionMonths(orgId: string, data: {
   const org = await prisma.organization.findUnique({ where: { id: orgId } }) as any;
   if (!org) throw new Error("Ferma nu a fost găsită");
 
-  const currentExpiry = org.subscriptionExpiresAt ? new Date(org.subscriptionExpiresAt) : new Date();
-  const baseDate = currentExpiry > new Date() ? currentExpiry : new Date();
-  
-  const newExpiry = new Date(baseDate);
-  newExpiry.setMonth(newExpiry.getMonth() + data.months);
+  let newExpiry: Date;
+  if (data.validUntil) {
+    newExpiry = new Date(data.validUntil);
+  } else {
+    const currentExpiry = org.subscriptionExpiresAt ? new Date(org.subscriptionExpiresAt) : new Date();
+    const baseDate = currentExpiry > new Date() ? currentExpiry : new Date();
+    
+    newExpiry = new Date(baseDate);
+    newExpiry.setMonth(newExpiry.getMonth() + data.months);
+  }
 
   await prisma.$transaction([
     prisma.organization.update({
@@ -182,15 +188,41 @@ export async function promoteToSuperadmin(targetUserId?: string) {
 
   const idToUpdate = targetUserId || user!.id;
 
-  await prisma.user.update({
-    where: { id: idToUpdate },
-    data: { 
-      role: "superadmin",
-      orgId: null 
-    }
-  });
+  try {
+    // Verificăm dacă există utilizatorul în tabelul Prisma
+    const existingUser = await prisma.user.findUnique({
+      where: { id: idToUpdate }
+    });
 
+    if (!existingUser) {
+      if (!user) throw new Error("Nu se poate crea contul fără email-ul din sesiune.");
+      // Dacă nu există, folosim datele din sesiune pentru a-l crea și a-l seta ca superadmin direct
+      await prisma.user.create({
+        data: {
+          id: idToUpdate,
+          email: user.email!,
+          role: "superadmin",
+          orgId: null
+        }
+      });
+    } else {
+      // Dacă există, doar îi updatăm rolul și îl disociem de la orice fermă (orgId = null)
+      await prisma.user.update({
+        where: { id: idToUpdate },
+        data: { 
+          role: "superadmin",
+          orgId: null 
+        }
+      });
+    }
+  } catch (error) {
+    console.error("Eroare la promovare admin:", error);
+    throw error;
+  }
+
+  revalidatePath("/");
   revalidatePath("/admin");
+  revalidatePath("/dashboard");
   return true;
 }
 

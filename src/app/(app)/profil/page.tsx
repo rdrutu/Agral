@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default async function ProfilPage() {
   const user = await getCurrentUser();
 
-  if (!user) redirect("/login");
+  if (!user) redirect("/");
 
   return (
     <div className="animate-in fade-in zoom-in duration-300">
@@ -23,6 +23,14 @@ export default async function ProfilPage() {
                 county: user.organization.county,
                 address: user.organization.address,
                 subscriptionTier: user.organization.subscriptionTier,
+                cui: user.organization.cui,
+                legalName: user.organization.legalName,
+                registrationNumber: user.organization.registrationNumber,
+                caen: user.organization.caen,
+                phone: user.organization.phone,
+                baseLat: user.organization.baseLat ? Number(user.organization.baseLat) : null,
+                baseLng: user.organization.baseLng ? Number(user.organization.baseLng) : null,
+                payments: user.organization.payments || []
               }
             : null,
         }}

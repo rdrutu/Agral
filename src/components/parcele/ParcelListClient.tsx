@@ -20,6 +20,7 @@ import {
 import Link from "next/link";
 import { createParcel } from "@/lib/actions/parcels";
 import dynamic from "next/dynamic";
+import AllParcelsMapClient from "./AllParcelsMapClient";
 
 const MapPolygonPicker = dynamic(
   () => import("./MapPolygonPicker").then((mod) => mod.MapPolygonPicker),
@@ -47,7 +48,13 @@ const ownershipColors: Record<string, string> = {
   rented: "bg-purple-100 text-purple-700 border-purple-200",
 };
 
-export default function ParcelListClient({ initialParcels }: { initialParcels: any[] }) {
+export default function ParcelListClient({ 
+  initialParcels,
+  farmBase
+}: { 
+  initialParcels: any[];
+  farmBase?: { lat: number; lng: number } | null;
+}) {
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -97,6 +104,17 @@ export default function ParcelListClient({ initialParcels }: { initialParcels: a
           Adaugă parcelă
         </Button>
       </div>
+
+      {/* Harta Generală a Fermei */}
+      {!showForm && (
+        <div className="mb-8">
+          <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+            <MapPin className="w-5 h-5 text-primary" />
+            Vedere în plan a parcelelor și rutei sediului
+          </h3>
+          <AllParcelsMapClient parcels={initialParcels} farmBase={farmBase} />
+        </div>
+      )}
 
       {/* Add Parcel Form */}
       {showForm && (

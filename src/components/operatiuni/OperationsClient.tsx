@@ -80,9 +80,18 @@ export default function OperationsClient({ initialOperations, parcels, inventory
 
   const filteredOps = ops.filter(op => op.name.toLowerCase().includes(search.toLowerCase()));
 
-  // Filtrare Inteligentă Parcele în funcție de Cultură
+  // Filtrare Inteligentă Parcele în funcție de Cultură ȘI Tipul Operațiunii
   const visibleParcels = opCrop === "Toate" ? parcels : parcels.filter(p => {
     const pCrop = p.cropPlans?.[0]?.cropType?.toLowerCase();
+    
+    // Dacă operațiunea este "Semănat", vrem parcelele pe care avem deja acea cultură setată
+    // SAU vrem parcelele care sunt complet libere (pentru a putea fi semănate acum)
+    if (opTemplate === "semanat") {
+      return !pCrop || pCrop === opCrop.toLowerCase();
+    }
+    
+    // Pentru TOATE CELELALTE operațiuni (Erbicidat, Recoltat, Tratament, etc.)
+    // VREM DOAR parcelele care au deja efectiv cultura cerută existentă! (ex: vrei să erbicidezi Porumb, îți dă DOAR parcelele ce au deja Porumb, NU alea libere)
     return pCrop === opCrop.toLowerCase();
   });
 

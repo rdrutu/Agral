@@ -14,6 +14,7 @@ import {
   Loader2,
   CheckCircle2,
   Sprout,
+  History
 } from "lucide-react";
 import { updateUserProfile } from "@/lib/actions/profile";
 import { useRouter } from "next/navigation";
@@ -44,6 +45,7 @@ interface ProfileClientProps {
       phone: string | null;
       baseLat: number | null;
       baseLng: number | null;
+      payments: any[];
     } | null;
   };
 }
@@ -283,6 +285,44 @@ export default function ProfileClient({ user }: ProfileClientProps) {
           </span>
         )}
       </div>
+
+      {/* Payment History */}
+      {!isSuper && user.organization?.payments && user.organization.payments.length > 0 && (
+        <Card className="mt-8">
+          <CardHeader className="border-b pb-4">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <History className="w-4 h-4 text-primary" /> Istoric Facturare & Plăți
+            </CardTitle>
+            <CardDescription>Evidența abonamentelor tale pe platformă.</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/20 border-b">
+                <tr>
+                  <th className="text-left p-4 font-bold text-muted-foreground">Dată</th>
+                  <th className="text-left p-4 font-bold text-muted-foreground">Plan</th>
+                  <th className="text-left p-4 font-bold text-muted-foreground">Perioadă</th>
+                  <th className="text-left p-4 font-bold text-muted-foreground">Sumă Achitată</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-muted/10">
+                {user.organization.payments.map((p: any) => (
+                  <tr key={p.id} className="hover:bg-primary/5 transition-colors">
+                    <td className="p-4 font-bold">{new Date(p.date).toLocaleDateString('ro-RO')}</td>
+                    <td className="p-4">
+                      <Badge className="bg-blue-50 text-blue-700 uppercase text-[10px] font-black border-none">
+                        {p.tier}
+                      </Badge>
+                    </td>
+                    <td className="p-4">{p.months} {p.months === 1 ? 'lună' : 'luni'}</td>
+                    <td className="p-4 font-extrabold text-foreground">{p.amount} RON</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

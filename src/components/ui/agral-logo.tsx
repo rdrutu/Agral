@@ -29,11 +29,11 @@ export function AgralLogo({
     <>
       {variant === "full" && (
         <Image
-          src="/logo_agral.png"
+          src="/logo_agral_clar_cropped.png"
           alt="Agral — Portalul Fermierilor"
           width={img}
           height={Math.round(h * 0.6)}
-          className={cn("object-contain", className)}
+          className={cn("object-contain mix-blend-multiply", className)}
           priority
         />
       )}
@@ -54,35 +54,14 @@ export function AgralLogo({
       )}
 
       {variant === "icon" && (
-        <div
-          className={cn(
-            "agral-gradient rounded-xl flex items-center justify-center shrink-0",
-            size === "sm" && "w-8 h-8",
-            size === "md" && "w-10 h-10",
-            size === "lg" && "w-12 h-12",
-            className
-          )}
-        >
-          {/* Spic de grâu SVG inline — matching logo */}
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            className={cn(
-              "text-amber-200",
-              size === "sm" && "w-4 h-4",
-              size === "md" && "w-5 h-5",
-              size === "lg" && "w-6 h-6"
-            )}
-          >
-            <path
-              d="M12 22V8M12 8C12 8 9 6 7 3M12 8C12 8 15 6 17 3M12 12C12 12 9 10 7 8M12 12C12 12 15 10 17 8M12 16C12 16 9 14 7 12M12 16C12 16 15 14 17 12"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </div>
+        <Image
+          src="/logo_agral_mic_cropped.png"
+          alt="Agral Icon"
+          width={img}
+          height={img}
+          className={cn("object-contain mix-blend-multiply drop-shadow-sm", className)}
+          priority
+        />
       )}
     </>
   );

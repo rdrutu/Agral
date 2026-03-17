@@ -42,16 +42,23 @@ export default function AdminOrgDetail({ org }: AdminOrgDetailProps) {
   const [showAddMonths, setShowAddMonths] = useState(false);
   
   // Form add payment
-  const [monthsToAdd, setMonthsToAdd] = useState(1);
-  const [amount, setAmount] = useState(0);
-  const [discount, setDiscount] = useState(0); // Procent discount
+  const [validUntil, setValidUntil] = useState(() => {
+    const base = org.subscriptionExpiresAt ? new Date(org.subscriptionExpiresAt) : new Date();
+    if (!org.subscriptionExpiresAt) base.setMonth(base.getMonth() + 1); // default 1 luna daca nu are
+    return base.toISOString().split('T')[0];
+  });
+  const [amount, setAmount] = useState<string>("");
+  const [discount, setDiscount] = useState<string>(""); // Procent discount
   const [tier, setTier] = useState(org.subscriptionTier || 'starter');
   const [notes, setNotes] = useState("");
   const [activeTab, setActiveTab] = useState("members");
 
-  const amountBeforeDiscount = amount;
-  const discountFixed = (amount * discount) / 100;
-  const finalAmount = amount - discountFixed;
+  const parsedAmount = parseFloat(amount) || 0;
+  const parsedDiscount = parseFloat(discount) || 0;
+
+  const amountBeforeDiscount = parsedAmount;
+  const discountFixed = (parsedAmount * parsedDiscount) / 100;
+  const finalAmount = parsedAmount - discountFixed;
 
   async function handleDeleteParcel(id: string) {
     if (!confirm("Ești sigur că vrei să ștergi această parcelă? Această acțiune este ireversibilă.")) return;
@@ -71,16 +78,24 @@ export default function AdminOrgDetail({ org }: AdminOrgDetailProps) {
     ? Math.max(0, Math.ceil((expiryDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))
     : null;
 
+  const trialExpiryDate = new Date(new Date(org.createdAt).getTime() + 30 * 24 * 60 * 60 * 1000);
+  const trialDaysLeft = Math.max(0, Math.ceil((trialExpiryDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
+  const isTrialExpired = new Date() > trialExpiryDate;
+
   async function handleAddSubscription() {
     setIsUpdating(true);
     try {
+      const msDiff = new Date(validUntil).getTime() - new Date().getTime();
+      const calculatedMonths = Math.max(1, Math.round(msDiff / (1000 * 60 * 60 * 24 * 30)));
+
       await addSubscriptionMonths(org.id, {
-        months: monthsToAdd,
+        months: calculatedMonths,
         amount: finalAmount,
         tier,
         notes,
         amountBeforeDiscount,
-        discountApplied: discountFixed
+        discountApplied: discountFixed,
+        validUntil
       });
       setShowAddMonths(false);
       toast.success("Abonament actualizat cu succes!");
@@ -187,7 +202,21 @@ export default function AdminOrgDetail({ org }: AdminOrgDetailProps) {
                     </Badge>
                   </div>
                   <div className="pt-2 border-t border-primary/10">
-                    {expiryDate ? (
+                    {org.subscriptionTier === 'trial' ? (
+                      <div className="space-y-1">
+                        <div className={cn("text-sm font-bold flex items-center gap-2", isTrialExpired ? "text-destructive" : "text-blue-600")}>
+                          <CheckCircle2 className="w-4 h-4" />
+                          Trial 30 Zile
+                        </div>
+                        <p className="text-[11px]">
+                          {isTrialExpired ? (
+                            <span className="text-destructive font-black uppercase">Expirat!</span>
+                          ) : (
+                            <span className="text-muted-foreground italic">Rămân <strong className="text-blue-600">{trialDaysLeft} zile</strong></span>
+                          )}
+                        </p>
+                      </div>
+                    ) : expiryDate ? (
                       <div className="space-y-1">
                         <div className={cn("text-sm font-bold flex items-center gap-2", isExpired ? "text-destructive" : "text-foreground")}>
                           <Calendar className="w-4 h-4" />
@@ -202,9 +231,8 @@ export default function AdminOrgDetail({ org }: AdminOrgDetailProps) {
                         </p>
                       </div>
                     ) : (
-                      <div className="text-sm font-bold text-blue-600 flex items-center gap-2">
-                        <CheckCircle2 className="w-4 h-4" />
-                        Trial
+                      <div className="text-sm font-bold text-muted-foreground flex items-center gap-2">
+                        Fără limită setată
                       </div>
                     )}
                   </div>
@@ -436,8 +464,8 @@ export default function AdminOrgDetail({ org }: AdminOrgDetailProps) {
             <CardContent className="space-y-4 pt-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-xs uppercase font-bold text-muted-foreground">Luni Acces</Label>
-                  <Input type="number" value={monthsToAdd} onChange={e => setMonthsToAdd(parseInt(e.target.value) || 1)} className="font-bold h-12 text-lg" />
+                  <Label className="text-xs uppercase font-bold text-muted-foreground">Expiră la dat de</Label>
+                  <Input type="date" value={validUntil} onChange={e => setValidUntil(e.target.value)} className="font-bold h-12 text-sm block w-full" />
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs uppercase font-bold text-muted-foreground">Plan Tarifar</Label>
@@ -456,12 +484,12 @@ export default function AdminOrgDetail({ org }: AdminOrgDetailProps) {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="text-xs uppercase font-bold text-muted-foreground">Sumă Brută (RON)</Label>
-                  <Input type="number" value={amount} onChange={e => setAmount(parseInt(e.target.value) || 0)} className="font-bold h-12 text-lg" />
+                  <Input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0" className="font-bold h-12 text-lg" />
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs uppercase font-bold text-muted-foreground">Discount (%)</Label>
                   <div className="relative">
-                    <Input type="number" value={discount} onChange={e => setDiscount(parseInt(e.target.value) || 0)} className="font-bold h-12 text-lg pr-8" />
+                    <Input type="number" value={discount} onChange={e => setDiscount(e.target.value)} placeholder="0" className="font-bold h-12 text-lg pr-8" />
                     <Percent className="w-4 h-4 absolute right-3 top-4 text-muted-foreground" />
                   </div>
                 </div>

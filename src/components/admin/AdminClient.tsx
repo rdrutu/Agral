@@ -266,24 +266,12 @@ export default function AdminClient({ orgs, isSuperadmin }: { orgs: any[], isSup
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 text-xs text-muted-foreground hover:text-primary"
-                            onClick={() => router.push(`/admin/${org.id}`)}
-                          >
-                            Detalii
-                          </Button>
-                          <Button
                             variant="outline"
                             size="sm"
                             className="h-8 gap-1 border-primary/20 text-primary hover:bg-primary/5"
-                            onClick={() => {
-                              setEditingOrg(org);
-                              setNewTier(org.subscriptionTier);
-                              setNewMaxUsers(org.maxUsers || 1);
-                            }}
+                            onClick={() => router.push(`/admin/${org.id}`)}
                           >
-                            <Settings className="w-3.5 h-3.5" /> Gestiune
+                            <Settings className="w-3.5 h-3.5" /> Gestionează
                           </Button>
                         </div>
                       </td>
@@ -352,74 +340,6 @@ export default function AdminClient({ orgs, isSuperadmin }: { orgs: any[], isSup
             )}
           </CardContent>
         </Card>
-      )}
-
-      {/* MODAL CONFIGURARE ABONAMENT */}
-      {editingOrg && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 animate-in fade-in">
-          <Card className="w-full max-w-md mx-4 shadow-2xl">
-            <CardHeader className="border-b bg-muted/40 relative">
-              <Button 
-                variant="ghost" size="icon" className="absolute right-4 top-4"
-                onClick={() => setEditingOrg(null)}
-              >
-                <X className="w-5 h-5" />
-              </Button>
-              <CardTitle className="text-xl text-foreground">Setări Abonament</CardTitle>
-              <CardDescription>
-                Ajustezi limitele pentru <strong>{editingOrg.name}</strong>.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-6 space-y-6">
-              
-              <div className="space-y-2">
-                <Label>Nivel Abonament</Label>
-                <select 
-                  className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm focus:ring-2 focus:ring-primary/20"
-                  value={newTier}
-                  onChange={e => {
-                    const t = e.target.value;
-                    setNewTier(t);
-                    // Preluam numarul maxim de utilizatori default pt acest nivel
-                    const defaultMax = TIERS.find(x => x.id === t)?.max || 1;
-                    if (newMaxUsers < defaultMax) setNewMaxUsers(defaultMax);
-                  }}
-                >
-                  {TIERS.map(t => <option key={t.id} value={t.id}>{t.label} (max ~{t.max} conturi)</option>)}
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="flex justify-between items-center">
-                  Limită Utilizatori Permiși (maxUsers)
-                  <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded font-mono">
-                    Curent: {editingOrg.userCount} conturi
-                  </span>
-                </Label>
-                <Input 
-                  type="number" 
-                  min="1" 
-                  max="1000"
-                  className="text-lg font-bold"
-                  value={newMaxUsers}
-                  onChange={e => setNewMaxUsers(parseInt(e.target.value) || 1)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Dacă limita este mai mică decât numărul curent de utilizatori ({editingOrg.userCount}), conturile adiționale nu se vor putea conecta (vor primi eroare de limită atinsă, funcționalitate ce poate fi implementată ulterior la login).
-                </p>
-              </div>
-
-              <div className="flex gap-3 pt-4 border-t">
-                <Button variant="outline" className="flex-1" onClick={() => setEditingOrg(null)}>Anulează</Button>
-                <Button className="flex-1 gap-2 agral-gradient text-white" onClick={handleSaveSettings} disabled={isSubmitting}>
-                  {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin"/> : <CheckCircle2 className="w-4 h-4"/>}
-                  Aplică Modificările
-                </Button>
-              </div>
-
-            </CardContent>
-          </Card>
-        </div>
       )}
     </div>
   );

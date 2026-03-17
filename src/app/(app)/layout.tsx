@@ -13,6 +13,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   let userEmail = "";
   let userRole = "owner";
   let subTier = "trial";
+  let orgCreatedAt: Date | null = null;
+  let subExpiresAt: Date | null = null;
 
   if (user) {
     userEmail = user.email || "";
@@ -34,13 +36,23 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       if (dbUser.organization) {
         farmName = dbUser.organization.name;
         subTier = dbUser.organization.subscriptionTier;
+        orgCreatedAt = dbUser.organization.createdAt;
+        subExpiresAt = dbUser.organization.subscriptionExpiresAt;
+      } else if (userRole === "superadmin") {
+        farmName = "Administrator Agral";
       }
     }
   }
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar userRole={userRole} userName={userName} subTier={subTier} />
+      <Sidebar 
+        userRole={userRole} 
+        userName={userName} 
+        subTier={subTier} 
+        orgCreatedAt={orgCreatedAt?.toISOString()}
+        subExpiresAt={subExpiresAt?.toISOString()}
+      />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header 
           userName={userName} 
