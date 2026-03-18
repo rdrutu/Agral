@@ -16,3 +16,20 @@ export function formatDate(date: Date | string | number | null | undefined) {
   
   return `${day}/${month}/${year}`;
 }
+
+export function formatMonthYear(date: Date | string | number | null | undefined) {
+  if (!date) return "";
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return "";
+  
+  return d.toLocaleDateString("ro-RO", { month: "short", year: "numeric" });
+}
+
+export function formatWeekday(date: Date | string | number | null | undefined) {
+  if (!date) return "";
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return "";
+  
+  const weekday = d.toLocaleDateString("ro-RO", { weekday: "short" });
+  return weekday.charAt(0).toUpperCase() + weekday.slice(1);
+}

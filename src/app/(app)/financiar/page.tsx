@@ -1,5 +1,9 @@
 import { Suspense } from "react";
-import { getFinancialTransactions, getFinancialSummary } from "@/lib/actions/finance";
+import { 
+  getFinancialTransactions, 
+  getFinancialSummary,
+  getCropFinancialReport
+} from "@/lib/actions/finance";
 import FinanceClient from "@/components/financiar/FinanceClient";
 import { FinanceSkeleton } from "@/components/financiar/FinanceSkeleton";
 
@@ -21,15 +25,17 @@ export default async function FinancePage() {
 }
 
 async function FinanceDynamicContent() {
-  const [transactions, summary] = await Promise.all([
+  const [transactions, summary, cropReport] = await Promise.all([
     getFinancialTransactions(),
-    getFinancialSummary()
+    getFinancialSummary(),
+    getCropFinancialReport()
   ]);
 
   return (
     <FinanceClient 
       initialTransactions={transactions} 
       initialSummary={summary} 
+      initialCropReport={cropReport}
       hideHeader
     />
   );

@@ -176,11 +176,8 @@ export default function Home() {
         <div className="absolute bottom-0 -right-64 w-[600px] h-[600px] bg-green-200/20 rounded-full blur-[100px] -z-10" />
 
         <div className="max-w-4xl mx-auto z-10 animate-fade-in-up">
-          <Badge className="mb-6 bg-green-100 text-green-800 border-green-200 font-bold py-1.5 px-4 shadow-sm">
-            🌱 Mai mult timp liber, mai puține griji
-          </Badge>
           <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold text-foreground mb-6 leading-tight tracking-tight">
-            Digitalizarea fermei tale <br className="hidden md:block" /> 
+            Digitalizarea fermei tale <br className="hidden md:block" />
             <span className="text-transparent bg-clip-text bg-gradient-to-br from-green-700 to-green-500 inline-block mt-2">
               începe aici
             </span>
@@ -188,7 +185,7 @@ export default function Home() {
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
             Descoperă de ce mii de fermieri au ales portalul nostru pentru a-și eficientiza munca zilnică. Gestionează totul dintr-un singur loc, clar și intuitiv.
           </p>
-          
+
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link href="/">
               <Button className="agral-gradient text-white w-full sm:w-auto h-14 px-8 text-lg font-bold shadow-lg shadow-green-600/20 hover:scale-105 transition-transform">
@@ -209,7 +206,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto relative">
           {/* Subtle green glow behind stats */}
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-[150%] bg-gradient-to-r from-green-400/5 via-green-300/10 to-green-400/5 blur-3xl -z-10" />
-          
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {[
               { value: "2,400+", label: "Fermieri activi" },
@@ -231,15 +228,14 @@ export default function Home() {
         {/* Subtle background waves */}
         <div className="absolute top-0 right-0 w-full h-px bg-gradient-to-r from-transparent via-border to-transparent" />
         <div className="absolute top-40 right-[-10%] w-[600px] h-[600px] bg-green-500/5 rounded-full blur-[120px] -z-10" />
-        
+
         <div className="max-w-7xl mx-auto z-10 relative">
           <div className="text-center mb-20">
-            <Badge className="mb-4 bg-green-100 text-green-800 border-green-200 shadow-sm py-1 px-3">Tot ce ai nevoie</Badge>
             <h2 className="text-4xl md:text-5xl font-extrabold text-foreground mb-6">
               O platformă completă pentru ferma ta
             </h2>
             <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-              De la parcelele din câmp până la contractele de arendă și prognoza meteo — 
+              De la parcelele din câmp până la contractele de arendă și prognoza meteo —
               Agral acoperă toate aspectele activității agricole.
             </p>
           </div>
@@ -252,7 +248,7 @@ export default function Home() {
               >
                 {/* Decorative glow on hover */}
                 <div className="absolute inset-0 bg-gradient-to-br from-green-500/0 to-green-500/0 group-hover:from-green-500/5 group-hover:to-transparent transition-colors duration-500" />
-                
+
                 <div className={`w-14 h-14 ${f.bg} rounded-2xl flex items-center justify-center mb-6 shadow-inner`}>
                   <f.icon className={`w-7 h-7 ${f.color}`} />
                 </div>
@@ -267,11 +263,10 @@ export default function Home() {
       {/* Why Agral */}
       <section className="py-24 px-4 bg-gradient-to-b from-green-50/50 to-background relative overflow-hidden">
         <div className="absolute left-[-10%] bottom-0 w-[500px] h-[500px] bg-green-400/10 rounded-full blur-[100px] -z-10" />
-        
+
         <div className="max-w-7xl mx-auto relative z-10">
           <div className="grid md:grid-cols-2 gap-16 items-center">
             <div>
-              <Badge className="mb-4 bg-green-100 text-green-800 border-green-200">De ce Agral?</Badge>
               <h2 className="text-4xl font-extrabold text-foreground mb-6">
                 Construit special pentru fermierii români
               </h2>
@@ -330,7 +325,6 @@ export default function Home() {
       <section id="testimonials" className="py-24 px-4 relative">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-20">
-            <Badge className="mb-4 bg-green-100 text-green-800 border-green-200 shadow-sm py-1 px-3">Păreri</Badge>
             <h2 className="text-4xl md:text-5xl font-extrabold text-foreground mb-4">
               Fermieri care au ales Agral
             </h2>
@@ -363,10 +357,9 @@ export default function Home() {
       <section id="pricing" className="py-24 px-4 bg-gradient-to-b from-card to-background relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-green-200 to-transparent" />
         <div className="absolute right-0 top-1/2 w-96 h-96 bg-green-500/5 rounded-full blur-[100px] -z-10" />
-        
+
         <div className="max-w-7xl mx-auto z-10 relative">
           <div className="text-center mb-16">
-            <Badge className="mb-4 bg-green-100 text-green-800 border-green-200 shadow-sm py-1 px-3">Prețuri transparente</Badge>
             <h2 className="text-4xl md:text-5xl font-extrabold text-foreground mb-4">
               Un plan pentru orice fermă
             </h2>
@@ -378,17 +371,11 @@ export default function Home() {
             {plans.map((plan) => (
               <div
                 key={plan.name}
-                className={`flex flex-col p-8 rounded-[2rem] border-2 transition-all duration-300 ${
-                  plan.popular
+                className={`flex flex-col p-8 rounded-[2rem] border-2 transition-all duration-300 ${plan.popular
                     ? "border-green-500 bg-gradient-to-b from-green-600 to-emerald-700 text-white shadow-2xl shadow-green-600/30 scale-105"
                     : "border-border bg-card/80 backdrop-blur-sm hover:shadow-xl hover:border-green-200"
-                }`}
+                  }`}
               >
-                {plan.popular && (
-                  <Badge className="bg-white/20 text-white border-white/30 mb-6 self-start backdrop-blur-md">
-                    ⭐ Recomandat
-                  </Badge>
-                )}
                 <h3 className={`text-2xl font-extrabold mb-2 ${plan.popular ? "text-white" : "text-foreground"}`}>
                   {plan.name}
                 </h3>
@@ -414,11 +401,10 @@ export default function Home() {
                 </ul>
                 <Link href="/">
                   <Button
-                    className={`w-full font-bold h-14 text-lg rounded-xl transition-all ${
-                      plan.popular
+                    className={`w-full font-bold h-14 text-lg rounded-xl transition-all ${plan.popular
                         ? "bg-white text-green-700 hover:bg-green-50 hover:scale-[1.02]"
                         : "agral-gradient text-white hover:opacity-90 hover:scale-[1.02]"
-                    }`}
+                      }`}
                   >
                     {plan.cta}
                   </Button>
@@ -433,27 +419,27 @@ export default function Home() {
       <section className="py-24 px-4 relative overflow-hidden">
         <div className="absolute inset-0 agral-gradient mix-blend-multiply opacity-[0.02]" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-[400px] bg-green-300/10 blur-[100px] -z-10" />
-        
+
         <div className="max-w-5xl mx-auto rounded-[3rem] p-12 md:p-20 text-center relative z-10 border border-green-100/60 bg-white/60 backdrop-blur-2xl shadow-xl overflow-hidden group">
-            <div className="absolute inset-0 bg-gradient-to-tr from-green-600/5 to-emerald-400/5 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 -z-10" />
-            <h2 className="text-4xl md:text-5xl font-extrabold text-foreground mb-6 leading-tight">
-              Începe să folosești Agral <br className="hidden md:block"/>
-              <span className="text-transparent bg-clip-text bg-gradient-to-br from-green-700 to-green-500 inline-block mt-2">gratuit chiar acum</span>
-            </h2>
-            <p className="text-xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed">
-               Ai 30 de zile de probă în care poți folosi platforma fără restricții. Fără card bancar, fără obligații.
+          <div className="absolute inset-0 bg-gradient-to-tr from-green-600/5 to-emerald-400/5 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 -z-10" />
+          <h2 className="text-4xl md:text-5xl font-extrabold text-foreground mb-6 leading-tight">
+            Începe să folosești Agral <br className="hidden md:block" />
+            <span className="text-transparent bg-clip-text bg-gradient-to-br from-green-700 to-green-500 inline-block mt-2">gratuit chiar acum</span>
+          </h2>
+          <p className="text-xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed">
+            Ai 30 de zile de probă în care poți folosi platforma fără restricții. Fără card bancar, fără obligații.
+          </p>
+          <div className="flex flex-col items-center justify-center gap-4">
+            <Link href="/">
+              <Button className="agral-gradient text-white h-16 px-12 text-xl font-bold shadow-2xl shadow-green-600/30 hover:scale-105 transition-all duration-300 rounded-2xl">
+                Creează cont gratuit
+              </Button>
+            </Link>
+            <p className="text-sm font-medium text-muted-foreground mt-4 flex items-center gap-2">
+              <Shield className="w-4 h-4 text-green-600" />
+              Date securizate & Confidențialitate garantată
             </p>
-            <div className="flex flex-col items-center justify-center gap-4">
-              <Link href="/">
-                <Button className="agral-gradient text-white h-16 px-12 text-xl font-bold shadow-2xl shadow-green-600/30 hover:scale-105 transition-all duration-300 rounded-2xl">
-                  Creează cont gratuit
-                </Button>
-              </Link>
-              <p className="text-sm font-medium text-muted-foreground mt-4 flex items-center gap-2">
-                <Shield className="w-4 h-4 text-green-600" />
-                Date securizate & Confidențialitate garantată
-              </p>
-            </div>
+          </div>
         </div>
       </section>
 

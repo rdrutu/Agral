@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,10 +11,12 @@ import {
   History, 
   Tractor, 
   TrendingUp, 
+  TrendingDown,
   Calendar, 
   Info, 
   ArrowLeft,
   ChevronRight,
+  ChevronDown,
   Droplets,
   Fuel,
   Hammer,
@@ -22,9 +24,10 @@ import {
   Trash2,
   Maximize
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { deleteAgriculturalOperation } from "@/lib/actions/operations";
-import { formatDate } from "@/lib/utils";
+import { formatDate, cn } from "@/lib/utils";
 import { toast } from "react-hot-toast";
 import dynamic from "next/dynamic";
 import * as turf from "@turf/turf";
@@ -48,6 +51,16 @@ const statusColors: Record<string, string> = {
 export default function ParcelDetailClient({ parcel }: ParcelDetailClientProps) {
   const [activeTab, setActiveTab] = useState("overview");
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
+
+  // Deep-linking to tab
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab');
+    if (tab && ["overview", "history", "operations", "financials"].includes(tab)) {
+      setActiveTab(tab);
+    }
+  }, []);
 
   const handleDeleteOp = async (id: string) => {
     if (!confirm("Sigur vrei să ștergi această lucrare? Stocul va fi restabilit dacă a fost folosit din magazie.")) return;
@@ -113,6 +126,17 @@ export default function ParcelDetailClient({ parcel }: ParcelDetailClientProps) 
 
     return { avgYield, perimeter, centroidCoords, costCategories };
   }, [parcel]);
+
+  const CROP_EMOJI: Record<string, string> = {
+    "Porumb": "🌽",
+    "Grâu": "🌾",
+    "Floarea Soarelui": "🌻",
+    "Rapiță": "🌱",
+    "Orz": "🌾",
+    "Sfeclă": "🍠",
+    "Soia": "🫘",
+    "Lucernă": "🌿",
+  };
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
@@ -203,7 +227,7 @@ export default function ParcelDetailClient({ parcel }: ParcelDetailClientProps) 
       </div>
 
       {/* Tabs Section */}
-      <Tabs defaultValue="overview" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="bg-white/50 backdrop-blur shadow-sm p-1 rounded-2xl mb-6">
           <TabsTrigger value="overview" className="rounded-xl font-bold px-8">Vedere Generală</TabsTrigger>
           <TabsTrigger value="history" className="rounded-xl font-bold px-8">Istoric Culturi</TabsTrigger>
@@ -259,32 +283,193 @@ export default function ParcelDetailClient({ parcel }: ParcelDetailClientProps) 
         </TabsContent>
 
         <TabsContent value="history">
-          <Card className="border-none shadow-md bg-white/70">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><History className="w-5 h-5 text-primary" /> Istoricul Campaniilor</CardTitle>
+          <Card className="border-none shadow-md bg-white/70 overflow-hidden">
+            <CardHeader className="bg-emerald-50/50 border-b">
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2 font-black text-emerald-900">
+                  <History className="w-5 h-5" /> Arhivă Producții
+                </div>
+                <span className="text-[10px] uppercase font-bold text-emerald-700 opacity-60">Toate campaniile trecute</span>
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {parcel.cropPlans.map((plan: any) => (
-                  <div key={plan.id} className="flex items-center justify-between p-4 rounded-2xl bg-muted/20 border border-border/50 hover:bg-muted/30 transition-all">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-white shadow-sm flex items-center justify-center text-primary font-black uppercase text-xl">
-                        {plan.cropType[0]}
+            <CardContent className="p-0">
+              <div className="divide-y">
+                {parcel.cropPlans.filter((p: any) => p.status === "harvested").map((plan: any) => {
+                  const isExpanded = expandedHistoryId === plan.id;
+                  
+                  // Filter operations for this specific plan based on season dates
+                  const relatedOps = parcel.operationParcels.filter((opParcel: any) => {
+                    const opDate = new Date(opParcel.operation.date);
+                    const seasonStart = new Date(plan.season.startDate);
+                    const seasonEnd = new Date(plan.season.endDate);
+                    return opDate >= seasonStart && opDate <= seasonEnd;
+                  });
+
+                  // Try to find yield from plan or related harvest operation
+                  let yieldTha = plan.actualYieldTha ? Number(plan.actualYieldTha) : null;
+                  if (!yieldTha) {
+                    const harvestOp = relatedOps.find((op: any) => 
+                      op.operation.type === "recoltat" || 
+                      op.operation.name.toLowerCase().includes("recoltat")
+                    );
+                    if (harvestOp?.operation.yieldPerHa) {
+                      yieldTha = Number(harvestOp.operation.yieldPerHa);
+                    } else if (harvestOp?.operation.totalYield && harvestOp.operation.totalAreaHa) {
+                      yieldTha = Number(harvestOp.operation.totalYield) / Number(harvestOp.operation.totalAreaHa);
+                    }
+                  }
+
+                  const area = Number(plan.sownAreaHa) || Number(parcel.areaHa);
+                  const totalTonnes = yieldTha ? (yieldTha * area) : null;
+
+                  return (
+                    <div key={plan.id} className="flex flex-col transition-colors">
+                      <div 
+                        className={cn(
+                          "flex items-center justify-between p-5 cursor-pointer hover:bg-emerald-50/20",
+                          isExpanded && "bg-emerald-50/40"
+                        )}
+                        onClick={() => setExpandedHistoryId(isExpanded ? null : plan.id)}
+                      >
+                        <div className="flex items-center gap-5">
+                          <div className="w-14 h-14 rounded-2xl bg-white shadow-md border border-emerald-100 flex items-center justify-center text-3xl shrink-0">
+                            {CROP_EMOJI[plan.cropType] || "🌱"}
+                          </div>
+                          <div>
+                            <p className="font-black text-foreground text-xl leading-tight flex items-center gap-2">
+                              {plan.cropType}
+                              {isExpanded ? <ChevronDown className="w-4 h-4 opacity-30 rotate-180" /> : <ChevronDown className="w-4 h-4 opacity-30" />}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground font-black uppercase tracking-tighter mt-1">{plan.season.name}</p>
+                          </div>
+                        </div>
+                        <div className="text-right flex flex-col items-end gap-1">
+                          <p className="font-black text-emerald-900 text-2xl tracking-tighter">
+                            {totalTonnes !== null ? `${totalTonnes.toFixed(1)} tone` : "N/A"}
+                          </p>
+                          {yieldTha && (
+                            <Badge variant="secondary" className="bg-emerald-100/50 text-emerald-800 border-emerald-200/50 text-[10px] font-black italic">
+                              {yieldTha.toFixed(2)} t/ha
+                            </Badge>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-black text-foreground text-lg">{plan.cropType}</p>
-                        <p className="text-xs text-muted-foreground font-black uppercase tracking-tighter">{plan.season.name}</p>
-                      </div>
+
+                      {isExpanded && (
+                        <div className="p-6 bg-stone-50/50 border-t border-emerald-100 animate-in slide-in-from-top-2 duration-300 space-y-6">
+                           {/* Financial Summary Section */}
+                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                             <div className="p-4 bg-white rounded-2xl border border-emerald-100 shadow-sm space-y-1">
+                               <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest opacity-60 flex items-center gap-1.5">
+                                 <TrendingDown className="w-3 h-3" /> Cheltuieli Totale
+                               </p>
+                               <div className="flex items-baseline gap-1">
+                                 <span className="text-2xl font-black text-foreground">
+                                   {relatedOps.reduce((total: number, opParcel: any) => {
+                                      const opTotalArea = Number(opParcel.operation.totalAreaHa);
+                                      const share = Number(opParcel.operatedAreaHa) / opTotalArea;
+                                      const opCost = opParcel.operation.resources.reduce((sum: number, res: any) => {
+                                        const qty = res.totalConsumed ? Number(res.totalConsumed) : (Number(res.quantityPerHa) * opTotalArea);
+                                        return sum + (qty * Number(res.pricePerUnit));
+                                      }, 0);
+                                      return total + (opCost * share);
+                                   }, 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                 </span>
+                                 <span className="text-[10px] font-bold text-muted-foreground uppercase">Lei</span>
+                               </div>
+                             </div>
+
+                             <div className="p-4 bg-white rounded-2xl border border-emerald-100 shadow-sm space-y-1">
+                               <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest opacity-60 flex items-center gap-1.5">
+                                 <TrendingUp className="w-3 h-3" /> Venit Realizat
+                               </p>
+                               <div className="flex items-baseline gap-1">
+                                 <span className="text-2xl font-black text-emerald-600">
+                                   {((totalTonnes || 0) * Number(plan.harvestPricePerUnit || 0)).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                 </span>
+                                 <span className="text-[10px] font-bold text-muted-foreground uppercase">Lei</span>
+                               </div>
+                               <div className="mt-2 group/price flex items-center gap-2">
+                                 <Input 
+                                   type="number" 
+                                   placeholder="Preț/tonă (RON)" 
+                                   className="h-8 text-xs font-bold border-emerald-100 focus:border-emerald-500 bg-white/50" 
+                                   defaultValue={plan.harvestPricePerUnit?.toString() || ""}
+                                   onBlur={async (e) => {
+                                     const price = parseFloat(e.target.value);
+                                     if (!isNaN(price)) {
+                                       try {
+                                         const { updateCropPlanPrice } = await import("@/lib/actions/parcels");
+                                         await updateCropPlanPrice(plan.id, price);
+                                         toast.success("Preț actualizat!");
+                                       } catch (err) {
+                                         toast.error("Eroare actualizare preț");
+                                       }
+                                     }
+                                   }}
+                                 />
+                               </div>
+                             </div>
+
+                             <div className={cn(
+                               "p-4 rounded-2xl border shadow-sm space-y-1 transition-all",
+                               (((totalTonnes || 0) * Number(plan.harvestPricePerUnit || 0)) - relatedOps.reduce((total: number, opParcel: any) => {
+                                 const opTotalArea = Number(opParcel.operation.totalAreaHa);
+                                 const share = Number(opParcel.operatedAreaHa) / opTotalArea;
+                                 const opCost = opParcel.operation.resources.reduce((sum: number, res: any) => {
+                                   const qty = res.totalConsumed ? Number(res.totalConsumed) : (Number(res.quantityPerHa) * opTotalArea);
+                                   return sum + (qty * Number(res.pricePerUnit));
+                                 }, 0);
+                                 return total + (opCost * share);
+                               }, 0)) >= 0 ? "bg-emerald-600 text-white border-emerald-500" : "bg-red-600 text-white border-red-500 shadow-lg shadow-red-100"
+                             )}>
+                               <p className="text-[10px] font-black uppercase tracking-widest opacity-80 text-white/80">Profit Net</p>
+                               <div className="flex items-baseline gap-1">
+                                 <span className="text-3xl font-black">
+                                   {(((totalTonnes || 0) * Number(plan.harvestPricePerUnit || 0)) - relatedOps.reduce((total: number, opParcel: any) => {
+                                      const opTotalArea = Number(opParcel.operation.totalAreaHa);
+                                      const share = Number(opParcel.operatedAreaHa) / opTotalArea;
+                                      const opCost = opParcel.operation.resources.reduce((sum: number, res: any) => {
+                                        const qty = res.totalConsumed ? Number(res.totalConsumed) : (Number(res.quantityPerHa) * opTotalArea);
+                                        return sum + (qty * Number(res.pricePerUnit));
+                                      }, 0);
+                                      return total + (opCost * share);
+                                   }, 0)).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                 </span>
+                                 <span className="text-[10px] font-bold uppercase text-white/70">Lei</span>
+                               </div>
+                             </div>
+                           </div>
+
+                           <div className="flex items-center gap-2 pt-2 text-[11px] font-black text-emerald-800 uppercase tracking-widest border-t border-emerald-100/50">
+                             <History className="w-4 h-4" /> Detaliu Lucrări Efectuate
+                           </div>
+                           {relatedOps.length > 0 ? (
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                               {relatedOps.map((opParcel: any) => (
+                                 <div key={opParcel.id} className="flex items-center gap-3 p-3 rounded-xl bg-white border border-emerald-100/50 shadow-sm">
+                                   <div className="w-9 h-9 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
+                                      {opParcel.operation.type === "semanat" ? "🚜" : opParcel.operation.type === "recoltat" ? "🌾" : "⚙️"}
+                                   </div>
+                                   <div className="flex-1">
+                                      <p className="text-sm font-bold text-foreground leading-tight">{opParcel.operation.name}</p>
+                                      <p className="text-[10px] text-muted-foreground font-bold">{formatDate(opParcel.operation.date)} • {opParcel.operatedAreaHa} ha</p>
+                                   </div>
+                                 </div>
+                               ))}
+                             </div>
+                           ) : (
+                             <div className="py-4 text-center text-xs italic text-muted-foreground">Nicio lucrare specifică găsită în arhivă pentru acest interval.</div>
+                           )}
+                        </div>
+                      )}
                     </div>
-                    <div className="text-right">
-                      <p className="font-black text-foreground text-lg">{plan.actualYieldTha || plan.estimatedYieldTha || "-"} T/ha</p>
-                      <Badge variant="outline" className={`text-[10px] uppercase font-bold ${statusColors[plan.status]}`}>{plan.status}</Badge>
-                    </div>
-                  </div>
-                ))}
-                {parcel.cropPlans.length === 0 && (
-                  <div className="py-12 text-center text-muted-foreground font-medium italic">
-                    Nu există culturi înregistrate în sezoanele anterioare.
+                  );
+                })}
+                {parcel.cropPlans.filter((p: any) => p.status === "harvested").length === 0 && (
+                  <div className="py-20 text-center flex flex-col items-center gap-3">
+                    <History className="w-12 h-12 text-muted-foreground/30" />
+                    <p className="text-muted-foreground font-extrabold italic text-sm">Nu există producții finalizate în arhivă încă.</p>
                   </div>
                 )}
               </div>

@@ -582,10 +582,17 @@ async function triggerHarvestAutomation(tx: any, orgId: string, data: any) {
     });
 
     if (existingPlan) {
+      // Calculăm yield: dacă avem yieldPerHa îl folosim, altfel încercăm să-l scoatem din totalYield / totalArea
+      let calculatedYield = data.yieldPerHa ? Number(data.yieldPerHa) : null;
+      if (!calculatedYield && data.totalYield && data.totalAreaHa && Number(data.totalAreaHa) > 0) {
+        calculatedYield = Number(data.totalYield) / Number(data.totalAreaHa);
+      }
+
       await _tx.cropPlan.update({
         where: { id: existingPlan.id },
         data: {
-          status: "harvested"
+          status: "harvested",
+          actualYieldTha: calculatedYield || existingPlan.actualYieldTha
         }
       });
     }

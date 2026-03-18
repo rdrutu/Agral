@@ -106,7 +106,7 @@ export function DashboardClient({
       case "alerts":
         return (
           <div className="md:col-span-2 lg:col-span-4 space-y-6">
-            <Card className="border-none shadow-xl bg-white/50 backdrop-blur-md">
+            <Card className="glass-premium">
               <CardHeader className="pb-3 pt-6 px-6">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-xl bg-orange-100 flex items-center justify-center text-orange-600">
@@ -119,9 +119,9 @@ export function DashboardClient({
                 </div>
               </CardHeader>
               <CardContent className="px-6 pb-6 space-y-3">
-                {realAlerts.map((alert, i) => (
+                {realAlerts.map((alert) => (
                   <Link
-                    key={i}
+                    key={alert.text}
                     href={alert.href}
                     className={cn(
                       "flex items-center gap-4 p-4 rounded-2xl border transition-all hover:translate-x-1",
@@ -163,7 +163,7 @@ export function DashboardClient({
       case "parcele":
         return (
           <div className="md:col-span-2 lg:col-span-5">
-            <Card className="h-full border-none shadow-xl bg-white/50 backdrop-blur-md overflow-hidden">
+            <Card className="h-full glass-premium overflow-hidden">
               <CardHeader className="pb-3 pt-6 px-6 flex flex-row items-center justify-between font-black">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-600">
@@ -262,7 +262,7 @@ export function DashboardClient({
       </div>
 
       {isEditMode && (
-        <Card className="border-none shadow-xl bg-white/80 backdrop-blur-md p-6">
+        <Card className="glass-premium p-6">
           <CardHeader className="p-0 mb-6">
             <CardTitle className="text-xl font-black">Configurare Widget-uri</CardTitle>
             <CardDescription className="font-bold">Alege ordinea și vizibilitatea elementelor de pe dashboard.</CardDescription>

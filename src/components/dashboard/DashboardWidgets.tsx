@@ -18,7 +18,7 @@ import {
 import Link from "next/link";
 import { getWeatherDesc } from "@/lib/weather";
 import { Sun, Cloud, CloudFog, CloudDrizzle, CloudRain, Snowflake, CloudLightning } from "lucide-react";
-import { cn, formatDate } from "@/lib/utils";
+import { cn, formatDate, formatWeekday } from "@/lib/utils";
 
 const IconMap: Record<string, any> = {
   Sun,
@@ -43,10 +43,10 @@ export function WeatherWidget({ weather, county }: { weather: any, county: strin
     const dayInfo = getWeatherDesc(daily.weather_code[dayIndex]);
     const DayIcon = IconMap[dayInfo.icon] || Cloud;
     const date = new Date(dateStr);
-    const dayName = date.toLocaleDateString('ro-RO', { weekday: 'short' });
+    const dayName = formatWeekday(date);
 
     return {
-      name: dayName.charAt(0).toUpperCase() + dayName.slice(1),
+      name: dayName,
       max: Math.round(daily.temperature_2m_max[dayIndex]),
       min: Math.round(daily.temperature_2m_min[dayIndex]),
       precip: daily.precipitation_sum[dayIndex],
@@ -55,7 +55,7 @@ export function WeatherWidget({ weather, county }: { weather: any, county: strin
   });
 
   return (
-    <Card className="h-full border-none shadow-xl bg-gradient-to-br from-blue-500/10 via-white/50 to-white/80 backdrop-blur-md relative overflow-hidden group">
+    <Card className="h-full glass-premium relative overflow-hidden group">
       <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform duration-500">
         <Icon className="w-32 h-32 text-blue-600" />
       </div>
@@ -119,7 +119,7 @@ export function WeatherWidget({ weather, county }: { weather: any, county: strin
 
 export function NewsWidget({ news }: { news: any[] }) {
   return (
-    <Card className="h-full border-none shadow-xl bg-gradient-to-br from-amber-500/10 via-white/50 to-white/80 backdrop-blur-md relative overflow-hidden group">
+    <Card className="h-full glass-premium relative overflow-hidden group">
       <CardHeader className="pb-3 px-6 pt-6">
         <div className="flex items-center justify-between">
           <div>
@@ -175,7 +175,7 @@ export function QuickActionsWidget() {
   ];
 
   return (
-    <Card className="h-full border-none shadow-xl bg-white/50 backdrop-blur-md">
+    <Card className="h-full glass-premium">
       <CardHeader className="pb-3 pt-6 px-6">
         <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/50 mb-1">Acces Rapid</CardTitle>
         <CardDescription className="text-lg font-black text-foreground">Comenzi Rapide</CardDescription>

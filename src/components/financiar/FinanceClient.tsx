@@ -22,7 +22,8 @@ import {
   History,
   Info,
   CheckCircle2,
-  Loader2
+  Loader2,
+  Sprout
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,7 @@ import {
   getFinancialTransactions, 
   getFinancialSummary, 
   addFinancialTransaction,
+  getCropFinancialReport
 } from "@/lib/actions/finance";
 import { useRouter } from "next/navigation";
 import { 
@@ -49,15 +51,19 @@ import toast from "react-hot-toast";
 export default function FinanceClient({ 
   initialTransactions, 
   initialSummary,
+  initialCropReport = [],
   hideHeader = false
 }: { 
   initialTransactions: any[],
   initialSummary: any,
+  initialCropReport?: any[],
   hideHeader?: boolean
 }) {
   const router = useRouter();
   const [transactions, setTransactions] = useState(initialTransactions);
   const [summary, setSummary] = useState(initialSummary);
+  const [cropReport, setCropReport] = useState(initialCropReport);
+  const [viewMode, setViewMode] = useState<"transactions" | "crops">("transactions");
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<"all" | "income" | "expense">("all");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -197,104 +203,209 @@ export default function FinanceClient({
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Transactions Table */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex bg-white p-1 rounded-xl shadow-sm border w-full sm:w-auto">
-              <button 
-                className={cn("px-4 py-2 text-xs font-black rounded-lg transition-all", filterType === 'all' ? "bg-primary text-white" : "text-muted-foreground")}
-                onClick={() => setFilterType('all')}
-              >
-                TOATE
-              </button>
-              <button 
-                className={cn("px-4 py-2 text-xs font-black rounded-lg transition-all", filterType === 'income' ? "bg-green-600 text-white" : "text-muted-foreground")}
-                onClick={() => setFilterType('income')}
-              >
-                VENITURI
-              </button>
-              <button 
-                className={cn("px-4 py-2 text-xs font-black rounded-lg transition-all", filterType === 'expense' ? "bg-red-600 text-white" : "text-muted-foreground")}
-                onClick={() => setFilterType('expense')}
-              >
-                CHELTUIELI
-              </button>
-            </div>
-             <div className="relative flex-1 w-full sm:w-auto">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input 
-                placeholder="Caută în tranzacții..." 
-                className="pl-9 h-11 border-none bg-white shadow-sm font-medium"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-          </div>
+      <div className="flex bg-white/50 p-1 rounded-2xl border shadow-sm w-fit">
+        <button 
+          className={cn("px-6 py-2.5 text-xs font-black rounded-xl transition-all", viewMode === 'transactions' ? "bg-primary text-white shadow-md scale-105" : "text-muted-foreground hover:bg-primary/5")}
+          onClick={() => setViewMode('transactions')}
+        >
+          ISTORIC TRANZACȚII
+        </button>
+        <button 
+          className={cn("px-6 py-2.5 text-xs font-black rounded-xl transition-all", viewMode === 'crops' ? "bg-primary text-white shadow-md scale-105" : "text-muted-foreground hover:bg-primary/5")}
+          onClick={() => setViewMode('crops')}
+        >
+          ANALIZĂ PE CULTURI
+        </button>
+      </div>
 
-          <Card className="border-none shadow-lg overflow-hidden bg-white/70 backdrop-blur-md">
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-muted/30 border-b border-muted/20 text-[10px] md:text-xs">
-                      <th className="text-left px-3 md:p-4 font-bold text-muted-foreground uppercase tracking-wider">Data</th>
-                      <th className="text-left px-3 md:p-4 font-bold text-muted-foreground uppercase tracking-wider">Descriere / Categorie</th>
-                      <th className="text-right px-3 md:p-4 font-bold text-muted-foreground uppercase tracking-wider">Sumă</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-muted/10">
-                    {filteredTransactions.map((t) => (
-                      <tr key={t.id} className="hover:bg-primary/5 transition-colors group">
-                      <td className="px-3 md:p-4">
-                        <div className="flex items-center gap-2 md:gap-3">
-                          <div className={cn(
-                            "w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl flex items-center justify-center shrink-0 shadow-sm",
-                            t.type === "income" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-                          )}>
-                            {t.type === "income" ? <ArrowUpRight className="w-4 h-4 md:w-5 md:h-5" /> : <ArrowDownRight className="w-4 h-4 md:w-5 md:h-5" />}
-                          </div>
-                          <div>
-                            <div className="font-bold text-foreground text-xs md:text-sm">
-                              {formatDate(t.date)}
-                            </div>
-                            <div className="text-[9px] md:text-[10px] text-muted-foreground font-black uppercase hidden sm:block">
-                              {new Date(t.date).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-3 md:p-4">
-                        <p className="font-bold text-foreground text-xs md:text-sm line-clamp-1">{t.description}</p>
-                        <Badge variant="outline" className="text-[8px] md:text-[9px] uppercase font-black tracking-tighter mt-1 bg-white px-1 md:px-1.5 py-0 h-3.5 md:h-4 border-muted/50">
-                          {t.category}
-                        </Badge>
-                      </td>
-                      <td className="px-3 md:p-4 text-right">
-                        <div className={cn(
-                          "text-sm md:text-base font-black",
-                          t.type === "income" ? "text-green-600" : "text-red-600"
-                        )}>
-                          {t.type === "income" ? "+" : "-"}{Number(t.amount).toLocaleString()} <span className="text-[9px] md:text-[10px] font-bold">RON</span>
-                        </div>
-                      </td>
-                      </tr>
-                    ))}
-                    {filteredTransactions.length === 0 && (
-                      <tr>
-                        <td colSpan={3} className="p-12 text-center">
-                          <div className="flex flex-col items-center gap-3 text-muted-foreground">
-                            <History className="w-10 h-10 opacity-20" />
-                            <p className="font-bold">Nicio tranzacție găsită.</p>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Main Content Area */}
+        <div className="lg:col-span-2 space-y-6">
+          {viewMode === "transactions" ? (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex bg-white p-1 rounded-xl shadow-sm border w-full sm:w-auto">
+                  <button 
+                    className={cn("px-4 py-2 text-xs font-black rounded-lg transition-all", filterType === 'all' ? "bg-primary text-white" : "text-muted-foreground")}
+                    onClick={() => setFilterType('all')}
+                  >
+                    TOATE
+                  </button>
+                  <button 
+                    className={cn("px-4 py-2 text-xs font-black rounded-lg transition-all", filterType === 'income' ? "bg-green-600 text-white" : "text-muted-foreground")}
+                    onClick={() => setFilterType('income')}
+                  >
+                    VENITURI
+                  </button>
+                  <button 
+                    className={cn("px-4 py-2 text-xs font-black rounded-lg transition-all", filterType === 'expense' ? "bg-red-600 text-white" : "text-muted-foreground")}
+                    onClick={() => setFilterType('expense')}
+                  >
+                    CHELTUIELI
+                  </button>
+                </div>
+                <div className="relative flex-1 w-full sm:w-auto">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input 
+                    placeholder="Caută în tranzacții..." 
+                    className="pl-9 h-11 border-none bg-white shadow-sm font-medium"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
               </div>
-            </CardContent>
-          </Card>
+
+              <Card className="border-none shadow-lg overflow-hidden bg-white/70 backdrop-blur-md">
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-muted/30 border-b border-muted/20 text-[10px] md:text-xs">
+                          <th className="text-left px-3 md:p-4 font-bold text-muted-foreground uppercase tracking-wider">Data</th>
+                          <th className="text-left px-3 md:p-4 font-bold text-muted-foreground uppercase tracking-wider">Descriere / Categorie</th>
+                          <th className="text-right px-3 md:p-4 font-bold text-muted-foreground uppercase tracking-wider">Sumă</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-muted/10">
+                        {filteredTransactions.map((t) => (
+                          <tr key={t.id} className="hover:bg-primary/5 transition-colors group">
+                            <td className="px-3 md:p-4">
+                              <div className="flex items-center gap-2 md:gap-3">
+                                <div className={cn(
+                                  "w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl flex items-center justify-center shrink-0 shadow-sm",
+                                  t.type === "income" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                                )}>
+                                  {t.type === "income" ? <ArrowUpRight className="w-4 h-4 md:w-5 md:h-5" /> : <ArrowDownRight className="w-4 h-4 md:w-5 md:h-5" />}
+                                </div>
+                                <div>
+                                  <div className="font-bold text-foreground text-xs md:text-sm">
+                                    {formatDate(t.date)}
+                                  </div>
+                                  <div className="text-[9px] md:text-[10px] text-muted-foreground font-black uppercase hidden sm:block">
+                                    {new Date(t.date).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-3 md:p-4">
+                              <p className="font-bold text-foreground text-xs md:text-sm line-clamp-1">{t.description}</p>
+                              <Badge variant="outline" className="text-[8px] md:text-[9px] uppercase font-black tracking-tighter mt-1 bg-white px-1 md:px-1.5 py-0 h-3.5 md:h-4 border-muted/50">
+                                {t.category}
+                              </Badge>
+                            </td>
+                            <td className="px-3 md:p-4 text-right">
+                              <div className={cn(
+                                "text-sm md:text-base font-black",
+                                t.type === "income" ? "text-green-600" : "text-red-600"
+                              )}>
+                                {t.type === "income" ? "+" : "-"}{Number(t.amount).toLocaleString()} <span className="text-[9px] md:text-[10px] font-bold">RON</span>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                        {filteredTransactions.length === 0 && (
+                          <tr>
+                            <td colSpan={3} className="p-12 text-center">
+                              <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                                <History className="w-10 h-10 opacity-20" />
+                                <p className="font-bold">Nicio tranzacție găsită.</p>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          ) : (
+            <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
+              {cropReport.map((report: any, idx: number) => {
+                const profit = report.totalRevenue - report.totalExpenses;
+                const roi = report.totalExpenses > 0 ? (profit / report.totalExpenses * 100) : 0;
+                
+                return (
+                  <Card key={idx} className="border-none shadow-lg overflow-hidden bg-white/80 backdrop-blur-md group hover:shadow-xl transition-all">
+                    <div className="flex flex-col md:flex-row">
+                      <div className="p-6 md:w-1/3 bg-stone-50/50 border-r border-emerald-100/50 flex flex-col justify-center">
+                        <div className="flex items-center gap-3 mb-2">
+                           <div className="w-12 h-12 rounded-2xl bg-white shadow-sm border border-emerald-100 flex items-center justify-center text-2xl">
+                             {report.cropType.toLowerCase().includes("porumb") ? "🌽" : 
+                              report.cropType.toLowerCase().includes("grâu") ? "🌾" : 
+                              report.cropType.toLowerCase().includes("floarea") ? "🌻" : "🌱"}
+                           </div>
+                           <div>
+                              <h3 className="text-xl font-black text-foreground leading-tight">{report.cropType}</h3>
+                              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{report.seasonName}</p>
+                           </div>
+                        </div>
+                        <div className="mt-4 grid grid-cols-2 gap-2">
+                           <div className="p-2 bg-white rounded-xl border border-emerald-50 text-center">
+                              <p className="text-[9px] font-black text-muted-foreground uppercase">Suprafață</p>
+                              <p className="text-sm font-black">{report.totalAreaHa.toFixed(1)} <span className="text-[10px] opacity-60">ha</span></p>
+                           </div>
+                           <div className="p-2 bg-white rounded-xl border border-emerald-50 text-center">
+                              <p className="text-[9px] font-black text-muted-foreground uppercase">Recoltă</p>
+                              <p className="text-sm font-black">{report.totalYield.toFixed(0)} <span className="text-[10px] opacity-60">to</span></p>
+                           </div>
+                        </div>
+                      </div>
+                      
+                      <div className="p-6 flex-1 grid grid-cols-1 sm:grid-cols-3 gap-6">
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1">
+                            <ArrowDownRight className="w-3 h-3 text-red-500" /> Cheltuieli
+                          </p>
+                          <p className="text-lg font-black">{report.totalExpenses.toLocaleString()} <span className="text-xs font-bold text-muted-foreground">RON</span></p>
+                          <p className="text-[10px] text-muted-foreground font-medium">{(report.totalExpenses / (report.totalAreaHa || 1)).toFixed(0)} RON / ha</p>
+                        </div>
+
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1">
+                            <ArrowUpRight className="w-3 h-3 text-green-500" /> Venituri
+                          </p>
+                          <p className="text-lg font-black text-green-600">{report.totalRevenue.toLocaleString()} <span className="text-xs font-bold text-muted-foreground">RON</span></p>
+                          <p className="text-[10px] text-muted-foreground font-medium">{(report.totalRevenue / (report.totalAreaHa || 1)).toFixed(0)} RON / ha</p>
+                        </div>
+
+                        <div className={cn(
+                          "p-3 rounded-2xl border space-y-1",
+                          profit >= 0 ? "bg-emerald-50 border-emerald-100" : "bg-red-50 border-red-100"
+                        )}>
+                          <p className={cn(
+                            "text-[10px] font-black uppercase tracking-widest flex items-center gap-1",
+                            profit >= 0 ? "text-emerald-700" : "text-red-700"
+                          )}>
+                            {profit >= 0 ? <CheckCircle2 className="w-3 h-3" /> : <Info className="w-3 h-3" />} Profit
+                          </p>
+                          <p className={cn(
+                            "text-xl font-black",
+                            profit >= 0 ? "text-emerald-600" : "text-red-600"
+                          )}>{profit.toLocaleString()} <span className="text-xs font-bold opacity-60">RON</span></p>
+                          <Badge variant="outline" className={cn(
+                            "text-[9px] font-black uppercase px-1.5 h-4 border-none",
+                            profit >= 0 ? "bg-emerald-600 text-white" : "bg-red-600 text-white"
+                          )}>
+                             ROI: {roi.toFixed(1)}%
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })}
+              {cropReport.length === 0 && (
+                <div className="p-12 text-center bg-white/50 rounded-3xl border border-dashed border-emerald-200">
+                  <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                    <Sprout className="w-10 h-10 opacity-20" />
+                    <p className="font-bold">Nu există date suficiente pentru analiza pe culturi.</p>
+                    <p className="text-xs max-w-xs mx-auto">Asigură-te că ai marcat parcele ca fiind recoltate și ai setat un preț de vânzare în istoricul parcelei.</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Sidebar Reports */}

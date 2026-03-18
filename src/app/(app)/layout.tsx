@@ -58,7 +58,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-screen overflow-hidden mesh-gradient-bg">
       <Sidebar 
         userRole={userRole} 
         userName={userName} 

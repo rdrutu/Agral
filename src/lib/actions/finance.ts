@@ -2,6 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import { getUserOrganization } from "./parcels";
+import { formatMonthYear } from "@/lib/utils";
 
 export async function getFinancialTransactions() {
   const orgId = await getUserOrganization();
@@ -71,7 +72,7 @@ export async function getFinancialSummary() {
   // Monthly stats
   const statsByMonth: Record<string, { income: number, expense: number }> = {};
   transactions.forEach((t: any) => {
-    const month = new Date(t.date).toLocaleDateString('ro-RO', { month: 'short', year: 'numeric' });
+    const month = formatMonthYear(t.date);
     if (!statsByMonth[month]) statsByMonth[month] = { income: 0, expense: 0 };
     if (t.type === 'income') statsByMonth[month].income += Number(t.amount);
     else statsByMonth[month].expense += Number(t.amount);
@@ -224,4 +225,85 @@ export async function getSaleDetails(saleId: string) {
   });
 
   return JSON.parse(JSON.stringify(sale));
+}
+export async function getCropFinancialReport() {
+  const orgId = await getUserOrganization();
+  if (!orgId) return [];
+
+  // 1. Get all crop plans (historically) with their seasons and associated parcels
+  const cropPlans = await prisma.cropPlan.findMany({
+    where: { 
+      season: { orgId: orgId as string },
+      status: "harvested"
+    },
+    include: {
+      season: true,
+      parcel: {
+        include: {
+          operationParcels: {
+            include: {
+              operation: {
+                include: { resources: true }
+              }
+            }
+          }
+        }
+      }
+    }
+  });
+
+  // 2. Group by cropType and season
+  const report: Record<string, { 
+    cropType: string, 
+    seasonName: string, 
+    totalAreaHa: number, 
+    totalExpenses: number, 
+    totalRevenue: number, 
+    totalYield: number,
+    plansCount: number 
+  }> = {};
+
+  cropPlans.forEach((plan: any) => {
+    const key = `${plan.cropType}-${plan.season.name}`;
+    if (!report[key]) {
+      report[key] = {
+        cropType: plan.cropType,
+        seasonName: plan.season.name,
+        totalAreaHa: 0,
+        totalExpenses: 0,
+        totalRevenue: 0,
+        totalYield: 0,
+        plansCount: 0
+      };
+    }
+
+    const area = Number(plan.sownAreaHa) || Number(plan.parcel.areaHa);
+    const yieldT = Number(plan.actualYieldTha || 0) * area;
+    const price = Number(plan.harvestPricePerUnit || 0);
+
+    report[key].totalAreaHa += area;
+    report[key].totalYield += yieldT;
+    report[key].totalRevenue += yieldT * price;
+    report[key].plansCount += 1;
+
+    // Calculate expenses for this specific parcel during this season
+    const seasonStart = new Date(plan.season.startDate);
+    const seasonEnd = new Date(plan.season.endDate);
+
+    plan.parcel.operationParcels.forEach(opParcel => {
+      const opDate = new Date(opParcel.operation.date);
+      if (opDate >= seasonStart && opDate <= seasonEnd) {
+        // Prorate operation costs to this parcel
+        const opTotalArea = Number(opParcel.operation.totalAreaHa);
+        const share = Number(opParcel.operatedAreaHa) / opTotalArea;
+
+        opParcel.operation.resources.forEach(res => {
+          const resQty = res.totalConsumed ? Number(res.totalConsumed) : (Number(res.quantityPerHa) * opTotalArea);
+          report[key].totalExpenses += (resQty * share * Number(res.pricePerUnit));
+        });
+      }
+    });
+  });
+
+  return Object.values(report).sort((a, b) => b.seasonName.localeCompare(a.seasonName));
 }

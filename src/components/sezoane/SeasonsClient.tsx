@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Fragment } from "react";
+import { useState, Fragment, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +20,11 @@ import {
   ChevronDown,
   ChevronUp,
   Wheat,
+  History as HistoryIcon,
+  LayoutList,
 } from "lucide-react";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
 import {
   createSeason,
   setActiveSeason,
@@ -64,20 +68,33 @@ export default function SeasonsClient({
   allParcels,
   initialPlans,
   seedItems,
+  currentSeasonId,
 }: {
   initialSeasons: any[];
   allParcels: any[];
   initialPlans: any[];
   seedItems?: any[];
+  currentSeasonId: string | null;
 }) {
   const router = useRouter();
   const [seasons, setSeasons] = useState(initialSeasons);
-  const [activeSeasonId, setActiveSeasonId] = useState<string | null>(
-    initialSeasons.find((s) => s.isActive)?.id || initialSeasons[0]?.id || null
-  );
+  const [activeSeasonId, setActiveSeasonId] = useState<string | null>(currentSeasonId);
   const [plans, setPlans] = useState(initialPlans);
   const [seeds, setSeeds] = useState(seedItems || []);
   const [selectedSeedId, setSelectedSeedId] = useState<string>("none");
+
+  // Sync state with props after initial mount (important for router.refresh() and navigation)
+  useEffect(() => {
+    setPlans(initialPlans);
+  }, [initialPlans]);
+
+  useEffect(() => {
+    setActiveSeasonId(currentSeasonId);
+  }, [currentSeasonId]);
+
+  useEffect(() => {
+    setSeasons(initialSeasons);
+  }, [initialSeasons]);
 
   // UI States
   const [showNewSeason, setShowNewSeason] = useState(false);
@@ -93,6 +110,7 @@ export default function SeasonsClient({
   const [reportParcelId, setReportParcelId] = useState<string | null>(null);
   const [reportData, setReportData] = useState<any>(null);
   const [loadingReport, setLoadingReport] = useState(false);
+  const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
 
   // Form State for new season
   const [sName, setSName] = useState("");
@@ -320,10 +338,7 @@ export default function SeasonsClient({
               }`}
               onClick={() => {
                 if (activeSeasonId !== s.id) {
-                  setActiveSeasonId(s.id);
-                  setPlans([]);
-                  setReportParcelId(null);
-                  setReportData(null);
+                  router.push(`/campanii?seasonId=${s.id}`);
                 }
               }}
             >
@@ -565,17 +580,24 @@ export default function SeasonsClient({
                                     </div>
                                     {reportData.breakdown.length > 0 && (
                                       <div className="bg-white rounded-lg border overflow-hidden shadow-sm">
-                                        <div className="px-3 py-1.5 bg-muted/40 text-[9px] md:text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                                          Detaliu costuri
+                                        <div className="px-3 py-1.5 bg-muted/40 text-[9px] md:text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b">
+                                          Detaliu costuri (sezon curent)
                                         </div>
-                                        {reportData.breakdown.map((b: any, i: number) => (
-                                          <div key={i} className="flex justify-between items-center px-3 py-1.5 text-[10px] md:text-xs border-t">
+                                        {reportData.breakdown.map((b: any) => (
+                                          <div key={b.name} className="flex justify-between items-center px-3 py-1.5 text-[10px] md:text-xs border-t">
                                             <span className="text-foreground">{b.name}</span>
                                             <span className="font-semibold text-primary">{b.totalCost} RON</span>
                                           </div>
                                         ))}
                                       </div>
                                     )}
+
+                                    <div className="pt-4 border-t border-dashed">
+                                      <p className="text-[10px] text-muted-foreground font-medium text-center italic">
+                                        Pentru istoricul complet al culturilor și lucrărilor trecute, accesează pagina de 
+                                        <Link href={`/parcele/${reportParcelId}`} className="text-primary hover:underline ml-1 font-bold">Detalii Parcelă</Link>.
+                                      </p>
+                                    </div>
                                   </div>
                                 ) : null}
                               </td>

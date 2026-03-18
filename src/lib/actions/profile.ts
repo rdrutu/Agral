@@ -37,6 +37,7 @@ export async function updateUserProfile(data: {
   caen?: string;
   cui?: string;
   phone?: string;
+  salaryDay?: number;
   baseLat?: number | null;
   baseLng?: number | null;
 }) {
@@ -70,6 +71,7 @@ export async function updateUserProfile(data: {
           caen: data.caen,
           cui: data.cui,
           phone: data.phone,
+          salaryDay: data.salaryDay,
           baseLat: data.baseLat,
           baseLng: data.baseLng,
         }

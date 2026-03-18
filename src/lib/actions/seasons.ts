@@ -114,7 +114,6 @@ export async function allocateParcelsToCrop(data: {
         where: {
           seasonId: data.seasonId,
           parcelId: pId,
-          status: "planned"
         }
       });
 
@@ -122,10 +121,10 @@ export async function allocateParcelsToCrop(data: {
         await tx.cropPlan.update({
           where: { id: existingPlan.id },
           data: {
+            status: existingPlan.status === "harvested" ? "planned" : existingPlan.status, // Reset to planned if it was harvested or keep current status
             cropType: data.cropType,
             variety: data.variety || null,
             sownAreaHa: parcel.areaHa,
-            status: "planned"
           }
         });
       } else {
@@ -307,6 +306,24 @@ export async function getParcelReport(parcelId: string, seasonId: string) {
   const areaHa = Number(parcel.areaHa);
   const costPerHa = areaHa > 0 ? totalCost / areaHa : 0;
 
+  // History: all harvested plans for this parcel
+  const history = await prisma.cropPlan.findMany({
+    where: { parcelId, status: "harvested" },
+    include: { season: true },
+    orderBy: { season: { startDate: "desc" } }
+  });
+
+  // Fetch all operations for this parcel to filter them into history items
+  const allOps = await prisma.operationParcel.findMany({
+    where: { parcelId },
+    include: {
+      operation: {
+        include: { resources: true }
+      }
+    },
+    orderBy: { operation: { date: "desc" } }
+  });
+
   return {
     parcelName: parcel.name,
     areaHa,
@@ -317,5 +334,27 @@ export async function getParcelReport(parcelId: string, seasonId: string) {
     actualYieldTha: cropPlan?.actualYieldTha ? Number(cropPlan.actualYieldTha) : null,
     estimatedYieldTha: cropPlan?.estimatedYieldTha ? Number(cropPlan.estimatedYieldTha) : null,
     breakdown,
+    history: history.map(h => {
+      // Filter operations that happened during this crop's season
+      const relatedOps = allOps.filter(op => 
+        op.operation.date >= h.season.startDate && 
+        op.operation.date <= h.season.endDate
+      ).map(op => ({
+        id: op.operation.id,
+        name: op.operation.name,
+        date: op.operation.date,
+        type: op.operation.type,
+      }));
+
+      return {
+        id: h.id,
+        seasonName: h.season.name,
+        cropType: h.cropType,
+        yieldTha: h.actualYieldTha ? Number(h.actualYieldTha) : 0,
+        totalYield: h.actualYieldTha ? Number(h.actualYieldTha) * Number(h.sownAreaHa) : 0,
+        date: h.season.startDate,
+        operations: relatedOps
+      };
+    })
   };
 }

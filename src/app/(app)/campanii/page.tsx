@@ -5,12 +5,17 @@ import SeasonsClient from "@/components/sezoane/SeasonsClient";
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 
-export default async function SeasonsPage() {
+export default async function SeasonsPage(props: { searchParams: Promise<{ seasonId?: string }> }) {
+  const searchParams = await props.searchParams;
   const seasons = await getSeasons();
   const parcels = await getParcels();
 
-  // Luăm planurile celui activ sau al primului din listă
-  const activeSeasonFallback = seasons.find((s: any) => s.isActive) || seasons[0];
+  // Luăm planurile celui activ, al celui din URL sau al primului din listă
+  const requestedSeasonId = searchParams.seasonId;
+  const activeSeasonFallback = requestedSeasonId 
+    ? seasons.find((s: any) => s.id === requestedSeasonId)
+    : (seasons.find((s: any) => s.isActive) || seasons[0]);
+    
   const plans = activeSeasonFallback ? await getCropPlans(activeSeasonFallback.id) : [];
 
   const inventory = await getInventory();
@@ -25,6 +30,7 @@ export default async function SeasonsPage() {
           allParcels={JSON.parse(JSON.stringify(parcels))}
           initialPlans={JSON.parse(JSON.stringify(plans))}
           seedItems={JSON.parse(JSON.stringify(seeds))}
+          currentSeasonId={activeSeasonFallback?.id || null}
         />
       </Suspense>
     </main>

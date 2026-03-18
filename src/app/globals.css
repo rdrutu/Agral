@@ -222,3 +222,62 @@
 ::-webkit-scrollbar-thumb:hover {
   background: oklch(0.55 0.12 145);
 }
+
+/* Premium UI Utilities */
+.mesh-gradient-bg {
+  background-color: var(--background);
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(26, 92, 42, 0.15) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(76, 175, 116, 0.15) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(184, 150, 46, 0.12) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, rgba(45, 138, 71, 0.15) 0px, transparent 50%);
+  position: relative;
+  isolation: isolate;
+}
+
+.mesh-gradient-bg::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  opacity: 0.1;
+  pointer-events: none;
+  z-index: -1;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3e%3cfilter id='noiseFilter'%3e%3cturbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3e%3c/filter%3e%3crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3e%3c/svg%3e");
+}
+
+.glass-premium {
+  background-color: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  box-shadow: 
+    0 10px 40px -10px rgba(0, 0, 0, 0.05),
+    0 0 20px 0 rgba(26, 92, 42, 0.05);
+  background-clip: padding-box;
+}
+
+.dark .glass-premium {
+  background-color: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.3);
+}
+
+.glass-card {
+  background-color: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  transition: all 0.3s ease;
+}
+
+.dark .glass-card {
+  background-color: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}

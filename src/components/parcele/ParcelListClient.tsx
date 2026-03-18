@@ -17,6 +17,7 @@ import {
   ChevronRight,
   Loader2,
   Calendar, // Added Calendar
+  History as HistoryIcon,
   Pencil, // Added Pencil
   Trash2, // Added Trash2
 } from "lucide-react";
@@ -25,7 +26,14 @@ import { formatDate } from "@/lib/utils"; // Added this import
 import { toast } from "react-hot-toast"; // Added this import
 import { createParcel, updateParcel } from "@/lib/actions/parcels";
 import dynamic from "next/dynamic";
-import AllParcelsMapClient from "./AllParcelsMapClient";
+const AllParcelsMapClient = dynamic(() => import("./AllParcelsMapClient"), { 
+  ssr: false,
+  loading: () => (
+    <div className="h-[400px] w-full bg-muted animate-pulse rounded-xl flex items-center justify-center border-2 border-primary/20">
+      <Loader2 className="w-8 h-8 animate-spin text-primary/50" />
+    </div>
+  )
+});
 import { 
   Dialog, 
   DialogContent, 
@@ -351,6 +359,11 @@ export default function ParcelListClient({
                   >
                     <Edit2 className="w-3.5 h-3.5" />
                   </Button>
+                  <Link href={`/parcele/${parcel.id}?tab=history`}>
+                    <Button variant="ghost" size="sm" className="h-8 px-2 gap-1 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50">
+                      <HistoryIcon className="w-3.5 h-3.5" /> Istoric
+                    </Button>
+                  </Link>
                   <Link href={`/parcele/${parcel.id}`}>
                     <Button variant="ghost" size="sm" className="h-8 px-2 gap-1 text-primary">
                       Detalii <ChevronRight className="w-3.5 h-3.5" />

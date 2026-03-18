@@ -173,3 +173,20 @@ export async function updateParcel(id: string, data: { name?: string, cadastralC
   revalidatePath("/dashboard");
   revalidatePath(`/parcele/${id}`);
 }
+export async function updateCropPlanPrice(planId: string, price: number) {
+  const orgId = await getUserOrganization();
+  if (!orgId) throw new Error("Neautorizat");
+
+  await prisma.cropPlan.update({
+    where: { id: planId },
+    data: { harvestPricePerUnit: price }
+  });
+
+  revalidatePath("/financiar");
+  // Get parcel ID to revalidate its detail page
+  const plan = await prisma.cropPlan.findUnique({
+    where: { id: planId },
+    select: { parcelId: true }
+  });
+  if (plan) revalidatePath(`/parcele/${plan.parcelId}`);
+}

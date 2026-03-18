@@ -60,7 +60,7 @@ export default async function DashboardPage() {
   const firstName = dbUser?.firstName || "Fermier";
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto pb-10">
+    <div className="space-y-8 max-w-7xl mx-auto pb-10 min-h-screen p-4 md:p-8 rounded-[2.5rem]">
       {/* Refined Header - Rendered immediately */}
       <div className="relative overflow-hidden rounded-[1.5rem] md:rounded-[2.5rem] bg-gradient-to-br from-green-900 via-green-800 to-emerald-900 p-6 md:p-8 text-white shadow-2xl shadow-green-900/20">
         <div className="absolute top-0 right-0 p-12 opacity-10 blur-2xl hidden md:block">

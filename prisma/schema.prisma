@@ -132,7 +132,7 @@ model User {
   email      String    @unique
   firstName  String?   @map("first_name")
   lastName   String?   @map("last_name")
-  role       String    @default("owner") // owner, superadmin, agronomist, worker
+  role       String    @default("owner") // owner, superadmin, moderator, agronomist, worker
   canLogin   Boolean   @default(true) @map("can_login")
 
   // Detalii HR / Salarizare
@@ -201,6 +201,7 @@ model CropPlan {
   estimatedYieldTha    Decimal?  @map("estimated_yield_t_ha") @db.Decimal(10, 2)
   actualYieldTha       Decimal?  @map("actual_yield_t_ha") @db.Decimal(10, 2)
   status               String    @default("planned") // planned, sown, growing, harvested
+  harvestPricePerUnit  Decimal?  @map("harvest_price_per_unit") @db.Decimal(10, 2)
 
   season               Season    @relation(fields: [seasonId], references: [id], onDelete: Cascade)
   parcel               Parcel    @relation(fields: [parcelId], references: [id], onDelete: Restrict)
