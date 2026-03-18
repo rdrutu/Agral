@@ -141,14 +141,22 @@ export default function ParcelDetailClient({ parcel }: ParcelDetailClientProps) 
                 </div>
               </div>
               <Badge className={`text-md px-4 py-1 font-black uppercase tracking-widest border ${statusColors[currentPlan?.status || 'planned']}`}>
-                {currentPlan?.status || 'Liberă'}
+                {currentPlan?.status === 'sown' ? 'Semănat' : 
+                 currentPlan?.status === 'growing' ? 'În vegetație' : 
+                 currentPlan?.status === 'harvested' ? 'Recoltat' : 
+                 currentPlan?.status === 'planned' ? 'Planificat' : 'Liberă'}
               </Badge>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10">
+               <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10">
                 <p className="text-[10px] font-black text-muted-foreground uppercase mb-1">Cultură Curentă</p>
-                <p className="text-lg font-bold text-primary truncate leading-tight">{currentPlan?.cropType || "Niciuna"}</p>
+                <div className="flex flex-col">
+                  <p className="text-lg font-bold text-primary truncate leading-tight">{currentPlan?.cropType || "Niciuna"}</p>
+                  {currentPlan?.sownDate && (
+                    <p className="text-[9px] font-bold text-muted-foreground mt-0.5">Din {new Date(currentPlan.sownDate).toLocaleDateString()}</p>
+                  )}
+                </div>
               </div>
               <div className="p-4 rounded-2xl bg-amber-50 border border-amber-100">
                 <p className="text-[10px] font-black text-amber-700 uppercase mb-1">Lucrări</p>

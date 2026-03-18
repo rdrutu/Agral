@@ -52,13 +52,15 @@ export function Sidebar({
   userName = "Utilizator", 
   subTier = "trial",
   orgCreatedAt,
-  subExpiresAt
+  subExpiresAt,
+  className
 }: { 
   userRole?: string;
   userName?: string;
   subTier?: string;
   orgCreatedAt?: string;
   subExpiresAt?: string;
+  className?: string;
 }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
@@ -98,8 +100,9 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        "h-screen sticky top-0 flex flex-col bg-sidebar border-r border-sidebar-border transition-all duration-300 relative",
-        collapsed ? "w-20" : "w-72"
+        "h-screen sticky top-0 flex-col bg-sidebar border-r border-sidebar-border transition-all duration-300 relative",
+        collapsed ? "w-20" : "w-72",
+        className ? className : "hidden lg:flex"
       )}
     >
       {/* Toggle Button */}

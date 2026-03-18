@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Fragment } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -253,14 +253,14 @@ export default function SeasonsClient({
   return (
     <div className="space-y-6">
       {/* HEADER */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-extrabold text-foreground flex items-center gap-2">
             <CalendarDays className="w-7 h-7 text-primary" />
-            Campanii Agricole (Plan Culturi)
+            Campanii Agricole
           </h2>
-          <p className="text-muted-foreground mt-1">
-            Organizează Rotația Culturilor și istoricizează Anii Agricoli pentru fiecare sol în parte.
+          <p className="text-muted-foreground mt-1 text-sm md:text-base">
+            Organizează Rotația Culturilor și istoricizează Anii Agricoli.
           </p>
         </div>
       </div>
@@ -375,17 +375,16 @@ export default function SeasonsClient({
                   <CardTitle className="text-xl text-primary flex items-center gap-2">
                     <Sprout className="w-5 h-5" /> Plan de Culturi: {activeSeasonData?.name}
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="text-sm">
                     Bifați parcelele <strong>libere sau recoltate</strong> și atribuiți grupat o cultură.
-                    Parcelele ocupate (🔒) nu pot fi re-alocate.
                   </CardDescription>
                 </div>
 
                 {selectedParcels.length > 0 && (
-                  <div className="p-2 bg-primary/10 border border-primary/20 rounded-lg flex items-center gap-2 animate-in fade-in slide-in-from-right-4">
-                    <span className="text-sm font-semibold text-primary">{selectedParcels.length} parcele alese</span>
+                  <div className="p-2 md:p-3 bg-primary/10 border border-primary/20 rounded-xl flex flex-wrap items-center gap-2 animate-in fade-in slide-in-from-right-4">
+                    <span className="text-sm font-semibold text-primary px-1">{selectedParcels.length} alese</span>
                     <select
-                      className="h-8 rounded-md border border-input bg-background px-2 text-sm"
+                      className="h-9 rounded-md border border-input bg-background px-2 text-sm flex-1 min-w-[120px]"
                       value={bulkCrop}
                       onChange={(e) => setBulkCrop(e.target.value)}
                     >
@@ -395,7 +394,7 @@ export default function SeasonsClient({
                     </select>
                     
                     <select
-                      className="h-8 rounded-md border border-input bg-background px-2 text-xs font-bold text-primary"
+                      className="h-9 rounded-md border border-input bg-background px-2 text-xs font-bold text-primary flex-1 min-w-[150px]"
                       value={selectedSeedId}
                       onChange={(e) => setSelectedSeedId(e.target.value)}
                     >
@@ -406,10 +405,10 @@ export default function SeasonsClient({
                         </option>
                       ))}
                     </select>
-
-                    <Button size="sm" className="h-8 gap-1 shadow-sm" onClick={handleAllocate} disabled={isSubmitting}>
+ 
+                    <Button size="sm" className="h-9 px-4 gap-1 shadow-sm w-full sm:w-auto agral-gradient text-white" onClick={handleAllocate} disabled={isSubmitting}>
                       {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                      Aplică
+                      Aplică Alocarea
                     </Button>
                   </div>
                 )}
@@ -418,16 +417,16 @@ export default function SeasonsClient({
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left">
-                  <thead className="text-xs text-muted-foreground uppercase bg-muted/40 border-b">
+                   <thead className="text-[10px] text-muted-foreground uppercase bg-muted/40 border-b font-black tracking-widest">
                     <tr>
-                      <th className="px-4 py-3 w-10">Bifă</th>
-                      <th className="px-4 py-3">Nume Parcelă</th>
-                      <th className="px-4 py-3">Suprafață</th>
-                      <th className="px-4 py-3">Cultură & Status</th>
-                      <th className="px-4 py-3 text-right">Acțiuni</th>
+                      <th className="px-3 md:px-4 py-3 w-8">Bifă</th>
+                      <th className="px-3 md:px-4 py-3">Parcelă</th>
+                      <th className="px-3 md:px-4 py-3 hidden md:table-cell">Suprafață</th>
+                      <th className="px-3 md:px-4 py-3">Cultură & Status</th>
+                      <th className="px-3 md:px-4 py-3 text-right">Acțiuni</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y">
+                  <tbody className="divide-y text-xs md:text-sm">
                     {allParcels.map((p) => {
                       const plan = getPlanForParcel(p.id);
                       const occupied = isParcelOccupied(p.id);
@@ -436,14 +435,13 @@ export default function SeasonsClient({
                       const isReportOpen = reportParcelId === p.id;
 
                       return (
-                        <>
+                        <Fragment key={p.id}>
                           <tr
-                            key={p.id}
                             className={`transition-colors ${
                               isSelected ? "bg-primary/5" : occupied ? "bg-amber-50/40" : "hover:bg-muted/20"
                             }`}
                           >
-                            <td className="px-4 py-3">
+                            <td className="px-3 md:px-4 py-3">
                               <input
                                 type="checkbox"
                                 className="w-4 h-4 rounded border-gray-300 cursor-pointer accent-primary disabled:opacity-40 disabled:cursor-not-allowed"
@@ -453,48 +451,55 @@ export default function SeasonsClient({
                                 title={occupied ? `Parcelă ocupată cu ${plan?.cropType}` : "Selectează"}
                               />
                             </td>
-                            <td className="px-4 py-3 font-semibold text-foreground">
-                              <div className="flex items-center gap-2">
-                                {occupied && !isHarvested ? (
-                                  <span title="Parcelă cu cultură activă">🔒</span>
-                                ) : (
-                                  <MapPin className="w-4 h-4 text-muted-foreground" />
-                                )}
-                                {p.name}
+                             <td className="px-3 md:px-4 py-3 font-bold text-foreground">
+                              <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-2">
+                                <div className="flex items-center gap-1.5 truncate max-w-[120px] md:max-w-none">
+                                  {occupied && !isHarvested ? (
+                                    <span title="Parcelă cu cultură activă" className="text-xs">🔒</span>
+                                  ) : (
+                                    <MapPin className="w-3 h-3 md:w-4 md:h-4 text-muted-foreground" />
+                                  )}
+                                  <span className="text-xs md:text-sm truncate">{p.name}</span>
+                                </div>
+                                <span className="text-[10px] md:hidden text-muted-foreground font-medium italic">
+                                  {p.areaHa?.toString()} ha
+                                </span>
                               </div>
                             </td>
-                            <td className="px-4 py-3 text-muted-foreground">{p.areaHa?.toString()} ha</td>
-                            <td className="px-4 py-3">
+                            <td className="px-3 md:px-4 py-3 text-muted-foreground hidden md:table-cell">
+                              {p.areaHa?.toString()} ha
+                            </td>
+                            <td className="px-3 md:px-4 py-3">
                               {plan ? (
                                 <div className="flex items-center gap-2">
-                                  <span className="text-lg">{CROP_EMOJI[plan.cropType] || "🌱"}</span>
-                                  <div>
-                                    <div className="font-medium text-foreground">{plan.cropType}</div>
-                                    <Badge className={`text-[10px] border px-1.5 py-0 ${STATUS_COLORS[plan.status]}`}>
+                                  <span className="text-base md:text-lg">{CROP_EMOJI[plan.cropType] || "🌱"}</span>
+                                  <div className="min-w-0">
+                                    <div className="font-bold text-foreground text-[10px] md:text-sm truncate">{plan.cropType}</div>
+                                    <Badge className={`text-[8px] md:text-[9px] border px-1 md:px-1.5 py-0 font-black uppercase ${STATUS_COLORS[plan.status]}`}>
                                       {STATUS_LABELS[plan.status] || plan.status}
                                     </Badge>
                                     {isHarvested && plan.actualYieldTha && (
-                                      <span className="text-xs text-muted-foreground ml-1">
+                                      <span className="text-[9px] md:text-xs text-muted-foreground ml-1 font-bold">
                                         {Number(plan.actualYieldTha).toFixed(1)} t/ha
                                       </span>
                                     )}
                                   </div>
                                 </div>
                               ) : (
-                                <span className="text-muted-foreground italic text-xs">Liberă</span>
+                                <span className="text-muted-foreground italic text-[10px] md:text-xs">Liberă</span>
                               )}
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="px-3 md:px-4 py-3">
                               <div className="flex items-center justify-end gap-1">
                                 {plan && plan.status !== "harvested" && (
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    className="h-7 px-2 text-xs gap-1 border-amber-300 text-amber-700 hover:bg-amber-50"
+                                    className="h-7 px-2 text-[10px] md:text-xs gap-1 border-amber-300 text-amber-700 hover:bg-amber-50"
                                     onClick={() => { setHarvestPlanId(plan.id); setHarvestYield(""); }}
-                                    title="Înregistrează recolta"
+                                    title="Recoltează"
                                   >
-                                    <Wheat className="w-3 h-3" /> Recoltează
+                                    <Wheat className="w-3 h-3" /> <span className="hidden sm:inline">Recoltează</span>
                                   </Button>
                                 )}
                                 {plan && (
@@ -503,7 +508,7 @@ export default function SeasonsClient({
                                     size="icon"
                                     className="h-7 w-7 text-blue-600 hover:bg-blue-50"
                                     onClick={() => handleToggleReport(p.id)}
-                                    title="Raport parcelă"
+                                    title="Raport"
                                   >
                                     {isReportOpen ? <ChevronUp className="w-4 h-4" /> : <TrendingUp className="w-4 h-4" />}
                                   </Button>
@@ -514,7 +519,7 @@ export default function SeasonsClient({
                                     size="icon"
                                     className="h-7 w-7 text-destructive hover:bg-destructive/10"
                                     onClick={() => handleRemovePlan(plan.id)}
-                                    title="Șterge alocarea"
+                                    title="Șterge"
                                   >
                                     <Trash2 className="w-4 h-4" />
                                   </Button>
@@ -526,61 +531,56 @@ export default function SeasonsClient({
                           {/* Report Panel (inline expansion) */}
                           {isReportOpen && (
                             <tr key={`report-${p.id}`}>
-                              <td colSpan={5} className="px-4 py-3 bg-blue-50/60 border-b">
+                              <td colSpan={5} className="px-3 md:px-4 py-3 bg-blue-50/60 border-b">
                                 {loadingReport ? (
-                                  <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
-                                    <Loader2 className="w-4 h-4 animate-spin" /> Se încarcă raportul...
+                                  <div className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground py-2">
+                                    <Loader2 className="w-4 h-4 animate-spin" /> Se încarcă...
                                   </div>
                                 ) : reportData ? (
                                   <div className="space-y-3">
                                     <div className="flex items-center gap-2">
                                       <TrendingUp className="w-4 h-4 text-blue-600" />
-                                      <span className="font-bold text-blue-900">Fișa Parcelei — {reportData.parcelName}</span>
+                                      <span className="font-bold text-blue-900 text-xs md:text-sm">Fișa Parcelei — {reportData.parcelName}</span>
                                     </div>
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                      <div className="bg-white rounded-lg p-2 border text-center">
-                                        <div className="text-lg font-extrabold text-primary">{reportData.totalCost} RON</div>
-                                        <div className="text-[10px] text-muted-foreground">Cost total sezon</div>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
+                                      <div className="bg-white rounded-lg p-2 border text-center shadow-sm">
+                                        <div className="text-sm md:text-lg font-extrabold text-primary">{reportData.totalCost} RON</div>
+                                        <div className="text-[9px] md:text-[10px] text-muted-foreground">Cost total</div>
                                       </div>
-                                      <div className="bg-white rounded-lg p-2 border text-center">
-                                        <div className="text-lg font-extrabold text-orange-600">{reportData.costPerHa} RON</div>
-                                        <div className="text-[10px] text-muted-foreground">Cost / hectar</div>
+                                      <div className="bg-white rounded-lg p-2 border text-center shadow-sm">
+                                        <div className="text-sm md:text-lg font-extrabold text-orange-600">{reportData.costPerHa} RON</div>
+                                        <div className="text-[9px] md:text-[10px] text-muted-foreground">Cost / Ha</div>
                                       </div>
-                                      <div className="bg-white rounded-lg p-2 border text-center">
-                                        <div className="text-lg font-extrabold text-green-600">
+                                      <div className="bg-white rounded-lg p-2 border text-center shadow-sm">
+                                        <div className="text-sm md:text-lg font-extrabold text-green-600">
                                           {reportData.actualYieldTha ? `${reportData.actualYieldTha} t/ha` : "—"}
                                         </div>
-                                        <div className="text-[10px] text-muted-foreground">Producție reală</div>
+                                        <div className="text-[9px] md:text-[10px] text-muted-foreground">Producție</div>
                                       </div>
-                                      <div className="bg-white rounded-lg p-2 border text-center">
-                                        <div className="text-lg font-extrabold text-gray-700">{reportData.areaHa} ha</div>
-                                        <div className="text-[10px] text-muted-foreground">Suprafață</div>
+                                      <div className="bg-white rounded-lg p-2 border text-center shadow-sm">
+                                        <div className="text-sm md:text-lg font-extrabold text-gray-700">{reportData.areaHa} ha</div>
+                                        <div className="text-[9px] md:text-[10px] text-muted-foreground">Suprafață</div>
                                       </div>
                                     </div>
                                     {reportData.breakdown.length > 0 && (
-                                      <div className="bg-white rounded-lg border overflow-hidden">
-                                        <div className="px-3 py-1.5 bg-muted/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                      <div className="bg-white rounded-lg border overflow-hidden shadow-sm">
+                                        <div className="px-3 py-1.5 bg-muted/40 text-[9px] md:text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                                           Detaliu costuri
                                         </div>
                                         {reportData.breakdown.map((b: any, i: number) => (
-                                          <div key={i} className="flex justify-between items-center px-3 py-1.5 text-xs border-t">
+                                          <div key={i} className="flex justify-between items-center px-3 py-1.5 text-[10px] md:text-xs border-t">
                                             <span className="text-foreground">{b.name}</span>
                                             <span className="font-semibold text-primary">{b.totalCost} RON</span>
                                           </div>
                                         ))}
                                       </div>
                                     )}
-                                    {reportData.breakdown.length === 0 && (
-                                      <p className="text-xs text-muted-foreground italic">
-                                        Nu există lucrări înregistrate pe această parcelă în sezonul curent.
-                                      </p>
-                                    )}
                                   </div>
                                 ) : null}
                               </td>
                             </tr>
                           )}
-                        </>
+                        </Fragment>
                       );
                     })}
                   </tbody>
@@ -589,7 +589,7 @@ export default function SeasonsClient({
                 {allParcels.length === 0 && (
                   <div className="text-center py-12 text-muted-foreground">
                     <MapPin className="w-10 h-10 mx-auto mb-2 opacity-40" />
-                    <p>Nu ai parcele înregistrate. Adaugă parcele în secțiunea <strong>Parcele</strong>.</p>
+                    <p>Nu ai parcele înregistrate.</p>
                   </div>
                 )}
               </div>

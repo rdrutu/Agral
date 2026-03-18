@@ -245,51 +245,51 @@ export default function WeatherClient({ initialWeather, mainLocation, pois: init
 
       {/* Main Weather Card */}
       <div className={cn("space-y-6 transition-opacity duration-300", isLoading && "opacity-50 pointer-events-none")}>
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/50 p-8 rounded-[2rem] border border-white/20 backdrop-blur-md shadow-2xl relative overflow-hidden">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white/50 p-6 md:p-8 rounded-[1.5rem] md:rounded-[2.5rem] border border-white/20 backdrop-blur-md shadow-2xl relative overflow-hidden">
           {/* Subtle bg icon */}
           <div className="absolute -right-8 -bottom-8 opacity-[0.03] scale-[4]">
             <CurrentIcon className="w-24 h-24" />
           </div>
 
           <div className="flex items-center gap-6 relative z-10">
-            <div className="w-24 h-24 rounded-[2rem] agral-gradient flex items-center justify-center text-white shadow-2xl shrink-0 transform hover:scale-105 transition-transform">
-              <CurrentIcon className="w-14 h-14" />
+            <div className="w-20 h-20 md:w-24 md:h-24 rounded-[1.5rem] md:rounded-[2rem] agral-gradient flex items-center justify-center text-white shadow-2xl shrink-0 transform hover:scale-105 transition-transform">
+              <CurrentIcon className="w-10 h-10 md:w-14 md:h-14" />
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <Badge className="bg-primary/10 text-primary border-none text-[10px] font-black uppercase tracking-wider">{activeLocation.name}</Badge>
+                <Badge className="bg-primary/10 text-primary border-none text-[9px] md:text-[10px] font-black uppercase tracking-wider">{activeLocation.name}</Badge>
                 {isLoading && <Loader2 className="w-3 h-3 animate-spin text-primary" />}
               </div>
-              <h1 className="text-5xl font-black text-foreground tracking-tighter leading-none">{Math.round(current.temperature_2m)}°C</h1>
-              <p className="text-lg font-bold text-muted-foreground mt-2">
+              <h1 className="text-4xl md:text-5xl font-black text-foreground tracking-tighter leading-none">{Math.round(current.temperature_2m)}°C</h1>
+              <p className="text-base md:text-lg font-bold text-muted-foreground mt-2">
                 {currentInfo.desc}
               </p>
             </div>
           </div>
           
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 shrink-0 relative z-10">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 md:gap-8 shrink-0 relative z-10 border-t md:border-t-0 pt-6 md:pt-0 border-white/20">
             <div className="flex flex-col items-center">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground mb-1 tracking-widest">Resimțită</span>
-              <div className="flex items-center gap-2 font-black text-xl">
-                <Thermometer className="w-5 h-5 text-amber-500" /> {Math.round(current.temperature_2m)}°
+              <span className="text-[9px] md:text-[10px] uppercase font-bold text-muted-foreground mb-1 tracking-widest">Resimțită</span>
+              <div className="flex items-center gap-2 font-black text-lg md:text-xl">
+                <Thermometer className="w-4 h-4 md:w-5 md:h-5 text-amber-500" /> {Math.round(current.temperature_2m)}°
               </div>
             </div>
             <div className="flex flex-col items-center">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground mb-1 tracking-widest">Umiditate</span>
-              <div className="flex items-center gap-2 font-black text-xl">
-                <Droplets className="w-5 h-5 text-blue-500" /> {current.relative_humidity_2m}%
+              <span className="text-[9px] md:text-[10px] uppercase font-bold text-muted-foreground mb-1 tracking-widest">Umiditate</span>
+              <div className="flex items-center gap-2 font-black text-lg md:text-xl">
+                <Droplets className="w-4 h-4 md:w-5 md:h-5 text-blue-500" /> {current.relative_humidity_2m}%
               </div>
             </div>
             <div className="flex flex-col items-center">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground mb-1 tracking-widest">Rafale vânt</span>
-              <div className="flex items-center gap-2 font-black text-xl">
-                <Wind className="w-5 h-5 text-slate-500" /> {current.wind_speed_10m} <span className="text-[10px] font-black ml-0.5">km/h</span>
+              <span className="text-[9px] md:text-[10px] uppercase font-bold text-muted-foreground mb-1 tracking-widest">Rafale</span>
+              <div className="flex items-center gap-2 font-black text-lg md:text-xl">
+                <Wind className="w-4 h-4 md:w-5 md:h-5 text-slate-500" /> {current.wind_speed_10m} <span className="text-[9px] md:text-[10px] font-black ml-0.5">km/h</span>
               </div>
             </div>
             <div className="flex flex-col items-center">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground mb-1 tracking-widest">Precipitații</span>
-              <div className="flex items-center gap-2 font-black text-xl">
-                <CloudRain className="w-5 h-5 text-primary" /> {daily.precipitation_sum[0]} <span className="text-[10px] font-black ml-0.5">mm</span>
+              <span className="text-[9px] md:text-[10px] uppercase font-bold text-muted-foreground mb-1 tracking-widest">Apă</span>
+              <div className="flex items-center gap-2 font-black text-lg md:text-xl">
+                <CloudRain className="w-4 h-4 md:w-5 md:h-5 text-primary" /> {daily.precipitation_sum[0]} <span className="text-[9px] md:text-[10px] font-black ml-0.5">mm</span>
               </div>
             </div>
           </div>

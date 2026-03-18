@@ -89,7 +89,7 @@ export async function sellCrop(data: {
   const totalAmount = Number(data.quantity) * Number(data.pricePerUnit);
 
   const sale = await prisma.$transaction(async (tx) => {
-    // 1. Deduct from inventory
+    // 1. Fetch item
     const item = await tx.inventoryItem.findUnique({
       where: { id: data.inventoryItemId }
     });
@@ -101,13 +101,6 @@ export async function sellCrop(data: {
     if (Number(item.stockQuantity) < Number(data.quantity)) {
       throw new Error("Stoc insuficient pentru această vânzare.");
     }
-
-    await tx.inventoryItem.update({
-      where: { id: data.inventoryItemId },
-      data: {
-        stockQuantity: { decrement: data.quantity }
-      }
-    });
 
     // 2. Create Sale record
     const saleRecord = await tx.sale.create({
@@ -123,7 +116,44 @@ export async function sellCrop(data: {
       }
     });
 
-    // 3. Record Financial Transaction (Income)
+    // 3. FIFO - Deduct from lots
+    let remainingToDeduct = Number(data.quantity);
+    const lots = await (tx as any).inventoryLot.findMany({
+      where: { inventoryItemId: data.inventoryItemId, quantity: { gt: 0 } },
+      orderBy: { purchaseDate: 'asc' }
+    });
+
+    for (const lot of lots) {
+      if (remainingToDeduct <= 0) break;
+      const deductFromLot = Math.min(Number(lot.quantity), remainingToDeduct);
+      
+      await (tx as any).inventoryLot.update({
+        where: { id: lot.id },
+        data: { quantity: { decrement: deductFromLot } }
+      });
+
+      await (tx as any).inventoryTransaction.create({
+        data: {
+          inventoryLotId: lot.id,
+          type: "sale",
+          quantity: deductFromLot,
+          referenceId: saleRecord.id,
+          description: `Vânzare către ${data.buyer || 'client'}`
+        }
+      });
+
+      remainingToDeduct -= deductFromLot;
+    }
+
+    // 4. Update total stock
+    await tx.inventoryItem.update({
+      where: { id: data.inventoryItemId },
+      data: {
+        stockQuantity: { decrement: data.quantity }
+      }
+    });
+
+    // 5. Record Financial Transaction (Income)
     await tx.financialTransaction.create({
       data: {
         orgId: orgId as string,
@@ -142,5 +172,20 @@ export async function sellCrop(data: {
   revalidatePath("/magazie");
   revalidatePath("/stocuri");
   revalidatePath("/financiar");
+  return JSON.parse(JSON.stringify(sale));
+}
+
+export async function getSaleDetails(saleId: string) {
+  const orgId = await getUserOrganization();
+  if (!orgId) throw new Error("Neautorizat");
+
+  const sale = await prisma.sale.findUnique({
+    where: { id: saleId, orgId: orgId as string },
+    include: {
+      inventoryItem: true,
+      organization: true
+    }
+  });
+
   return JSON.parse(JSON.stringify(sale));
 }

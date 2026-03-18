@@ -29,8 +29,11 @@ export function OnboardingClient() {
   const [loading, setLoading] = useState(false);
 
   // Form Data
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [orgName, setOrgName] = useState("");
   const [legalName, setLegalName] = useState("");
+  const [registrationNumber, setRegistrationNumber] = useState("");
   const [entityType, setEntityType] = useState("SRL");
   const [county, setCounty] = useState("");
   const [city, setCity] = useState("");
@@ -44,6 +47,18 @@ export function OnboardingClient() {
 
   const [parcelData, setParcelData] = useState<{ geoJson: any; areaHa: number } | null>(null);
 
+  useState(() => {
+    const fetchUser = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.user_metadata) {
+        if (user.user_metadata.first_name) setFirstName(user.user_metadata.first_name);
+        if (user.user_metadata.last_name) setLastName(user.user_metadata.last_name);
+      }
+    };
+    fetchUser();
+  });
+
   const handleNext = () => {
     if (step < 3) setStep((s) => s + 1);
   };
@@ -52,6 +67,8 @@ export function OnboardingClient() {
   };
 
   const isStep1Valid = 
+    firstName.length >= 2 &&
+    lastName.length >= 2 &&
     orgName.length > 2 && 
     legalName.length > 2 &&
     county.length > 2 && 
@@ -73,8 +90,11 @@ export function OnboardingClient() {
     try {
       setLoading(true);
       await submitOnboarding({
+        firstName,
+        lastName,
         orgName,
         legalName,
+        registrationNumber,
         entityType,
         county,
         city,
@@ -136,6 +156,17 @@ export function OnboardingClient() {
               <CardDescription className="text-base">Pentru început, avem nevoie de câteva informații despre ferma ta.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 max-w-xl mx-auto mt-2">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="firstName" className="font-bold">Prenume <span className="text-red-500">*</span></Label>
+                  <Input id="firstName" placeholder="Prenumele tău" value={firstName} onChange={(e) => setFirstName(e.target.value)} className="h-10" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lastName" className="font-bold">Nume <span className="text-red-500">*</span></Label>
+                  <Input id="lastName" placeholder="Numele tău" value={lastName} onChange={(e) => setLastName(e.target.value)} className="h-10" />
+                </div>
+              </div>
+
               <div className="grid grid-cols-[1fr_2fr] gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="entityType" className="font-bold">Formă de organizare</Label>
@@ -191,8 +222,8 @@ export function OnboardingClient() {
                   <Input id="address" placeholder="Strada, Numărul, Bloc, etc." value={address} onChange={(e) => setAddress(e.target.value)} className="h-10" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="caen" className="font-bold">Cod CAEN (Opțional)</Label>
-                  <Input id="caen" placeholder="Ex: 0111" value={caen} onChange={(e) => setCaen(e.target.value)} className="h-10" />
+                  <Label htmlFor="registrationNumber" className="font-bold">Nr. Reg. Com. (J40/xx/xxxx)</Label>
+                  <Input id="registrationNumber" placeholder="Ex: J10/123/2020" value={registrationNumber} onChange={(e) => setRegistrationNumber(e.target.value)} className="h-10" />
                 </div>
               </div>
             </CardContent>

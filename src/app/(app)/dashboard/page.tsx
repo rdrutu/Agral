@@ -1,5 +1,6 @@
-import { WeatherWidget, NewsWidget } from "@/components/dashboard/DashboardWidgets";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { WeatherWidget, NewsWidget, QuickActionsWidget } from "@/components/dashboard/DashboardWidgets";
+import { DashboardClient } from "@/components/dashboard/DashboardClient";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   MapPin,
@@ -11,6 +12,8 @@ import {
   ArrowRight,
   Banknote,
   Tractor,
+  Calendar,
+  Zap
 } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
@@ -18,12 +21,15 @@ import prisma from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { getWeatherData, countyCoords } from "@/lib/weather";
 import { getAgriNews } from "@/lib/actions/news";
+import { cn } from "@/lib/utils";
+import { Suspense } from "react";
+import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 
 const statusColors: Record<string, string> = {
-  growing: "bg-green-100 text-green-700 border-green-200",
-  planned: "bg-blue-100 text-blue-700 border-blue-200",
-  harvested: "bg-gray-100 text-gray-600 border-gray-200",
-  sown: "bg-amber-100 text-amber-700 border-amber-200",
+  growing: "bg-emerald-100 text-emerald-700 border-emerald-200/50",
+  planned: "bg-sky-100 text-sky-700 border-sky-200/50",
+  harvested: "bg-slate-100 text-slate-600 border-slate-200/50",
+  sown: "bg-amber-100 text-amber-700 border-amber-200/50",
 };
 
 const tips = [
@@ -45,22 +51,47 @@ export default async function DashboardPage() {
   const dbUser = await prisma.user.findUnique({
     where: { id: user.id },
     include: { organization: true }
-  });
+  }) as any; // Cast dbUser to any as requested
 
-  // Izolare Superadmin
   if (dbUser?.role === 'superadmin') {
     redirect("/admin");
   }
 
   const firstName = dbUser?.firstName || "Fermier";
+
+  return (
+    <div className="space-y-8 max-w-7xl mx-auto pb-10">
+      {/* Refined Header - Rendered immediately */}
+      <div className="relative overflow-hidden rounded-[1.5rem] md:rounded-[2.5rem] bg-gradient-to-br from-green-900 via-green-800 to-emerald-900 p-6 md:p-8 text-white shadow-2xl shadow-green-900/20">
+        <div className="absolute top-0 right-0 p-12 opacity-10 blur-2xl hidden md:block">
+          <Sprout className="w-64 h-64 rotate-12" />
+        </div>
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6">
+          <div>
+            <div className="flex items-center gap-3 mb-2 md:mb-3">
+              <div className="h-1 w-1 rounded-full bg-white/40" />
+              <span className="text-[10px] md:text-xs font-bold text-white/60 uppercase tracking-tighter">
+                {new Date().toLocaleDateString('ro-RO', { weekday: 'long', day: 'numeric', month: 'long' })}
+              </span>
+            </div>
+            <h2 className="text-2xl md:text-4xl font-black tracking-tight mb-2">Bună ziua, {firstName}!</h2>
+            <p className="text-sm md:text-base text-green-100/70 font-medium max-w-md">
+              Monitorizarea fermei tale este activă. Verifică situația actualizată mai jos.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Dynamic Content - Wrapped in Suspense so everything appears at once */}
+      <Suspense fallback={<DashboardSkeleton />}>
+        <DashboardDynamicContent dbUser={dbUser} />
+      </Suspense>
+    </div>
+  );
+}
+
+async function DashboardDynamicContent({ dbUser }: { dbUser: any }) {
   const org = dbUser?.organization;
-
-  // Izolare Superadmin
-  if (dbUser?.role === 'superadmin') {
-    redirect("/admin");
-  }
-
-  // Dashboard real logic
   const orgId = org?.id || "00000000-0000-0000-0000-000000000000";
 
   // 1. Fetch Real KPI Values
@@ -76,7 +107,7 @@ export default async function DashboardPage() {
       where: { orgId, isActive: true } as any,
       orderBy: { startDate: "desc" }
     }),
-    (prisma as any).agriculturalOperation.aggregate({
+    (prisma as any).agriculturalOperation?.aggregate({
       where: { orgId },
       _sum: { totalAreaHa: true }
     }),
@@ -87,38 +118,48 @@ export default async function DashboardPage() {
   ]);
 
   const totalMonthlyCost = Number((hrExpenses as any)._sum.monthlySalary || 0);
-  const totalOpArea = Number(operationalExpenses._sum.totalAreaHa || 0);
+  const totalOpArea = Number(operationalExpenses?._sum.totalAreaHa || 0);
 
   const kpis = [
     {
       title: "Cheltuieli Lunare",
       value: totalMonthlyCost.toLocaleString(),
       unit: "lei",
-      change: "Salarii & Gestiune",
-      positive: false,
+      desc: "Salarii & Admin",
       icon: Banknote,
-      color: "text-red-600",
-      bg: "bg-red-50",
+      color: "text-rose-600",
+      bg: "bg-rose-50",
+      border: "border-rose-100/50"
     },
     {
       title: "Activitate Totală",
       value: totalOpArea.toLocaleString(),
       unit: "ha",
-      change: "Operațiuni înregistrate",
-      positive: true,
+      desc: "Lucrări înregistrate",
       icon: Tractor,
       color: "text-amber-600",
       bg: "bg-amber-50",
+      border: "border-amber-100/50"
     },
     {
-      title: todayTip.split(' ')[0], // Dynamic
-      value: "Info",
-      unit: "Util",
-      change: "Sfatul agronomului",
-      positive: true,
-      icon: CheckCircle2,
-      color: "text-amber-600",
-      bg: "bg-amber-50",
+      title: "Suprafață Totală",
+      value: Number(totalArea._sum.areaHa || 0).toFixed(1),
+      unit: "ha",
+      desc: `${parcelCount} parcele active`,
+      icon: MapPin,
+      color: "text-emerald-600",
+      bg: "bg-emerald-50",
+      border: "border-emerald-100/50"
+    },
+    {
+      title: "Sezon Activ",
+      value: activeSeason?.startDate ? new Date(activeSeason.startDate).getFullYear().toString() : "2024",
+      unit: "",
+      desc: activeSeason?.name || "Niciun sezon activ",
+      icon: Sprout,
+      color: "text-blue-600",
+      bg: "bg-blue-50",
+      border: "border-blue-100/50"
     },
   ];
 
@@ -127,8 +168,20 @@ export default async function DashboardPage() {
     where: { orgId },
     orderBy: { createdAt: "desc" },
     take: 4,
-    include: { cropPlans: { where: { status: "growing" }, take: 1 } }
+    include: { cropPlans: { orderBy: { id: "desc" }, take: 1 } }
   });
+
+  // Fix serialization for objects passed to DashboardClient
+  const serializedRecentParcels = (recentParcels as any[]).map(p => ({
+    ...p,
+    areaHa: Number(p.areaHa),
+    cropPlans: (p.cropPlans || []).map((cp: any) => ({
+      ...cp,
+      sownAreaHa: Number(cp.sownAreaHa),
+      estimatedYieldTha: Number(cp.estimatedYieldTha || 0),
+      actualYieldTha: Number(cp.actualYieldTha || 0),
+    }))
+  }));
 
   // 3. Simple Real Alerts
   const realAlerts = [];
@@ -136,7 +189,6 @@ export default async function DashboardPage() {
     realAlerts.push({ type: "info", text: "Nu ai desenat nicio parcelă. Începe acum!", href: "/parcele" });
   }
   
-  // Contracts alerts
   const expiringContracts = await (prisma as any).leaseContract?.findMany({
     where: { orgId, endDate: { lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) } },
     take: 2
@@ -150,7 +202,6 @@ export default async function DashboardPage() {
     realAlerts.push({ type: "success", text: "Toate sistemele sunt în parametri optimi.", href: "#" });
   }
 
-  // Fetch Weather & News
   const county = (org as any)?.county || "Olt";
   const baseLat = (org as any)?.baseLat ? Number((org as any).baseLat) : null;
   const baseLng = (org as any)?.baseLng ? Number((org as any).baseLng) : null;
@@ -159,156 +210,55 @@ export default async function DashboardPage() {
     ? { lat: baseLat, lon: baseLng }
     : (countyCoords[county] || countyCoords["Bucuresti"]);
     
-  const weather = await getWeatherData(coords.lat, coords.lon);
-  const news = await getAgriNews();
+  // Parallel fetch for external APIs
+  const [weather, news] = await Promise.all([
+    getWeatherData(coords.lat, coords.lon),
+    getAgriNews()
+  ]);
+  
+  const dashboardConfig = (dbUser as any)?.dashboardConfig;
 
   return (
-    <div className="space-y-6 max-w-7xl">
-      {/* Greeting */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h2 className="text-2xl font-extrabold text-foreground">Bună ziua, {firstName}! 👋</h2>
-          <p className="text-muted-foreground mt-1">Iată ce se întâmplă la ferma ta azi, {new Date().toLocaleDateString('ro-RO')}.</p>
-        </div>
-      </div>
-
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <>
+      {/* KPI Section */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
         {kpis.map((kpi) => (
-          <Card key={kpi.title} className="card-hover">
-            <CardContent className="p-5">
-              <div className="flex items-start justify-between mb-3">
-                <div className={`w-10 h-10 ${kpi.bg} rounded-xl flex items-center justify-center`}>
-                  <kpi.icon className={`w-5 h-5 ${kpi.color}`} />
+          <Card key={kpi.title} className={cn("border-none shadow-lg hover:shadow-xl transition-all duration-300 group overflow-hidden", kpi.bg)}>
+            <CardContent className="p-6 relative">
+              <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform duration-500">
+                <kpi.icon className={cn("w-16 h-16", kpi.color)} />
+              </div>
+              <div className="flex items-start justify-between mb-4">
+                <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center shadow-inner", kpi.bg, kpi.color, "bg-white/50 border", kpi.border)}>
+                  <kpi.icon className="w-6 h-6" />
                 </div>
               </div>
-              <div className="text-2xl font-extrabold text-foreground mb-0.5">
-                {kpi.value}
-                <span className="text-sm font-normal text-muted-foreground ml-1">{kpi.unit}</span>
+              <div className="space-y-1">
+                <div className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground/60">{kpi.title}</div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-3xl font-black tracking-tighter text-foreground tabular-nums">{kpi.value}</span>
+                  <span className="text-xs font-bold text-muted-foreground uppercase">{kpi.unit}</span>
+                </div>
+                <p className="text-[10px] font-bold text-muted-foreground/50 uppercase tracking-tighter">{kpi.desc}</p>
               </div>
-              <p className="text-sm text-foreground font-semibold mb-1">{kpi.title}</p>
-              <p className={`text-xs ${kpi.positive ? "text-green-600" : "text-amber-600"}`}>
-                {kpi.change}
-              </p>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Weather & News & Alerts */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* News - 2 cols on tablet/desktop */}
-        <div className="lg:col-span-2 order-2 lg:order-1">
-          <NewsWidget news={news} />
-        </div>
-
-        {/* Weather - 1 col */}
-        <div className="lg:col-span-1 order-1 lg:order-2">
-          <WeatherWidget weather={weather} county={county} />
-        </div>
-
-        {/* Alerts - 1 col */}
-        <div className="lg:col-span-1 order-3">
-          <Card className="h-full">
-            <CardHeader className="pb-3 px-4">
-              <CardTitle className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-muted-foreground/60">
-                <AlertCircle className="w-4 h-4 text-amber-500" />
-                Sistem Alerte
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2.5 px-4 overflow-y-auto max-h-[350px]">
-              {realAlerts.map((alert, i) => (
-                <Link
-                  key={i}
-                  href={alert.href}
-                  className={`flex items-start gap-3 p-3 rounded-xl border transition-all hover:translate-x-1 ${
-                    alert.type === "warning"
-                      ? "bg-amber-50/50 border-amber-100"
-                      : alert.type === "success"
-                      ? "bg-green-50/50 border-green-100"
-                      : "bg-blue-50/50 border-blue-100"
-                  }`}
-                >
-                  {alert.type === "success" ? (
-                    <CheckCircle2 className="w-4 h-4 text-green-600 mt-0.5 shrink-0" />
-                  ) : (
-                    <AlertCircle className={`w-4 h-4 mt-0.5 shrink-0 ${alert.type === "warning" ? "text-amber-600" : "text-blue-600"}`} />
-                  )}
-                  <p className="text-xs text-foreground font-bold leading-tight">{alert.text}</p>
-                </Link>
-              ))}
-
-              {/* Sfat agricol */}
-              <div className="mt-2 p-3 bg-primary/5 border border-primary/10 rounded-xl relative overflow-hidden group">
-                <div className="absolute top-0 right-0 p-2 opacity-5 group-hover:scale-125 transition-transform">
-                  <Sprout className="w-12 h-12 text-primary" />
-                </div>
-                <p className="text-[10px] font-black text-primary mb-1 uppercase tracking-tighter">💡 Sfatul agronomului</p>
-                <p className="text-xs text-foreground font-medium leading-relaxed">{todayTip}</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+      {/* Interactive Bento Grid Layout */}
+      <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-150">
+        <DashboardClient 
+          weather={weather}
+          county={county}
+          news={news}
+          realAlerts={realAlerts}
+          todayTip={todayTip}
+          recentParcels={serializedRecentParcels}
+          statusColors={statusColors}
+          initialConfig={dashboardConfig}
+        />
       </div>
-
-      {/* Recent Parcels */}
-      <Card>
-        <CardHeader className="pb-3 flex flex-row items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <MapPin className="w-5 h-5 text-primary" />
-            Parcele recente
-          </CardTitle>
-          <Link
-            href="/parcele"
-            className="text-sm text-primary font-semibold flex items-center gap-1 hover:underline"
-          >
-            Vezi toate <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left text-sm font-semibold text-muted-foreground pb-3 pr-4">Parcelă</th>
-                  <th className="text-left text-sm font-semibold text-muted-foreground pb-3 pr-4">Suprafață</th>
-                  <th className="text-left text-sm font-semibold text-muted-foreground pb-3 pr-4">Cultură</th>
-                  <th className="text-left text-sm font-semibold text-muted-foreground pb-3">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentParcels.map((parcel) => (
-                  <tr key={parcel.id} className="border-b border-border/50 last:border-0 hover:bg-accent/50 transition-colors">
-                    <td className="py-3 pr-4">
-                      <Link href={`/parcele/${parcel.id}`} className="font-semibold text-foreground hover:text-primary transition-colors">
-                        {parcel.name}
-                      </Link>
-                    </td>
-                    <td className="py-3 pr-4 text-muted-foreground">{Number(parcel.areaHa).toFixed(2)} ha</td>
-                    <td className="py-3 pr-4 text-foreground truncate max-w-[120px]">
-                      {parcel.cropPlans?.[0]?.cropType || "Fără cultură"}
-                    </td>
-                    <td className="py-3">
-                      <Badge
-                        className={`text-[10px] uppercase font-bold border ${statusColors[parcel.cropPlans?.[0]?.status || 'planned'] || "bg-gray-100 text-gray-600"}`}
-                      >
-                        {parcel.cropPlans?.[0]?.status || "Planificat"}
-                      </Badge>
-                    </td>
-                  </tr>
-                ))}
-                {recentParcels.length === 0 && (
-                  <tr>
-                    <td colSpan={4} className="py-12 text-center text-muted-foreground italic">
-                      Nu ai adăugat parcele încă.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+    </>
   );
 }

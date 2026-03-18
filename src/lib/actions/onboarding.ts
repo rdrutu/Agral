@@ -4,8 +4,11 @@ import prisma from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 
 export async function submitOnboarding(data: {
+  firstName: string;
+  lastName: string;
   orgName: string;
   legalName: string;
+  registrationNumber: string;
   entityType: string;
   county: string;
   city: string;
@@ -51,10 +54,14 @@ export async function submitOnboarding(data: {
     }
   });
 
-  // Setăm orgId al user-ului
-  await prisma.user.update({
+  // Setăm orgId al user-ului și salvăm numele
+  await (prisma.user as any).update({
     where: { id: user.id },
-    data: { orgId: newOrg.id }
+    data: { 
+      orgId: newOrg.id,
+      firstName: data.firstName,
+      lastName: data.lastName
+    }
   });
 
   // Dacă a desenat prima parcelă

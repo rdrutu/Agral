@@ -297,25 +297,25 @@ export default function ProfileClient({ user }: ProfileClientProps) {
           </CardHeader>
           <CardContent className="p-0">
             <table className="w-full text-sm">
-              <thead className="bg-muted/20 border-b">
+              <thead className="bg-muted/20 border-b text-[10px] uppercase tracking-wider">
                 <tr>
-                  <th className="text-left p-4 font-bold text-muted-foreground">Dată</th>
-                  <th className="text-left p-4 font-bold text-muted-foreground">Plan</th>
-                  <th className="text-left p-4 font-bold text-muted-foreground">Perioadă</th>
-                  <th className="text-left p-4 font-bold text-muted-foreground">Sumă Achitată</th>
+                  <th className="text-left p-3 md:p-4 font-bold text-muted-foreground">Dată</th>
+                  <th className="text-left p-3 md:p-4 font-bold text-muted-foreground">Plan</th>
+                  <th className="text-left p-3 md:p-4 font-bold text-muted-foreground hidden sm:table-cell">Perioadă</th>
+                  <th className="text-right p-3 md:p-4 font-bold text-muted-foreground">Sumă</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-muted/10">
                 {user.organization.payments.map((p: any) => (
-                  <tr key={p.id} className="hover:bg-primary/5 transition-colors">
-                    <td className="p-4 font-bold">{new Date(p.date).toLocaleDateString('ro-RO')}</td>
-                    <td className="p-4">
-                      <Badge className="bg-blue-50 text-blue-700 uppercase text-[10px] font-black border-none">
+                  <tr key={p.id} className="hover:bg-primary/5 transition-colors text-xs md:text-sm">
+                    <td className="p-3 md:p-4 font-bold">{new Date(p.date).toLocaleDateString('ro-RO')}</td>
+                    <td className="p-3 md:p-4">
+                      <Badge className="bg-blue-50 text-blue-700 uppercase text-[9px] md:text-[10px] font-black border-none px-1.5">
                         {p.tier}
                       </Badge>
                     </td>
-                    <td className="p-4">{p.months} {p.months === 1 ? 'lună' : 'luni'}</td>
-                    <td className="p-4 font-extrabold text-foreground">{p.amount} RON</td>
+                    <td className="p-3 md:p-4 hidden sm:table-cell">{p.months} {p.months === 1 ? 'lună' : 'luni'}</td>
+                    <td className="p-3 md:p-4 text-right font-extrabold text-foreground">{p.amount} RON</td>
                   </tr>
                 ))}
               </tbody>

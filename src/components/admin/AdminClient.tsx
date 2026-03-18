@@ -202,15 +202,15 @@ export default function AdminClient({ orgs, isSuperadmin }: { orgs: any[], isSup
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
-              <thead className="text-xs text-muted-foreground uppercase bg-muted/40 border-b">
+              <thead className="text-[10px] md:text-xs text-muted-foreground uppercase bg-muted/40 border-b">
                 <tr>
-                  <th className="px-4 py-3">Organizație</th>
-                  <th className="px-4 py-3">Contact</th>
-                  <th className="px-4 py-3">Dimensiune (Ha)</th>
-                  <th className="px-4 py-3">Abonament</th>
-                  <th className="px-4 py-3">Expiră la</th>
-                  <th className="px-4 py-3">Utilizatori</th>
-                  <th className="px-4 py-3 text-right">Acțiuni</th>
+                  <th className="px-3 md:px-4 py-3">Organizație</th>
+                  <th className="px-4 py-3 hidden xl:table-cell">Contact</th>
+                  <th className="px-3 md:px-4 py-3">Suprafață (Ha)</th>
+                  <th className="px-3 md:px-4 py-3 hidden sm:table-cell">Abonament</th>
+                  <th className="px-4 py-3 hidden lg:table-cell">Expiră la</th>
+                  <th className="px-4 py-3 hidden md:table-cell">Utilizatori</th>
+                  <th className="px-3 md:px-4 py-3 text-right">Acțiuni</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -221,22 +221,22 @@ export default function AdminClient({ orgs, isSuperadmin }: { orgs: any[], isSup
 
                   return (
                     <tr key={org.id} className="hover:bg-muted/20 transition-colors">
-                      <td className="px-4 py-3">
-                        <div className="font-semibold text-foreground flex items-center gap-2 cursor-pointer hover:text-primary" onClick={() => router.push(`/admin/${org.id}`)}>
+                      <td className="px-3 md:px-4 py-3">
+                        <div className="font-semibold text-foreground flex items-center gap-2 cursor-pointer hover:text-primary text-xs md:text-sm" onClick={() => router.push(`/admin/${org.id}`)}>
                           {org.name}
                         </div>
-                        <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                        <div className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
                           <MapPin className="w-3 h-3" /> {org.county || "Nespecificat"}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-xs">
+                      <td className="px-4 py-3 text-xs hidden xl:table-cell">
                         {org.phone || <span className="text-muted-foreground italic">Fără telefon</span>}
                       </td>
-                      <td className="px-4 py-3 font-medium text-foreground">
-                        {org.totalAreaHa.toFixed(0)} <span className="text-muted-foreground font-normal">ha</span>
+                      <td className="px-3 md:px-4 py-3 font-medium text-foreground text-xs md:text-sm">
+                        {org.totalAreaHa.toFixed(0)} <span className="text-muted-foreground font-normal hidden md:inline">ha</span>
                       </td>
-                      <td className="px-4 py-3">
-                        <Badge className={`uppercase text-[10px] ${
+                      <td className="px-3 md:px-4 py-3 hidden sm:table-cell">
+                        <Badge className={`uppercase text-[9px] md:text-[10px] ${
                           org.subscriptionTier === 'enterprise' ? 'bg-purple-100 text-purple-800 border-purple-200' :
                           org.subscriptionTier === 'pro' ? 'bg-amber-100 text-amber-800 border-amber-200' :
                           org.subscriptionTier === 'starter' ? 'bg-blue-100 text-blue-800 border-blue-200' :
@@ -245,7 +245,7 @@ export default function AdminClient({ orgs, isSuperadmin }: { orgs: any[], isSup
                           {org.subscriptionTier}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 hidden lg:table-cell">
                         {expiryDate ? (
                           <div className={cn("text-xs font-medium", isExpired ? "text-destructive" : "text-foreground")}>
                             {expiryDate.toLocaleDateString('ro-RO')}
@@ -255,23 +255,23 @@ export default function AdminClient({ orgs, isSuperadmin }: { orgs: any[], isSup
                           <span className="text-muted-foreground italic text-xs">Fără limită (Trial)</span>
                         )}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 hidden md:table-cell">
                         <div className="flex items-center gap-2">
                           <Users className={`w-4 h-4 ${isOverLimit ? 'text-destructive' : 'text-muted-foreground'}`} />
                           <span className={`text-sm ${isOverLimit ? 'font-bold text-destructive' : 'text-foreground'}`}>
-                            {org.userCount} <span className="text-muted-foreground font-normal">/ {org.maxUsers} admiși</span>
+                            {org.userCount} <span className="text-muted-foreground font-normal">/ {org.maxUsers}</span>
                           </span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-3 md:px-4 py-3 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-2">
                           <Button
                             variant="outline"
                             size="sm"
-                            className="h-8 gap-1 border-primary/20 text-primary hover:bg-primary/5"
+                            className="h-7 md:h-8 gap-1 border-primary/20 text-primary hover:bg-primary/5 text-[10px] md:text-xs"
                             onClick={() => router.push(`/admin/${org.id}`)}
                           >
-                            <Settings className="w-3.5 h-3.5" /> Gestionează
+                            <Settings className="w-3 h-3 md:w-3.5 md:h-3.5" /> <span className="hidden sm:inline">Gestionează</span>
                           </Button>
                         </div>
                       </td>

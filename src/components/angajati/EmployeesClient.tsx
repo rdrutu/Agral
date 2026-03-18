@@ -352,31 +352,31 @@ export default function EmployeesClient({ initialEmployees, maxUsers }: Employee
             <table className="w-full text-sm text-left">
               <thead className="bg-muted/30 text-muted-foreground uppercase text-[10px] tracking-widest font-bold">
                 <tr>
-                  <th className="px-6 py-4">Utilizator</th>
-                  <th className="px-6 py-4">Rol / Acces</th>
-                  <th className="px-6 py-4">Email Login</th>
-                  <th className="px-6 py-4">Creat la</th>
-                  <th className="px-6 py-4 text-right">Acțiuni</th>
+                  <th className="px-4 md:px-6 py-4">Utilizator</th>
+                  <th className="px-4 md:px-6 py-4 hidden sm:table-cell">Rol / Acces</th>
+                  <th className="px-4 md:px-6 py-4 hidden lg:table-cell">Email Login</th>
+                  <th className="px-4 md:px-6 py-4 hidden xl:table-cell">Creat la</th>
+                  <th className="px-4 md:px-6 py-4 text-right">Acțiuni</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
                 {platformUsers.map((user) => (
                   <React.Fragment key={user.id}>
                     <tr className="hover:bg-muted/10 transition-colors group">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-black text-xs uppercase border border-primary/10">
+                      <td className="px-4 md:px-6 py-4">
+                        <div className="flex items-center gap-2 md:gap-3">
+                          <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-black text-[10px] md:text-xs uppercase border border-primary/10 shrink-0">
                             {user.firstName?.[0]}{user.lastName?.[0]}
                           </div>
-                          <div className="font-bold text-foreground">
+                          <div className="font-bold text-foreground text-xs md:text-sm truncate">
                             {user.firstName} {user.lastName}
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 md:px-6 py-4 hidden sm:table-cell">
                         <div className="flex items-center gap-2">
                           <Badge className={cn(
-                            "uppercase text-[10px] font-black",
+                            "uppercase text-[9px] md:text-[10px] font-black",
                             user.role === 'owner' ? "bg-amber-100 text-amber-700 hover:bg-amber-100" :
                             "bg-blue-100 text-blue-700 hover:bg-blue-100"
                           )}>
@@ -384,16 +384,16 @@ export default function EmployeesClient({ initialEmployees, maxUsers }: Employee
                           </Badge>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2 font-medium text-muted-foreground italic">
+                      <td className="px-4 md:px-6 py-4 hidden lg:table-cell">
+                        <div className="flex items-center gap-2 font-medium text-muted-foreground italic text-xs">
                           <Mail className="w-3.5 h-3.5" />
                           {user.email}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-xs text-muted-foreground">
+                      <td className="px-4 md:px-6 py-4 text-xs text-muted-foreground hidden xl:table-cell">
                         {new Date(user.createdAt).toLocaleDateString('ro-RO')}
                       </td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-4 md:px-6 py-4 text-right">
                         {user.role !== 'owner' && (
                           <div className="flex justify-end gap-1">
                             <Button 
@@ -461,44 +461,44 @@ export default function EmployeesClient({ initialEmployees, maxUsers }: Employee
             <table className="w-full text-sm text-left">
               <thead className="bg-muted/30 text-muted-foreground uppercase text-[10px] tracking-widest font-bold">
                 <tr>
-                  <th className="px-6 py-4">Angajat</th>
-                  <th className="px-6 py-4">Salariu Brut</th>
-                  <th className="px-6 py-4">Data Adăugării</th>
-                  <th className="px-6 py-4 text-right">Acțiuni</th>
+                  <th className="px-4 md:px-6 py-4">Angajat</th>
+                  <th className="px-4 md:px-6 py-4">Salariu Brut</th>
+                  <th className="px-4 md:px-6 py-4 hidden md:table-cell">Data Adăugării</th>
+                  <th className="px-4 md:px-6 py-4 text-right">Acțiuni</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
                 {registryEmployees.map((user) => (
                   <React.Fragment key={user.id}>
                     <tr className="hover:bg-muted/10 transition-colors group">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-xs uppercase border border-amber-200">
+                      <td className="px-4 md:px-6 py-4">
+                        <div className="flex items-center gap-2 md:gap-3">
+                          <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-[10px] md:text-xs uppercase border border-amber-200 shrink-0">
                             {user.firstName?.[0]}{user.lastName?.[0]}
                           </div>
                           <div>
-                            <div className="font-bold text-foreground">
+                            <div className="font-bold text-foreground text-xs md:text-sm truncate">
                               {user.firstName} {user.lastName}
                             </div>
-                            <div className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
-                              <Shield className="w-3 h-3" /> Fără Acces Logare
+                            <div className="text-[9px] md:text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                              <Shield className="w-3 h-3" /> <span className="hidden sm:inline">Fără Acces Logare</span>
                             </div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 md:px-6 py-4">
                         {user.monthlySalary ? (
-                          <div className="font-black text-amber-600">
-                            {Number(user.monthlySalary).toLocaleString()} RON
+                          <div className="font-black text-amber-600 text-xs md:text-sm">
+                            {Number(user.monthlySalary).toLocaleString()} <span className="text-[10px] font-bold">RON</span>
                           </div>
                         ) : (
                           <span className="text-muted-foreground italic text-xs">Nestabilit</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-xs text-muted-foreground">
+                      <td className="px-4 md:px-6 py-4 text-xs text-muted-foreground hidden md:table-cell">
                         {new Date(user.createdAt).toLocaleDateString('ro-RO')}
                       </td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-4 md:px-6 py-4 text-right">
                         <div className="flex justify-end gap-1">
                           <Button 
                             variant="ghost" 

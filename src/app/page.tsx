@@ -1,4 +1,4 @@
-﻿import Image from "next/image";
+import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +19,7 @@ export default function Home() {
           priority
         />
         {/* Gradient verde subtil pentru lizibilitate */}
-        <div className="absolute inset-0 bg-gradient-to-r from-green-100/90 via-green-100/40 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-b md:bg-gradient-to-r from-green-100/90 via-green-100/60 md:via-green-100/40 to-green-100/20 md:to-transparent" />
       </div>
       <section className="px-4 py-12 relative w-full h-full flex flex-col justify-center min-h-screen z-10">
         <div className="max-w-7xl mx-auto w-full">
@@ -31,30 +31,30 @@ export default function Home() {
                 <Image
                   src="/logo_agral_clar_cropped.png"
                   alt="Agral - Portalul Fermierilor"
-                  width={460}
-                  height={180}
-                  className="object-contain mix-blend-multiply"
+                  width={300}
+                  height={120}
+                  className="object-contain mix-blend-multiply w-full max-w-[240px] md:max-w-[460px]"
                   priority
                 />
               </div>
               
-              <h1 className="text-4xl md:text-5xl lg:text-5xl font-extrabold text-foreground mb-6 animate-fade-in-up">
+              <h1 className="text-3xl md:text-5xl lg:text-5xl font-extrabold text-foreground mb-4 md:mb-6 animate-fade-in-up">
                 Gestionează-ți ferma{" "}
                 <span className="text-transparent bg-clip-text agral-gradient !bg-clip-text" style={{ WebkitBackgroundClip: "text", paddingBottom: "0.2em" }}>
                   inteligent
                 </span>
               </h1>
               
-              <p className="text-lg md:text-xl text-black font-medium mb-8 leading-relaxed animate-fade-in-up animate-delay-100">
+              <p className="text-base md:text-xl text-black font-medium mb-6 md:mb-8 leading-relaxed animate-fade-in-up animate-delay-100">
                 Aplicația web perfectă care îți digitalizează ferma. Parcele, contracte de arendă, 
                 vreme, finanțe și lucrări agricole — toate la un click distanță.
               </p>
               
               <div className="flex flex-col sm:flex-row gap-4 animate-fade-in-up animate-delay-200">
-                <Link href="/prezentare">
-                  <Button size="lg" variant="outline" className="font-bold text-lg px-8 py-6 border-2 border-green-600 text-green-800 bg-green-50 hover:bg-green-100 hover:text-green-900 transition-all shadow-sm">
+                <Link href="/prezentare" className="w-full sm:w-auto">
+                  <Button size="lg" variant="outline" className="w-full font-bold text-base md:text-lg px-8 py-4 md:py-6 border-2 border-green-600 text-green-800 bg-green-50 hover:bg-green-100 hover:text-green-900 transition-all shadow-sm">
                     Află detalii despre aplicație
-                    <ArrowRight className="ml-2 w-5 h-5" />
+                    <ArrowRight className="ml-2 w-4 h-4 md:w-5 md:h-5" />
                   </Button>
                 </Link>
               </div>

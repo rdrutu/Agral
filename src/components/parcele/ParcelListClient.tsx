@@ -50,10 +50,12 @@ const ownershipColors: Record<string, string> = {
 
 export default function ParcelListClient({ 
   initialParcels,
-  farmBase
+  farmBase,
+  hideHeader = false
 }: { 
   initialParcels: any[];
   farmBase?: { lat: number; lng: number } | null;
+  hideHeader?: boolean;
 }) {
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -85,25 +87,38 @@ export default function ParcelListClient({
       setIsSubmitting(false);
     }
   }
-
   return (
     <div className="space-y-6 max-w-7xl">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-extrabold text-foreground">Parcele Agricole</h2>
-          <p className="text-muted-foreground mt-1">
-            {initialParcels.length} parcele • {totalArea.toFixed(1)} ha total
-          </p>
+      {!hideHeader && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-xl md:text-2xl font-extrabold text-foreground leading-tight">Parcele Agricole</h2>
+            <p className="text-xs md:text-sm text-muted-foreground mt-1">
+              {initialParcels.length} parcele • {totalArea.toFixed(1)} ha total
+            </p>
+          </div>
+          <Button
+            className="agral-gradient text-white font-semibold gap-2 w-full sm:w-auto"
+            onClick={() => setShowForm(!showForm)}
+          >
+            <Plus className="w-4 h-4" />
+            Adaugă parcelă
+          </Button>
         </div>
-        <Button
-          className="agral-gradient text-white font-semibold gap-2"
-          onClick={() => setShowForm(!showForm)}
-        >
-          <Plus className="w-4 h-4" />
-          Adaugă parcelă
-        </Button>
-      </div>
+      )}
+
+      {hideHeader && (
+        <div className="flex justify-end">
+          <Button
+            className="agral-gradient text-white font-semibold gap-2"
+            onClick={() => setShowForm(!showForm)}
+          >
+            <Plus className="w-4 h-4" />
+            Adaugă parcelă
+          </Button>
+        </div>
+      )}
 
       {/* Harta Generală a Fermei */}
       {!showForm && (
@@ -253,9 +268,25 @@ export default function ParcelListClient({
 
               {/* Daca avem cropPlans active, le afisam, altfel e liberă */}
               {parcel.cropPlans?.length > 0 ? (
-                <div className="flex items-center gap-2 mb-3 p-2.5 bg-green-50 rounded-lg border border-green-100">
-                  <Sprout className="w-4 h-4 text-green-600 shrink-0" />
-                  <span className="text-sm text-green-800 font-medium">{parcel.cropPlans[0].cropType}</span>
+                <div className="space-y-2 mb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 p-2 px-3 bg-green-50 rounded-lg border border-green-100 flex-1">
+                      <Sprout className="w-4 h-4 text-green-600 shrink-0" />
+                      <span className="text-sm text-green-800 font-bold">{parcel.cropPlans[0].cropType}</span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center px-1">
+                    <Badge variant="outline" className={`text-[10px] uppercase font-bold tracking-wider ${statusColors[parcel.cropPlans[0].status] || ""}`}>
+                      {parcel.cropPlans[0].status === 'sown' ? 'Semănat' : 
+                       parcel.cropPlans[0].status === 'growing' ? 'În vegetație' : 
+                       parcel.cropPlans[0].status === 'harvested' ? 'Recoltat' : 'Planificat'}
+                    </Badge>
+                    {parcel.cropPlans[0].sownDate && (
+                      <span className="text-[10px] text-muted-foreground uppercase font-medium">
+                        Din: {new Date(parcel.cropPlans[0].sownDate).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <div className="flex items-center gap-2 mb-3 p-2.5 bg-gray-50 rounded-lg border border-gray-100">

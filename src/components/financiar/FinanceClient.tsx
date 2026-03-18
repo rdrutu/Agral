@@ -30,10 +30,12 @@ import { getFinancialTransactions, getFinancialSummary } from "@/lib/actions/fin
 
 export default function FinanceClient({ 
   initialTransactions, 
-  initialSummary 
+  initialSummary,
+  hideHeader = false
 }: { 
   initialTransactions: any[],
-  initialSummary: any
+  initialSummary: any,
+  hideHeader?: boolean
 }) {
   const [transactions, setTransactions] = useState(initialTransactions);
   const [summary, setSummary] = useState(initialSummary);
@@ -47,20 +49,33 @@ export default function FinanceClient({
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black tracking-tight text-foreground">Gestiune Financiară</h1>
-          <p className="text-muted-foreground font-medium">Monitorizează veniturile, cheltuielile și profitabilitatea fermei.</p>
+      {!hideHeader && (
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-black tracking-tight text-foreground">Gestiune Financiară</h1>
+            <p className="text-muted-foreground font-medium">Monitorizează veniturile, cheltuielile și profitabilitatea fermei.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" className="gap-2 font-bold shadow-sm">
+              <Download className="w-4 h-4" /> Exportă Raport
+            </Button>
+            <Button className="agral-gradient text-white gap-2 font-bold shadow-md">
+              <DollarSign className="w-4 h-4" /> Adaugă Tranzacție
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" className="gap-2 font-bold shadow-sm">
+      )}
+
+      {hideHeader && (
+        <div className="flex justify-end gap-2">
+           <Button variant="outline" className="gap-2 font-bold shadow-sm">
             <Download className="w-4 h-4" /> Exportă Raport
           </Button>
           <Button className="agral-gradient text-white gap-2 font-bold shadow-md">
             <DollarSign className="w-4 h-4" /> Adaugă Tranzacție
           </Button>
         </div>
-      </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -136,47 +151,47 @@ export default function FinanceClient({
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="bg-muted/30 border-b border-muted/20">
-                      <th className="text-left p-4 font-bold text-muted-foreground uppercase text-[10px]">Data</th>
-                      <th className="text-left p-4 font-bold text-muted-foreground uppercase text-[10px]">Descriere / Categorie</th>
-                      <th className="text-right p-4 font-bold text-muted-foreground uppercase text-[10px]">Sumă</th>
+                    <tr className="bg-muted/30 border-b border-muted/20 text-[10px] md:text-xs">
+                      <th className="text-left px-3 md:p-4 font-bold text-muted-foreground uppercase tracking-wider">Data</th>
+                      <th className="text-left px-3 md:p-4 font-bold text-muted-foreground uppercase tracking-wider">Descriere / Categorie</th>
+                      <th className="text-right px-3 md:p-4 font-bold text-muted-foreground uppercase tracking-wider">Sumă</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-muted/10">
                     {filteredTransactions.map((t) => (
                       <tr key={t.id} className="hover:bg-primary/5 transition-colors group">
-                        <td className="p-4">
-                          <div className="flex items-center gap-3">
-                            <div className={cn(
-                              "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm",
-                              t.type === "income" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-                            )}>
-                              {t.type === "income" ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5" />}
-                            </div>
-                            <div>
-                              <div className="font-bold text-foreground">
-                                {new Date(t.date).toLocaleDateString('ro-RO', { day: '2-digit', month: 'long' })}
-                              </div>
-                              <div className="text-[10px] text-muted-foreground font-black uppercase">
-                                {new Date(t.date).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <p className="font-bold text-foreground line-clamp-1">{t.description}</p>
-                          <Badge variant="outline" className="text-[9px] uppercase font-black tracking-tighter mt-1 bg-white px-1.5 py-0 h-4 border-muted/50">
-                            {t.category}
-                          </Badge>
-                        </td>
-                        <td className="p-4 text-right">
+                      <td className="px-3 md:p-4">
+                        <div className="flex items-center gap-2 md:gap-3">
                           <div className={cn(
-                            "text-base font-black",
-                            t.type === "income" ? "text-green-600" : "text-red-600"
+                            "w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl flex items-center justify-center shrink-0 shadow-sm",
+                            t.type === "income" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
                           )}>
-                            {t.type === "income" ? "+" : "-"}{Number(t.amount).toLocaleString()} RON
+                            {t.type === "income" ? <ArrowUpRight className="w-4 h-4 md:w-5 md:h-5" /> : <ArrowDownRight className="w-4 h-4 md:w-5 md:h-5" />}
                           </div>
-                        </td>
+                          <div>
+                            <div className="font-bold text-foreground text-xs md:text-sm">
+                              {new Date(t.date).toLocaleDateString('ro-RO', { day: '2-digit', month: 'short' })}
+                            </div>
+                            <div className="text-[9px] md:text-[10px] text-muted-foreground font-black uppercase hidden sm:block">
+                              {new Date(t.date).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-3 md:p-4">
+                        <p className="font-bold text-foreground text-xs md:text-sm line-clamp-1">{t.description}</p>
+                        <Badge variant="outline" className="text-[8px] md:text-[9px] uppercase font-black tracking-tighter mt-1 bg-white px-1 md:px-1.5 py-0 h-3.5 md:h-4 border-muted/50">
+                          {t.category}
+                        </Badge>
+                      </td>
+                      <td className="px-3 md:p-4 text-right">
+                        <div className={cn(
+                          "text-sm md:text-base font-black",
+                          t.type === "income" ? "text-green-600" : "text-red-600"
+                        )}>
+                          {t.type === "income" ? "+" : "-"}{Number(t.amount).toLocaleString()} <span className="text-[9px] md:text-[10px] font-bold">RON</span>
+                        </div>
+                      </td>
                       </tr>
                     ))}
                     {filteredTransactions.length === 0 && (

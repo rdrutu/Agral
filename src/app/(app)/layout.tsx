@@ -74,7 +74,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           userRole={userRole}
           subscriptionTier={subTier}
         />
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
           {children}
         </main>
       </div>

@@ -44,7 +44,7 @@ const resourceTypes = [
 ];
 
 const OP_TEMPLATES = [
-  { id: "semanat", label: "Semănat", defaultInput: "samanta", allowedCategories: ["samanta", "ingrasamant"] },
+  { id: "semanat", label: "Semănat", defaultInput: "samanta", allowedCategories: ["samanta", "ingrasamant", "combustibil"] },
   { id: "erbicidat", label: "Erbicidat", defaultInput: "chimic", allowedCategories: ["chimic", "ingrasamant", "adjuvant"] },
   { id: "recoltat", label: "Recoltat", defaultInput: "combustibil", allowedCategories: ["combustibil"] },
   { id: "aratura", label: "Arătură / Pregătire sol", defaultInput: "combustibil", allowedCategories: ["combustibil", "ingrasamant"] },
@@ -53,7 +53,17 @@ const OP_TEMPLATES = [
 
 const CROPS = ["Grâu", "Porumb", "Floarea Soarelui", "Rapiță", "Orz", "Soia", "Toate"];
 
-export default function OperationsClient({ initialOperations, parcels, inventory = [] }: { initialOperations: any[], parcels: any[], inventory?: any[] }) {
+export default function OperationsClient({ 
+  initialOperations, 
+  parcels, 
+  inventory = [],
+  hideHeader = false 
+}: { 
+  initialOperations: any[], 
+  parcels: any[], 
+  inventory?: any[],
+  hideHeader?: boolean 
+}) {
   const [ops, setOps] = useState(initialOperations);
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState("");
@@ -70,6 +80,7 @@ export default function OperationsClient({ initialOperations, parcels, inventory
 
   const [selectedParcels, setSelectedParcels] = useState<{ id: string; name: string; maxHa: number; usedHa: number }[]>([]);
   const [resources, setResources] = useState<{ id: number; inventoryItemId?: string; name: string; type: string; quantityPerHa: number; unit: string; pricePerUnit: number }[]>([]);
+  const [yieldPerHa, setYieldPerHa] = useState<number>(0);
 
   // Compute live totals
   const totalArea = selectedParcels.reduce((sum, p) => sum + p.usedHa, 0);
@@ -81,17 +92,23 @@ export default function OperationsClient({ initialOperations, parcels, inventory
   const filteredOps = ops.filter(op => op.name.toLowerCase().includes(search.toLowerCase()));
 
   // Filtrare Inteligentă Parcele în funcție de Cultură ȘI Tipul Operațiunii
-  const visibleParcels = opCrop === "Toate" ? parcels : parcels.filter(p => {
+  const visibleParcels = parcels.filter(p => {
     const pCrop = p.cropPlans?.[0]?.cropType?.toLowerCase();
     
-    // Dacă operațiunea este "Semănat", vrem parcelele pe care avem deja acea cultură setată
-    // SAU vrem parcelele care sunt complet libere (pentru a putea fi semănate acum)
+    // 1. Logica pentru SEMĂNAT
     if (opTemplate === "semanat") {
+      // Dacă nu am ales o cultură specifică (Toate), arătăm DOAR parcelele libere
+      if (opCrop === "Toate") return !pCrop;
+      
+      // Dacă am ales o cultură, arătăm cele libere SAU cele care au deja acea cultură (re-semănare)
       return !pCrop || pCrop === opCrop.toLowerCase();
     }
     
-    // Pentru TOATE CELELALTE operațiuni (Erbicidat, Recoltat, Tratament, etc.)
-    // VREM DOAR parcelele care au deja efectiv cultura cerută existentă! (ex: vrei să erbicidezi Porumb, îți dă DOAR parcelele ce au deja Porumb, NU alea libere)
+    // 2. Logica pentru ALTE operațiuni (Erbicidat, Recoltat etc.)
+    // Vrem DOAR parcelele care AU o cultură activă
+    if (opCrop === "Toate") return !!pCrop;
+    
+    // Dacă am ales o cultură, returnăm doar cele care se potrivesc
     return pCrop === opCrop.toLowerCase();
   });
 
@@ -110,9 +127,20 @@ export default function OperationsClient({ initialOperations, parcels, inventory
     setSelectedParcels(prev => prev.map(x => x.id === id ? { ...x, usedHa: num } : x));
   };
 
-  const addResource = () => {
+  const addResource = (typeOverride?: string) => {
     const template = OP_TEMPLATES.find(t => t.id === opTemplate);
-    setResources(prev => [...prev, { id: Date.now(), name: "", type: template?.defaultInput || "chimic", quantityPerHa: 0, unit: "L", pricePerUnit: 0 }]);
+    const defaultType = typeOverride || template?.defaultInput || "chimic";
+    // Dacă e semănat, punem Kg default pt semințe
+    const defaultUnit = (opTemplate === "semanat" && defaultType === "samanta") ? "Kg" : "L";
+    
+    setResources(prev => [...prev, { 
+      id: Date.now(), 
+      name: typeOverride === "combustibil" ? "Motorină" : "", 
+      type: defaultType, 
+      quantityPerHa: 0, 
+      unit: defaultUnit, 
+      pricePerUnit: typeOverride === "combustibil" ? 7.5 : 0 
+    }]);
   };
 
   const handleTemplateChange = (val: string) => {
@@ -182,6 +210,10 @@ export default function OperationsClient({ initialOperations, parcels, inventory
       totalConsumed: r.totalConsumed ? Number(r.totalConsumed) : undefined
     })));
 
+    if (op.yieldPerHa) setYieldPerHa(Number(op.yieldPerHa));
+    else if (op.totalYield && op.totalAreaHa) setYieldPerHa(Number(op.totalYield) / Number(op.totalAreaHa));
+    else setYieldPerHa(0);
+
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -196,8 +228,12 @@ export default function OperationsClient({ initialOperations, parcels, inventory
     try {
       const payload = {
         name,
+        type: opTemplate,
+        cropName: opCrop,
         date,
         notes,
+        yieldPerHa: opTemplate === "recoltat" ? yieldPerHa : undefined,
+        totalYield: opTemplate === "recoltat" ? yieldPerHa * totalArea : undefined,
         parcels: selectedParcels.map(p => ({ parcelId: p.id, operatedAreaHa: p.usedHa })),
         resources: resources.map(r => ({
           name: r.name,
@@ -229,9 +265,9 @@ export default function OperationsClient({ initialOperations, parcels, inventory
       setSelectedParcels([]);
       setResources([]);
 
-    } catch (e) {
-      console.error(e);
-      alert("Eroare la înregistrarea lucrării.");
+    } catch (err: any) {
+      console.error(err);
+      alert("Eroare la înregistrarea lucrării: " + (err?.message || "Eroare necunoscută"));
     } finally {
       setIsSubmitting(false);
     }
@@ -265,32 +301,56 @@ export default function OperationsClient({ initialOperations, parcels, inventory
   return (
     <div className="space-y-6 max-w-7xl">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-extrabold text-foreground flex items-center gap-2">
-            <Tractor className="w-7 h-7 text-primary" />
-            Lucrări Agricole
-          </h2>
-          <p className="text-muted-foreground mt-1">Gestionează operațiunile din câmp și calculează automat consumurile și devizele (Motorină, Îngrășăminte, Tratamente).</p>
+      {!hideHeader && (
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-extrabold text-foreground flex items-center gap-2">
+              <Tractor className="w-7 h-7 text-primary" />
+              Lucrări Agricole
+            </h2>
+            <p className="text-muted-foreground mt-1">Gestionează operațiunile din câmp și calculează automat consumurile și devizele (Motorină, Îngrășăminte, Tratamente).</p>
+          </div>
+          <Button
+            className="agral-gradient text-white font-semibold gap-2"
+            onClick={() => {
+              if (showForm) {
+                setShowForm(false);
+                setEditingOpId(null);
+              } else {
+                setEditingOpId(null);
+                setShowForm(true);
+                setResources([]);
+                setSelectedParcels([]);
+                setName("Semănat");
+              }
+            }}
+          >
+            {showForm ? "Anulează" : <><Plus className="w-4 h-4" /> Nouă Lucrare</>}
+          </Button>
         </div>
-        <Button
-          className="agral-gradient text-white font-semibold gap-2"
-          onClick={() => {
-            if (showForm) {
-              setShowForm(false);
-              setEditingOpId(null);
-            } else {
-              setEditingOpId(null);
-              setShowForm(true);
-              setResources([]);
-              setSelectedParcels([]);
-              setName("Semănat");
-            }
-          }}
-        >
-          {showForm ? "Anulează" : <><Plus className="w-4 h-4" /> Nouă Lucrare</>}
-        </Button>
-      </div>
+      )}
+
+      {hideHeader && (
+        <div className="flex justify-end">
+          <Button
+            className="agral-gradient text-white font-semibold gap-2"
+            onClick={() => {
+              if (showForm) {
+                setShowForm(false);
+                setEditingOpId(null);
+              } else {
+                setEditingOpId(null);
+                setShowForm(true);
+                setResources([]);
+                setSelectedParcels([]);
+                setName("Semănat");
+              }
+            }}
+          >
+            {showForm ? "Anulează" : <><Plus className="w-4 h-4" /> Nouă Lucrare</>}
+          </Button>
+        </div>
+      )}
 
       {/* COMPONENTA FORMULAR (Deviz Interactiv) */}
       {showForm && (
@@ -302,11 +362,11 @@ export default function OperationsClient({ initialOperations, parcels, inventory
                 <CardTitle className="text-lg">{editingOpId ? "Modifică Deviz #"+editingOpId.slice(-4) : "Detalii Operațiune Nouă"}</CardTitle>
               </CardHeader>
               <CardContent className="p-5 space-y-4">
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="space-y-1.5">
-                    <Label>Tipul Lucrării</Label>
+                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground opacity-70">Tipul Lucrării</Label>
                     <select 
-                      className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                      className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm focus:ring-2 focus:ring-primary/20"
                       value={opTemplate}
                       onChange={e => handleTemplateChange(e.target.value)}
                     >
@@ -314,9 +374,9 @@ export default function OperationsClient({ initialOperations, parcels, inventory
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Pentru Cultura</Label>
+                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground opacity-70">Pentru Cultura</Label>
                     <select 
-                      className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                      className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm focus:ring-2 focus:ring-primary/20"
                       value={opCrop}
                       onChange={e => handleCropChange(e.target.value)}
                     >
@@ -324,18 +384,18 @@ export default function OperationsClient({ initialOperations, parcels, inventory
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Data Lucrării *</Label>
-                    <Input type="date" className="h-10" value={date} onChange={e => setDate(e.target.value)} />
+                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground opacity-70">Data Lucrării *</Label>
+                    <Input type="date" className="h-10 focus:ring-2 focus:ring-primary/20" value={date} onChange={e => setDate(e.target.value)} />
                   </div>
                 </div>
-                <div className="grid grid-cols-[1fr_2fr] gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-[1fr_2fr] gap-4">
                   <div className="space-y-1.5">
-                    <Label>Nume Deviz (Salvat)</Label>
-                    <Input className="font-semibold text-primary" value={name} onChange={e => setName(e.target.value)} />
+                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground opacity-70">Nume Deviz (Salvat)</Label>
+                    <Input className="font-semibold text-primary focus:ring-2 focus:ring-primary/20" value={name} onChange={e => setName(e.target.value)} />
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Observații</Label>
-                    <Input placeholder="ex: Vânt moderat 12km/h, norma de apă..." value={notes} onChange={e => setNotes(e.target.value)} />
+                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground opacity-70">Observații</Label>
+                    <Input placeholder="ex: Vânt moderat 12km/h, norma de apă..." className="focus:ring-2 focus:ring-primary/20" value={notes} onChange={e => setNotes(e.target.value)} />
                   </div>
                 </div>
               </CardContent>
@@ -355,11 +415,13 @@ export default function OperationsClient({ initialOperations, parcels, inventory
                 <div className="mb-6 w-full rounded-xl overflow-hidden border">
                   {/* HARTA INTERACTIVĂ A PARCELELOR FILTRATE */}
                   <MapSelector 
-                    parcels={visibleParcels} 
+                    parcels={parcels} 
+                    availableIds={visibleParcels.map(p => p.id)}
                     selectedIds={selectedParcels.map(p => p.id)} 
                     onToggleParcel={(id) => {
-                      const p = visibleParcels.find(x => x.id === id);
-                      if (p) toggleParcel(p);
+                      const p = parcels.find(x => x.id === id);
+                      const isAvailable = visibleParcels.some(x => x.id === id);
+                      if (p && isAvailable) toggleParcel(p);
                     }} 
                   />
                 </div>
@@ -399,11 +461,39 @@ export default function OperationsClient({ initialOperations, parcels, inventory
               <CardHeader className="pb-3 border-b bg-amber-50/50">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <FlaskConical className="w-5 h-5 text-amber-600" />
-                  2. Input-uri / Tratamente
+                  {opTemplate === "semanat" ? "2. Semințe / Input-uri" : 
+                   opTemplate === "recoltat" ? "2. Detalii Recoltă & Consum" : "2. Input-uri / Tratamente"}
                 </CardTitle>
                 <CardDescription>Calculator automat normă/hectar</CardDescription>
               </CardHeader>
               <CardContent className="p-5 space-y-4">
+                
+                {opTemplate === "recoltat" && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3 mb-4">
+                    <h4 className="text-sm font-bold text-amber-800 flex items-center gap-2">
+                      <Calculator className="w-4 h-4" /> Producție la Hectar
+                    </h4>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Tone / Hectar</Label>
+                        <Input 
+                          type="number" 
+                          step="0.01" 
+                          placeholder="ex: 6.5" 
+                          className="h-9" 
+                          value={yieldPerHa || ""}
+                          onChange={(e) => setYieldPerHa(parseFloat(e.target.value) || 0)}
+                        />
+                      </div>
+                      <div className="space-y-1.5 text-right">
+                        <Label className="text-xs">Total Estimat</Label>
+                        <div className="text-xl font-black text-amber-700">
+                          {(yieldPerHa * totalArea).toFixed(2)} <span className="text-xs">Tone</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 
                 {resources.length === 0 ? (
                   <div className="text-center py-6 pb-2 text-muted-foreground text-sm border-2 border-dashed rounded-xl">
@@ -418,8 +508,28 @@ export default function OperationsClient({ initialOperations, parcels, inventory
                       const activeTemplateDef = OP_TEMPLATES.find(t => t.id === opTemplate);
                       const filteredInventory = inventory.filter(inv => {
                         if (!activeTemplateDef || !activeTemplateDef.allowedCategories) return true;
-                        // Ne uităm la inv.category să vedem dacă face match
-                        return activeTemplateDef.allowedCategories.includes(inv.category);
+                        
+                        // 1. Filtrare pe categorie (Erbicid, Sămânță etc.)
+                        const categoryMatch = activeTemplateDef.allowedCategories.includes(inv.category);
+                        if (!categoryMatch) return false;
+
+                        // 2. Filtrare Contextuală pe Cultură (DOAR pentru semințe)
+                        if (opTemplate === "semanat" && opCrop !== "Toate" && inv.category === "samanta") {
+                          const cropLower = opCrop.toLowerCase();
+                          const invCropLower = inv.cropType?.toLowerCase();
+                          const invNameLower = inv.name.toLowerCase();
+
+                          // Arătăm dacă:
+                          // - Are cropType setat și se potrivește
+                          // - NU are cropType setat, dar numele conține cultura (ex: "Sămânță Porumb")
+                          // - SAU dacă e un prod nou fără cropType încă (permisivitate la început)
+                          if (invCropLower) {
+                            return invCropLower === cropLower;
+                          }
+                          return invNameLower.includes(cropLower) || !inv.cropType;
+                        }
+
+                        return true;
                       });
 
                       return (
@@ -462,15 +572,17 @@ export default function OperationsClient({ initialOperations, parcels, inventory
 
                           <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1">
-                              <Label className="text-xs text-muted-foreground">Normă (Cant. / Hectar)</Label>
-                              <div className="flex gap-2">
+                              <Label className="text-xs text-muted-foreground">
+                                {opTemplate === "semanat" && res.type === "samanta" ? "Normă (Kg / Ha)" : "Normă (Cant. / Hectar)"}
+                              </Label>
+                              <div className="flex flex-col sm:flex-row gap-2">
                                 <Input 
-                                  type="number" step="0.1" className="h-9" 
+                                  type="number" step="0.1" className="h-9 focus:ring-2 focus:ring-primary/20" 
                                   value={res.quantityPerHa || ""}
                                   onChange={(e) => updateResource(res.id, "quantityPerHa", parseFloat(e.target.value)||0)}
                                 />
                                 <select 
-                                  className="h-9 w-16 rounded-md border border-input bg-background px-1 text-sm shrink-0 text-center"
+                                  className="h-9 w-full sm:w-16 rounded-md border border-input bg-background px-1 text-sm shrink-0 text-center"
                                   value={res.unit}
                                   onChange={(e) => updateResource(res.id, "unit", e.target.value)}
                                 >
@@ -501,8 +613,13 @@ export default function OperationsClient({ initialOperations, parcels, inventory
                   </div>
                 )}
 
-                <Button variant="outline" className="w-full border-dashed border-2 gap-2" onClick={addResource}>
-                  <Plus className="w-4 h-4" /> Adaugă Consum / Input
+                <Button 
+                  variant="outline" 
+                  className={`w-full border-dashed border-2 gap-2 ${opTemplate === "recoltat" ? "text-amber-700 border-amber-200 hover:bg-amber-50" : ""}`} 
+                  onClick={() => addResource(opTemplate === "recoltat" ? "combustibil" : undefined)}
+                >
+                  <Plus className="w-4 h-4" /> 
+                  {opTemplate === "recoltat" ? "Adaugă Consum Motorină" : "Adaugă Consum / Input"}
                 </Button>
 
                 {/* Final DEVIZ */}
@@ -581,6 +698,17 @@ export default function OperationsClient({ initialOperations, parcels, inventory
                     {op.parcels?.length > 0 && (
                       <div className="text-xs text-muted-foreground italic truncate pl-2">
                         {op.parcels.map((p: any) => p.parcel.name).join(", ")}
+                      </div>
+                    )}
+                    {op.type === "recoltat" && op.totalYield && (
+                      <div className="mt-3 p-2 bg-amber-50 border border-amber-100 rounded-lg flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2 text-amber-800">
+                          <Calculator className="w-4 h-4" />
+                          <span className="font-semibold">Producție:</span>
+                        </div>
+                        <div className="font-bold text-amber-900">
+                          {Number(op.totalYield).toFixed(2)} Tone <span className="text-[10px] font-normal text-amber-700">({Number(op.yieldPerHa).toFixed(2)} t/ha)</span>
+                        </div>
                       </div>
                     )}
                   </div>

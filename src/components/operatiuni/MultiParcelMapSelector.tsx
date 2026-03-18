@@ -60,10 +60,12 @@ function MapBoundsFitter({ parcels }: { parcels: any[] }) {
 
 export default function MultiParcelMapSelector({ 
   parcels, 
+  availableIds = [],
   selectedIds, 
   onToggleParcel 
 }: { 
   parcels: any[], 
+  availableIds?: string[],
   selectedIds: string[], 
   onToggleParcel: (id: string) => void 
 }) {
@@ -107,8 +109,9 @@ export default function MultiParcelMapSelector({
         {parcels.map((p, i) => {
           if (!p.coordinates?.geometry?.coordinates) return null;
           
+          const isAvailable = availableIds.includes(p.id);
           const isSelected = selectedIds.includes(p.id);
-          const baseColor = colors[i % colors.length];
+          const baseColor = isAvailable ? colors[i % colors.length] : "#64748b"; // slate-500 for unavailable
 
           // GeoJSON are ring(s) formattate [lng, lat]. Inversăm pt leaflet -> [lat, lng]
           const ring = p.coordinates.geometry.coordinates[0];
@@ -121,12 +124,12 @@ export default function MultiParcelMapSelector({
               pathOptions={{
                 color: isSelected ? "#ffffff" : baseColor,
                 fillColor: isSelected ? "#ffffff" : baseColor,
-                fillOpacity: isSelected ? 0.7 : 0.3,
-                weight: isSelected ? 3 : 2,
-                dashArray: isSelected ? undefined : "5, 5"
+                fillOpacity: isSelected ? 0.7 : isAvailable ? 0.3 : 0.1,
+                weight: isSelected ? 3 : isAvailable ? 2 : 1,
+                dashArray: (isSelected || !isAvailable) ? undefined : "5, 5"
               }}
               eventHandlers={{
-                click: () => onToggleParcel(p.id)
+                click: () => isAvailable && onToggleParcel(p.id)
               }}
             >
               <Tooltip direction="center" className="font-sans font-bold text-sm bg-white/90 backdrop-blur border-none shadow-lg">
@@ -152,6 +155,7 @@ export default function MultiParcelMapSelector({
         {parcels.map((p) => {
           if (!p.coordinates?.geometry?.coordinates) return null;
           
+          const isAvailable = availableIds.includes(p.id);
           const isSelected = selectedIds.includes(p.id);
           const cropType = p.cropPlans?.[0]?.cropType;
           const ring = p.coordinates.geometry.coordinates[0];
@@ -173,6 +177,7 @@ export default function MultiParcelMapSelector({
               display: flex;
               align-items: center;
               justify-content: center;
+              opacity: ${isAvailable ? 1 : 0.6};
             ">
               ${isSelected ? `
                 <div style="
@@ -188,7 +193,7 @@ export default function MultiParcelMapSelector({
               <div style="
                 width: 36px; 
                 height: 36px; 
-                background-color: ${isSelected ? '#22c55e' : '#f59e0b'}; 
+                background-color: ${isSelected ? '#22c55e' : (isAvailable ? '#f59e0b' : '#94a3b8')}; 
                 border: 3px solid white; 
                 border-radius: 50% 50% 50% 0; 
                 transform: rotate(-45deg); 
@@ -199,7 +204,7 @@ export default function MultiParcelMapSelector({
                 z-index: 10;
               ">
                 <span style="transform: rotate(45deg); font-size: 16px; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));">
-                  ${isSelected ? '✅' : cropEmoji}
+                  ${isSelected ? '✅' : (isAvailable ? cropEmoji : '🚫')}
                 </span>
               </div>
             </div>
@@ -231,8 +236,8 @@ export default function MultiParcelMapSelector({
               <Tooltip direction="top" offset={[0, -36]} className="font-bold text-sm bg-white/90 shadow-lg">
                 <div className="flex flex-col items-center">
                   <span className="text-foreground">{p.name}</span>
-                  <span className={isSelected ? "text-green-600 font-extrabold" : "text-amber-600"}>
-                    {isSelected ? "Selectată (Click pt deselectare)" : "Apasă pentru selectare"}
+                  <span className={isSelected ? "text-green-600 font-extrabold" : (isAvailable ? "text-amber-600" : "text-destructive font-bold")}>
+                    {isSelected ? "Selectată (Click pt deselectare)" : (isAvailable ? "Apasă pentru selectare" : `Ocupată: ${p.cropPlans?.[0]?.cropType || 'Altă cultură'}`)}
                   </span>
                 </div>
               </Tooltip>
@@ -264,19 +269,36 @@ export default function MultiParcelMapSelector({
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-[250px] overflow-y-auto pr-1">
           {parcels.length === 0 && <p className="text-xs text-muted-foreground col-span-full text-center py-4">Nicio parcelă găsită</p>}
           {parcels.map(p => {
+            const isAvailable = availableIds.includes(p.id);
             const isSelected = selectedIds.includes(p.id);
+            const cropType = p.cropPlans?.[0]?.cropType;
+
             return (
               <div 
                 key={`list-${p.id}`}
-                onClick={() => onToggleParcel(p.id)}
-                className={`flex items-center justify-between p-2.5 rounded-lg cursor-pointer border transition-all ${isSelected ? 'bg-green-500/10 border-green-500/50 shadow-sm' : 'hover:bg-muted bg-background border-border/50'}`}
+                onClick={() => isAvailable && onToggleParcel(p.id)}
+                className={`flex items-center justify-between p-2.5 rounded-lg border transition-all ${
+                  isSelected ? 'bg-green-500/10 border-green-500/50 shadow-sm' : 
+                  isAvailable ? 'hover:bg-muted bg-background border-border/50 cursor-pointer' : 
+                  'bg-muted/50 border-border/30 opacity-60 cursor-not-allowed'
+                }`}
               >
                 <div className="flex flex-col overflow-hidden mr-2">
-                   <span className="text-sm font-semibold truncate" title={p.name}>{p.name}</span>
-                   <span className="text-[11px] text-muted-foreground">{Number(p.areaHa).toFixed(2)} ha • {p.cropPlans?.[0]?.cropType || p.landUse}</span>
+                   <div className="flex items-center gap-1.5">
+                     <span className="text-sm font-semibold truncate" title={p.name}>{p.name}</span>
+                     {!isAvailable && <span className="text-[9px] bg-destructive/10 text-destructive px-1.5 py-0.5 rounded uppercase font-bold">Ocupată</span>}
+                   </div>
+                   <span className="text-[11px] text-muted-foreground">
+                     {Number(p.areaHa).toFixed(2)} ha • {cropType || p.landUse}
+                   </span>
                 </div>
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${isSelected ? 'bg-green-500 border-green-500 text-white' : 'border-muted-foreground'}`}>
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                  isSelected ? 'bg-green-500 border-green-500 text-white' : 
+                  isAvailable ? 'border-muted-foreground' : 
+                  'border-muted/30 bg-muted/20'
+                }`}>
                   {isSelected && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>}
+                  {!isSelected && !isAvailable && <div className="w-2 h-0.5 bg-muted-foreground/30 rotate-45" />}
                 </div>
               </div>
             )

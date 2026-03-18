@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 
 interface VehiclesClientProps {
   initialVehicles: any[];
+  hideHeader?: boolean;
 }
 
 const typeIcons: Record<string, any> = {
@@ -49,7 +50,10 @@ const maintenanceIcons: Record<string, any> = {
   other: FileText,
 };
 
-export default function VehiclesClient({ initialVehicles }: VehiclesClientProps) {
+export default function VehiclesClient({ 
+  initialVehicles,
+  hideHeader = false 
+}: VehiclesClientProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -122,27 +126,43 @@ export default function VehiclesClient({ initialVehicles }: VehiclesClientProps)
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-3xl font-extrabold text-foreground flex items-center gap-2">
-            <Tractor className="w-8 h-8 text-primary" />
-            Parcul Auto & Utilaje
-          </h2>
-          <p className="text-muted-foreground mt-1 text-lg">
-            Gestionează reparațiile, RCA, ITP și alimentările utilajelor agricole din flotă.
-          </p>
+      {!hideHeader && (
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-3xl font-extrabold text-foreground flex items-center gap-2">
+              <Tractor className="w-8 h-8 text-primary" />
+              Parcul Auto & Utilaje
+            </h2>
+            <p className="text-muted-foreground mt-1 text-lg">
+              Gestionează reparațiile, RCA, ITP și alimentările utilajelor agricole din flotă.
+            </p>
+          </div>
+          
+          {!showAddForm && (
+            <Button 
+              onClick={() => setShowAddForm(true)} 
+              className="agral-gradient text-white gap-2 shadow-lg h-11 px-6 text-sm"
+            >
+              <Plus className="w-5 h-5" />
+              Înregistrează Vehicul
+            </Button>
+          )}
         </div>
-        
-        {!showAddForm && (
-          <Button 
-            onClick={() => setShowAddForm(true)} 
-            className="agral-gradient text-white gap-2 shadow-lg h-11 px-6 text-sm"
-          >
-            <Plus className="w-5 h-5" />
-            Înregistrează Vehicul
-          </Button>
-        )}
-      </div>
+      )}
+
+      {hideHeader && (
+        <div className="flex justify-end">
+          {!showAddForm && (
+            <Button 
+              onClick={() => setShowAddForm(true)} 
+              className="agral-gradient text-white gap-2 shadow-lg h-11 px-6 text-sm"
+            >
+              <Plus className="w-5 h-5" />
+              Înregistrează Vehicul
+            </Button>
+          )}
+        </div>
+      )}
 
       {showAddForm && (
         <Card className="animate-in slide-in-from-top-4 duration-300 border-primary/20 shadow-xl overflow-hidden mb-8">
@@ -211,7 +231,7 @@ export default function VehiclesClient({ initialVehicles }: VehiclesClientProps)
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
           {initialVehicles.map(v => {
             const Icon = typeIcons[v.type] || Tractor;
             const isAddingLog = activeVehicleId === v.id;
@@ -238,7 +258,7 @@ export default function VehiclesClient({ initialVehicles }: VehiclesClientProps)
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      className="text-destructive/50 hover:bg-destructive/10 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity absolute top-4 right-4"
+                      className="text-destructive/50 hover:bg-destructive/10 hover:text-destructive md:opacity-0 group-hover:opacity-100 transition-opacity absolute top-4 right-4"
                       onClick={() => confirm(`Ștergi ${v.name}?`) && removeVehicle(v.id)}
                     >
                       <Trash2 className="w-4 h-4" />
@@ -349,7 +369,7 @@ export default function VehiclesClient({ initialVehicles }: VehiclesClientProps)
                                 <Button 
                                   variant="ghost" 
                                   size="icon" 
-                                  className="h-6 w-6 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity mt-1"
+                                  className="h-6 w-6 text-muted-foreground hover:text-destructive md:opacity-0 group-hover:opacity-100 transition-opacity mt-1"
                                   onClick={() => handleDeleteMaintenance(log.id)}
                                 >
                                   <Trash2 className="w-3 h-3" />

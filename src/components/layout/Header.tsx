@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, ChevronDown, LogOut, Settings, User } from "lucide-react";
+import { Bell, ChevronDown, LogOut, Settings, User, Menu } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -12,6 +12,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Sidebar } from "./Sidebar";
 
 interface HeaderProps {
   userName?: string;
@@ -45,8 +47,31 @@ export function Header({
   };
 
   return (
-    <header className="h-16 border-b border-border bg-background/95 backdrop-blur flex items-center px-6 gap-4 sticky top-0 z-40">
-      <div className="flex-1" />
+    <header className="h-16 border-b border-border bg-background/95 backdrop-blur flex items-center px-4 md:px-6 gap-4 sticky top-0 z-40">
+      <div className="flex lg:hidden items-center mr-2">
+        <Sheet>
+          <SheetTrigger asChild>
+            <button className="p-2 -ml-2 rounded-xl hover:bg-accent transition-colors">
+              <Menu className="w-6 h-6 text-foreground" />
+            </button>
+          </SheetTrigger>
+          <SheetContent side="left" className="p-0 w-72 border-none">
+            <SheetTitle className="sr-only">Navigație Mobile</SheetTitle>
+            <SheetDescription className="sr-only">Meniul principal de navigare pentru dispozitive mobile.</SheetDescription>
+            <Sidebar 
+               userRole={userRole} 
+               userName={userName} 
+               subTier={subscriptionTier}
+               className="flex w-full"
+            />
+          </SheetContent>
+        </Sheet>
+      </div>
+      
+      <div className="flex-1">
+         {/* Title hidden on mobile to save space if needed, or keep farm name */}
+         <span className="lg:hidden font-bold text-primary truncate max-w-[150px] inline-block">{farmName}</span>
+      </div>
 
       <div className="flex items-center gap-3">
         {/* Notifications */}

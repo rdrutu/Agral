@@ -2,10 +2,23 @@
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CloudSun, Newspaper, ArrowUpRight, Thermometer, Wind, Droplets } from "lucide-react";
+import { 
+  CloudSun, 
+  Newspaper, 
+  ArrowUpRight, 
+  Wind, 
+  Droplets, 
+  Plus, 
+  Map as MapIcon, 
+  ClipboardList, 
+  Box, 
+  Truck,
+  ArrowRight
+} from "lucide-react";
 import Link from "next/link";
 import { getWeatherDesc } from "@/lib/weather";
 import { Sun, Cloud, CloudFog, CloudDrizzle, CloudRain, Snowflake, CloudLightning } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const IconMap: Record<string, any> = {
   Sun,
@@ -42,42 +55,62 @@ export function WeatherWidget({ weather, county }: { weather: any, county: strin
   });
 
   return (
-    <Card className="overflow-hidden border-none shadow-md bg-white/50 backdrop-blur-sm group hover:shadow-xl transition-all duration-300 h-full flex flex-col">
-      <CardHeader className="pb-2 flex flex-row items-center justify-between">
-        <div>
-          <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground/60">Vremea locală</CardTitle>
-          <CardDescription className="font-bold text-foreground">{county}</CardDescription>
-        </div>
-        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-          <Icon className="w-6 h-6" />
+    <Card className="h-full border-none shadow-xl bg-gradient-to-br from-blue-500/10 via-white/50 to-white/80 backdrop-blur-md relative overflow-hidden group">
+      <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform duration-500">
+        <Icon className="w-32 h-32 text-blue-600" />
+      </div>
+      
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between relative z-10">
+          <div>
+            <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-600/60 mb-1">Vremea locală</CardTitle>
+            <CardDescription className="text-lg font-black text-foreground">{county}</CardDescription>
+          </div>
+          <div className="w-12 h-12 rounded-2xl bg-blue-600/10 flex items-center justify-center text-blue-600 shadow-inner">
+            <Icon className="w-7 h-7" />
+          </div>
         </div>
       </CardHeader>
-      <CardContent className="flex-1 flex flex-col justify-between space-y-6">
-        <div className="flex items-end justify-between">
+      
+      <CardContent className="space-y-6 relative z-10">
+        <div className="flex items-center justify-between">
           <div>
-            <div className="text-5xl font-black text-foreground">{Math.round(current.temperature_2m)}°C</div>
-            <p className="text-xs font-bold text-primary mt-1">{info.desc}</p>
+            <div className="text-6xl font-black tracking-tighter text-foreground tabular-nums">
+              {Math.round(current.temperature_2m)}°
+            </div>
+            <p className="text-sm font-bold text-blue-600/80">{info.desc}</p>
           </div>
-          <div className="flex flex-col items-end gap-1 text-[10px] font-bold text-muted-foreground uppercase">
-            <div className="flex items-center gap-1"><Wind className="w-3.5 h-3.5"/> {current.wind_speed_10m} km/h</div>
-            <div className="flex items-center gap-1"><Droplets className="w-3.5 h-3.5"/> {current.relative_humidity_2m}%</div>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/50 border border-blue-100/50 shadow-sm">
+              <Wind className="w-4 h-4 text-blue-500" />
+              <span className="text-xs font-bold text-foreground">{current.wind_speed_10m} km/h</span>
+            </div>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/50 border border-blue-100/50 shadow-sm">
+              <Droplets className="w-4 h-4 text-blue-500" />
+              <span className="text-xs font-bold text-foreground">{current.relative_humidity_2m}%</span>
+            </div>
           </div>
         </div>
 
-        {/* 3-Day Forecast */}
-        <div className="grid grid-cols-3 gap-2 pt-4 border-t border-primary/10">
+        <div className="grid grid-cols-3 gap-3">
           {nextDays.map((day: any) => (
-            <div key={day.name} className="flex flex-col items-center p-2 rounded-xl bg-primary/5 border border-primary/5 hover:border-primary/20 transition-all">
-              <span className="text-[10px] font-black uppercase text-muted-foreground mb-1">{day.name}</span>
-              <day.Icon className="w-5 h-5 text-primary mb-1" />
-              <div className="text-xs font-bold text-foreground">{day.max}° <span className="text-muted-foreground/50 font-medium">/{day.min}°</span></div>
-              {day.precip > 0 && <div className="text-[8px] font-black text-blue-600 mt-0.5">{day.precip}mm</div>}
+            <div key={day.name} className="flex flex-col items-center p-3 rounded-2xl bg-white/40 border border-white hover:border-blue-200 hover:bg-white/60 transition-all duration-300">
+              <span className="text-[10px] font-black uppercase text-muted-foreground/60 mb-2">{day.name}</span>
+              <day.Icon className="w-6 h-6 text-blue-500 mb-2" />
+              <div className="text-sm font-black text-foreground">
+                {day.max}°
+              </div>
+              <div className="text-[10px] font-bold text-muted-foreground/40">{day.min}°</div>
             </div>
           ))}
         </div>
 
-        <Link href="/vreme" className="flex items-center justify-center gap-2 py-2 w-full rounded-xl bg-primary/5 text-primary text-xs font-bold hover:bg-primary hover:text-white transition-all mt-auto">
-          Prognoză detaliată <ArrowUpRight className="w-3 h-3" />
+        <Link 
+          href="/vreme" 
+          className="group/btn flex items-center justify-between px-4 py-3 w-full rounded-2xl bg-blue-600 text-white text-xs font-black hover:bg-blue-700 transition-all shadow-lg shadow-blue-200"
+        >
+          PROGNOZĂ DETALIATĂ
+          <ArrowUpRight className="w-4 h-4 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform" />
         </Link>
       </CardContent>
     </Card>
@@ -86,43 +119,82 @@ export function WeatherWidget({ weather, county }: { weather: any, county: strin
 
 export function NewsWidget({ news }: { news: any[] }) {
   return (
-    <Card className="overflow-hidden border-none shadow-md bg-white/50 backdrop-blur-sm group hover:shadow-xl transition-all duration-300 h-full flex flex-col">
-      <CardHeader className="pb-3 flex flex-row items-center justify-between">
-        <div>
-          <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground/60">Știri Agricole</CardTitle>
-          <CardDescription className="font-bold text-foreground">Actualitate Flux RSS</CardDescription>
-        </div>
-        <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600 group-hover:rotate-12 transition-transform">
-          <Newspaper className="w-5 h-5" />
+    <Card className="h-full border-none shadow-xl bg-gradient-to-br from-amber-500/10 via-white/50 to-white/80 backdrop-blur-md relative overflow-hidden group">
+      <CardHeader className="pb-3 px-6 pt-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-600/60 mb-1">Știri Agricole</CardTitle>
+            <CardDescription className="text-lg font-black text-foreground">Flux Actualizat</CardDescription>
+          </div>
+          <div className="w-12 h-12 rounded-2xl bg-amber-600/10 flex items-center justify-center text-amber-600">
+            <Newspaper className="w-6 h-6" />
+          </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-1.5 flex-1 p-4 pt-0">
-        {news.slice(0, 4).map((item) => (
-          <Link 
-            key={item.id} 
-            href={item.url} 
-            target="_blank"
-            className="block p-3 rounded-xl hover:bg-white transition-all border border-transparent hover:border-amber-100 hover:shadow-sm group/item"
-          >
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-[10px] font-black text-amber-700 uppercase tracking-tighter bg-amber-50 px-1.5 py-0.5 rounded leading-none">
-                {item.source}
-              </span>
-              <span className="text-[9px] font-bold text-muted-foreground/50">
-                {new Date(item.date).toLocaleDateString('ro-RO', { day: '2-digit', month: 'short' })}
-              </span>
-            </div>
-            <div className="text-xs font-bold text-foreground line-clamp-1 leading-tight group-hover/item:text-amber-600 transition-colors">
-              {item.title}
-            </div>
-          </Link>
-        ))}
+      <CardContent className="px-4 pb-6">
+        <div className="space-y-2">
+          {news.slice(0, 4).map((item) => (
+            <Link 
+              key={item.id} 
+              href={item.url} 
+              target="_blank"
+              className="block p-4 rounded-2xl hover:bg-white transition-all border border-transparent hover:border-amber-100 hover:shadow-md group/item relative overflow-hidden"
+            >
+              <div className="flex justify-between items-start mb-2 relative z-10">
+                <Badge variant="outline" className="text-[9px] font-black bg-amber-50 text-amber-700 border-amber-200/50 uppercase">
+                  {item.source}
+                </Badge>
+                <span className="text-[10px] font-bold text-muted-foreground/50">
+                  {new Date(item.date).toLocaleDateString('ro-RO', { day: '2-digit', month: 'short' })}
+                </span>
+              </div>
+              <div className="text-sm font-bold text-foreground line-clamp-2 leading-snug group-hover/item:text-amber-600 transition-colors relative z-10">
+                {item.title}
+              </div>
+            </Link>
+          ))}
+        </div>
         
-        <div className="pt-3">
-          <Link href="/stiri" className="flex items-center justify-center gap-2 py-2 w-full rounded-xl bg-amber-500 text-white text-xs font-black hover:bg-amber-600 transition-all shadow-sm hover:shadow-md">
-            VEZI TOATE ȘTIRILE <ArrowUpRight className="w-3.5 h-3.5" />
+        <div className="mt-4 px-2">
+          <Link href="/stiri" className="group/btn flex items-center justify-center gap-2 py-3.5 w-full rounded-2xl bg-white border border-amber-100 text-amber-600 text-[10px] font-black hover:bg-amber-600 hover:text-white transition-all shadow-sm hover:shadow-lg hover:shadow-amber-200">
+            TOATE ȘTIRILE 
+            <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
           </Link>
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function QuickActionsWidget() {
+  const actions = [
+    { title: "Hartă Parcele", icon: MapIcon, href: "/parcele", color: "text-emerald-600", bg: "bg-emerald-50" },
+    { title: "Operațiune Nouă", icon: Plus, href: "/operatiuni?new=true", color: "text-blue-600", bg: "bg-blue-50" },
+    { title: "Gestiune Stoc", icon: Box, href: "/stocuri", color: "text-purple-600", bg: "bg-purple-50" },
+    { title: "Flotă Utilaje", icon: Truck, href: "/utilaje", color: "text-orange-600", bg: "bg-orange-50" },
+  ];
+
+  return (
+    <Card className="h-full border-none shadow-xl bg-white/50 backdrop-blur-md">
+      <CardHeader className="pb-3 pt-6 px-6">
+        <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/50 mb-1">Acces Rapid</CardTitle>
+        <CardDescription className="text-lg font-black text-foreground">Comenzi Rapide</CardDescription>
+      </CardHeader>
+      <CardContent className="px-4 pb-6 grid grid-cols-2 gap-3">
+        {actions.map((action) => (
+          <Link 
+            key={action.title} 
+            href={action.href}
+            className="flex flex-col items-center justify-center p-4 rounded-2xl bg-white border border-transparent hover:border-primary/20 hover:shadow-lg transition-all group"
+          >
+            <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center mb-2 group-hover:scale-110 transition-transform", action.bg, action.color)}>
+              <action.icon className="w-5 h-5" />
+            </div>
+            <span className="text-[10px] font-black text-center text-muted-foreground group-hover:text-foreground transition-colors uppercase leading-tight">
+              {action.title}
+            </span>
+          </Link>
+        ))}
       </CardContent>
     </Card>
   );

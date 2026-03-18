@@ -69,28 +69,28 @@ export default function NewsClient({ initialNews }: NewsClientProps) {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 bg-muted/30 p-1.5 rounded-xl border border-border/50">
+        <div className="flex items-center gap-2 bg-muted/30 p-1.5 rounded-xl border border-border/50 overflow-x-auto no-scrollbar max-w-full">
           <button 
             onClick={() => { setActiveDateFilter("all"); setCurrentPage(1); }}
-            className={cn("px-4 py-1.5 text-xs font-bold transition-all rounded-lg", activeDateFilter === "all" ? "bg-white text-primary shadow-sm" : "text-muted-foreground hover:text-foreground")}
+            className={cn("px-4 py-1.5 text-xs font-bold transition-all rounded-lg shrink-0", activeDateFilter === "all" ? "bg-white text-primary shadow-sm" : "text-muted-foreground hover:text-foreground")}
           >
             Toate
           </button>
           <button 
             onClick={() => { setActiveDateFilter("today"); setCurrentPage(1); }}
-            className={cn("px-4 py-1.5 text-xs font-bold transition-all rounded-lg", activeDateFilter === "today" ? "bg-white text-primary shadow-sm" : "text-muted-foreground hover:text-foreground")}
+            className={cn("px-4 py-1.5 text-xs font-bold transition-all rounded-lg shrink-0", activeDateFilter === "today" ? "bg-white text-primary shadow-sm" : "text-muted-foreground hover:text-foreground")}
           >
             Astăzi
           </button>
           <button 
             onClick={() => { setActiveDateFilter("yesterday"); setCurrentPage(1); }}
-            className={cn("px-4 py-1.5 text-xs font-bold transition-all rounded-lg", activeDateFilter === "yesterday" ? "bg-white text-primary shadow-sm" : "text-muted-foreground hover:text-foreground")}
+            className={cn("px-4 py-1.5 text-xs font-bold transition-all rounded-lg shrink-0", activeDateFilter === "yesterday" ? "bg-white text-primary shadow-sm" : "text-muted-foreground hover:text-foreground")}
           >
             Ieri
           </button>
           <button 
             onClick={() => { setActiveDateFilter("2days"); setCurrentPage(1); }}
-            className={cn("px-4 py-1.5 text-xs font-bold transition-all rounded-lg", activeDateFilter === "2days" ? "bg-white text-primary shadow-sm" : "text-muted-foreground hover:text-foreground")}
+            className={cn("px-4 py-1.5 text-xs font-bold transition-all rounded-lg shrink-0", activeDateFilter === "2days" ? "bg-white text-primary shadow-sm" : "text-muted-foreground hover:text-foreground")}
           >
             -2 Zile
           </button>

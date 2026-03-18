@@ -8,7 +8,7 @@ export async function getVehicles() {
   const orgId = await getUserOrganization();
   if (!orgId) return [];
 
-  return await (prisma as any).vehicle.findMany({
+  const vehicles = await (prisma as any).vehicle.findMany({
     where: { orgId: orgId as string },
     orderBy: { createdAt: "desc" },
     include: {
@@ -17,6 +17,14 @@ export async function getVehicles() {
       }
     }
   });
+
+  return vehicles.map((v: any) => ({
+    ...v,
+    maintenanceLogs: v.maintenanceLogs.map((m: any) => ({
+      ...m,
+      cost: Number(m.cost || 0)
+    }))
+  }));
 }
 
 export async function addVehicle(data: {

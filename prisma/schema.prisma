@@ -50,6 +50,7 @@ model Organization {
   weatherPOIs        WeatherPOI[]
   financialTransactions FinancialTransaction[]
   sales              Sale[]
+  leaseContracts     LeaseContract[]
 
   @@map("organizations")
 }
@@ -100,6 +101,12 @@ model Vehicle {
   organization    Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   maintenanceLogs VehicleMaintenance[]
 
+  // Documente & Termene Limită
+  rcaExpiry       DateTime? @map("rca_expiry") @db.Date
+  itpExpiry       DateTime? @map("itp_expiry") @db.Date
+  cascoExpiry     DateTime? @map("casco_expiry") @db.Date
+  rovinietaExpiry DateTime? @map("rovinieta_expiry") @db.Date
+
   @@map("vehicles")
 }
 
@@ -130,6 +137,8 @@ model User {
   // Detalii HR / Salarizare
   monthlySalary Decimal? @map("monthly_salary") @db.Decimal(10, 2) // Brut
   employmentType String? @map("employment_type") // full-time, part-time, seasonal
+  salaryDay      Int?    @map("salary_day") // Ziua din lună (1-31)
+  dashboardConfig Json? @map("dashboard_config")
 
   createdAt  DateTime  @default(now()) @map("created_at")
   updatedAt  DateTime  @updatedAt @map("updated_at")
@@ -160,6 +169,7 @@ model Parcel {
   organization     Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   cropPlans        CropPlan[]
   operationParcels OperationParcel[]
+  leaseContracts   LeaseContract[]
 
   @@map("parcels")
 }
@@ -207,10 +217,13 @@ model AgriculturalOperation {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   orgId       String   @map("org_id") @db.Uuid
   name        String   // Arătură, Semănat, Erbicidat etc.
+  type        String?  // semanat, erbicidat, recoltat etc.
   date        DateTime @db.Date
   notes       String?
   totalAreaHa Decimal  @map("total_area_ha") @db.Decimal(10, 2)
   status      String   @default("completed") // planned, in_progress, completed
+  yieldPerHa  Decimal? @map("yield_per_ha") @db.Decimal(10, 2)
+  totalYield  Decimal? @map("total_yield") @db.Decimal(10, 2)
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -260,18 +273,52 @@ model InventoryItem {
   orgId           String   @map("org_id") @db.Uuid
   name            String   // Adengo, Uree, Motorina Standard
   category        String   // combustibil, chimic, ingrasamant, samanta, recolta
-  stockQuantity   Decimal  @map("stock_quantity") @db.Decimal(10, 2)
-  unit            String   // L, kg, doze, tone
+  stockQuantity   Decimal  @map("stock_quantity") @db.Decimal(10, 2) @default(0)
+  unit            String   // Kg, L, To, etc.
+  cropType        String?  // Porumb, Floarea Soarelui, etc. (for seeds and harvests)
   pricePerUnit    Decimal  @map("price_per_unit") @db.Decimal(10, 2)
   notes           String?
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
   organization    Organization        @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  lots            InventoryLot[]
   resources       OperationResource[]
   sales           Sale[]
 
   @@map("inventory_items")
+}
+
+model InventoryLot {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  inventoryItemId String   @map("inventory_item_id") @db.Uuid
+  quantity        Decimal  @db.Decimal(10, 2)
+  initialQuantity Decimal  @map("initial_quantity") @db.Decimal(10, 2)
+  pricePerUnit    Decimal  @map("price_per_unit") @db.Decimal(10, 2)
+  source          String   // purchase, harvest
+  purchaseDate    DateTime @default(now()) @map("purchase_date")
+  expiryDate      DateTime? @map("expiry_date")
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  inventoryItem   InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+  transactions    InventoryTransaction[]
+
+  @@map("inventory_lots")
+}
+
+model InventoryTransaction {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  inventoryLotId  String   @map("inventory_lot_id") @db.Uuid
+  type            String   // intake, consumption, sale, adjustment
+  quantity        Decimal  @db.Decimal(10, 2)
+  date            DateTime @default(now())
+  description     String?
+  referenceId     String?  @map("reference_id") // Operation ID or Sale ID
+
+  inventoryLot    InventoryLot @relation(fields: [inventoryLotId], references: [id], onDelete: Cascade)
+
+  @@map("inventory_transactions")
 }
 
 model FinancialTransaction {
@@ -302,7 +349,50 @@ model Sale {
   notes           String?
 
   organization  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Restrict)
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
 
   @@map("sales")
+}
+
+model LeaseContract {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId             String   @map("org_id") @db.Uuid
+  parcelId          String   @map("parcel_id") @db.Uuid
+  
+  // Detalii Proprietar (Landowner)
+  landownerType     String   @default("individual") @map("landowner_type") // individual, company
+  landownerName     String   @map("landowner_name")
+  landownerCnp      String?  @map("landowner_cnp") // CNP for individual or CUI for company
+  landownerFiscalCode String? @map("landowner_fiscal_code") // Alternative for companies
+  landownerAddress  String?  @map("landowner_address")
+  landownerCiSeries String?  @map("landowner_ci_series")
+  landownerCiNumber String?  @map("landowner_ci_number")
+  landownerRepresentative String? @map("landowner_representative") // Only for companies
+  landownerCounty   String?  @map("landowner_county")
+  landownerCity     String?  @map("landowner_city")
+  landownerPhone    String?  @map("landowner_phone")
+  
+  // Detalii Contract
+  contractNumber    String   @map("contract_number")
+  startDate         DateTime @map("start_date") @db.Date
+  endDate           DateTime @map("end_date") @db.Date
+  
+  // Înregistrare
+  registrationCouncil String? @map("registration_council") // Primăria
+  registrationCounty  String? @map("registration_county")  // Județul Primăriei
+  
+  // Termeni Financiari
+  pricePerHa        Decimal  @map("price_per_ha") @db.Decimal(10, 2)
+  paymentType       String   @default("cash") @map("payment_type") // cash, grain
+  paymentStatus     String   @default("pending") @map("payment_status") // paid, pending, partial
+  lastPaymentDate   DateTime? @map("last_payment_date")
+  
+  notes             String?
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  organization      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  parcel            Parcel       @relation(fields: [parcelId], references: [id], onDelete: Restrict)
+
+  @@map("lease_contracts")
 }

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -105,7 +105,7 @@ export function AuthWidget() {
   }
 
   return (
-    <Card className="w-full shadow-2xl border-border/50 overflow-hidden bg-background/95 backdrop-blur-xl h-[720px] flex flex-col">
+    <Card className="w-full shadow-2xl border-border/50 overflow-hidden bg-background/95 backdrop-blur-xl min-h-[600px] md:h-[720px] flex flex-col">
       <CardContent className="p-6 md:p-8 flex-1 flex flex-col">
         <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v as any); setError(null); }} className="w-full flex-1 flex flex-col">
           <TabsList className="grid w-full grid-cols-2 mb-8 h-12 bg-muted/60 p-1 shrink-0">
