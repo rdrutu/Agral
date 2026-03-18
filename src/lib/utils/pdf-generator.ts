@@ -20,7 +20,12 @@ export function generateLeasePDF(contract: any, organization: any) {
   doc.text("CONTRACT DE ARENDARE", pageWidth / 2, y, { align: "center" });
   y += 10;
   doc.setFontSize(10);
-  doc.text(`Nr. ${contract.contractNumber} din data ${new Date(contract.startDate).toLocaleDateString("ro-RO")}`, pageWidth / 2, y, { align: "center" });
+  const formatDateLocal = (date: any) => {
+    const d = new Date(date);
+    return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
+  };
+
+  doc.text(`Nr. ${contract.contractNumber} din data ${formatDateLocal(contract.startDate)}`, pageWidth / 2, y, { align: "center" });
   y += 20;
 
   // Parties
@@ -62,7 +67,7 @@ export function generateLeasePDF(contract: any, organization: any) {
   doc.text("III. DURATA CONTRACTULUI", margin, y);
   y += 10;
   doc.setFont("helvetica", "normal");
-  const durationText = `Prezentul contract este încheiat pe o durată de ${Math.round((new Date(contract.endDate).getTime() - new Date(contract.startDate).getTime()) / (1000 * 60 * 60 * 24 * 365))} ani, începând de la data de ${new Date(contract.startDate).toLocaleDateString("ro-RO")} până la data de ${new Date(contract.endDate).toLocaleDateString("ro-RO")}.`;
+  const durationText = `Prezentul contract este încheiat pe o durată de ${Math.round((new Date(contract.endDate).getTime() - new Date(contract.startDate).getTime()) / (1000 * 60 * 60 * 24 * 365))} ani, începând de la data de ${formatDateLocal(contract.startDate)} până la data de ${formatDateLocal(contract.endDate)}.`;
   y = addText(durationText, margin, y);
   y += 15;
 

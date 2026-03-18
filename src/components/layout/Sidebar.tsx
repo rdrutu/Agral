@@ -19,7 +19,7 @@ import {
   CalendarDays, // Added CalendarDays import
 } from "lucide-react";
 import { useState } from "react";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import { AgralLogo } from "@/components/ui/agral-logo";
 
 const navItems = [
@@ -28,13 +28,13 @@ const navItems = [
   { href: "/campanii", icon: CalendarDays, label: "Plan de Culturi", group: "principal" },
   { href: "/operatiuni", icon: Tractor, label: "Lucrări Agricole", group: "principal" },
   { href: "/stocuri", icon: Package, label: "Magazie & Stocuri", group: "principal" },
-  
+
   { href: "/contracte", icon: FileText, label: "Contracte Arendă", group: "afacere" },
   { href: "/financiar", icon: BarChart3, label: "Financiar", group: "afacere" },
-  
+
   { href: "/vreme", icon: CloudSun, label: "Vreme", group: "utilitar" },
   { href: "/stiri", icon: Newspaper, label: "Știri Agricole", group: "utilitar" },
-  
+
   { href: "/utilaje", icon: Tractor, label: "Utilaje", group: "avansate" },
   { href: "/angajati", icon: Users, label: "Angajați", group: "avansate" },
 ];
@@ -47,14 +47,14 @@ const groups: Record<string, string> = {
   admin: "Administrare Platformă",
 };
 
-export function Sidebar({ 
-  userRole = "owner", 
-  userName = "Utilizator", 
+export function Sidebar({
+  userRole = "owner",
+  userName = "Utilizator",
   subTier = "trial",
   orgCreatedAt,
   subExpiresAt,
   className
-}: { 
+}: {
   userRole?: string;
   userName?: string;
   subTier?: string;
@@ -74,7 +74,7 @@ export function Sidebar({
     .slice(0, 2) || "U";
 
   // Dacă utilizatorul e superadmin, arătăm doar panelul de admin, ascunzând datele de fermă
-  const effectiveNavItems = userRole === "superadmin" 
+  const effectiveNavItems = userRole === "superadmin"
     ? [{ href: "/admin", icon: Settings, label: "Admin Panel", group: "admin" }]
     : navItems;
 
@@ -94,7 +94,7 @@ export function Sidebar({
     trialDaysLeft = Math.max(0, Math.ceil(msDiff / (1000 * 60 * 60 * 24)));
   } else if (subExpiresAt) {
     const expiry = new Date(subExpiresAt);
-    subscriptionExpiryStr = expiry.toLocaleDateString("ro-RO", { day: "2-digit", month: "2-digit", year: "2-digit" });
+    subscriptionExpiryStr = formatDate(expiry);
   }
 
   return (
@@ -114,14 +114,14 @@ export function Sidebar({
       </button>
 
       {/* Logo */}
-      <div className={cn("flex items-center border-b border-sidebar-border min-h-[80px]", collapsed ? "justify-center p-2" : "gap-3 p-4")}>
+      <div className={cn("flex items-center border-b border-sidebar-border min-h-[80px]", collapsed ? "justify-center p-2" : "justify-center p-4")}>
         {collapsed ? (
           <AgralLogo variant="icon" size="xl" href="/dashboard" className="w-14 h-14" />
         ) : (
           <AgralLogo variant="full" size="xl" href="/dashboard" className="h-14 w-auto" />
         )}
       </div>
-      
+
       {/* User Info (Stânga Sus) */}
       {!collapsed && (
         <div className="px-4 py-4 flex items-center gap-3 border-b border-sidebar-border bg-sidebar-accent/30 animate-in fade-in slide-in-from-left-2">

@@ -27,7 +27,7 @@ import {
   DollarSign
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import { addSubscriptionMonths, deleteOrganization, deleteParcel } from "@/lib/actions/admin";
 import toast from "react-hot-toast";
 
@@ -220,7 +220,7 @@ export default function AdminOrgDetail({ org }: AdminOrgDetailProps) {
                       <div className="space-y-1">
                         <div className={cn("text-sm font-bold flex items-center gap-2", isExpired ? "text-destructive" : "text-foreground")}>
                           <Calendar className="w-4 h-4" />
-                          Expiră la: {expiryDate.toLocaleDateString('ro-RO')}
+                          Expiră la: {formatDate(expiryDate)}
                         </div>
                         <p className="text-[11px]">
                           {isExpired ? (
@@ -241,7 +241,47 @@ export default function AdminOrgDetail({ org }: AdminOrgDetailProps) {
             </div>
 
             <div className="bg-muted/30 rounded-xl p-4 border border-border/50">
-              <Label className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground mb-2 block">Resurse Umane</Label>
+              <Label className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground mb-3 block">Date Fiscale & Juridice</Label>
+              <div className="space-y-3">
+                <div className="flex flex-col gap-1">
+                  <span className="text-[10px] text-muted-foreground uppercase font-bold">Denumire Legală:</span>
+                  <span className="text-sm font-black">{org.legalName || "Nespecificată"} ({org.entityType || "SRL"})</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] text-muted-foreground uppercase font-bold">CUI / CIF:</span>
+                    <span className="text-sm font-bold tracking-wider">{org.cui || "N/A"}</span>
+                  </div>
+                  <div className="flex flex-col gap-1 text-right">
+                    <span className="text-[10px] text-muted-foreground uppercase font-bold">Cod CAEN:</span>
+                    <span className="text-sm font-bold">{org.caen || "N/A"}</span>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 gap-2 border-t border-border/50 pt-2">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] text-muted-foreground uppercase font-bold">Număr Reg. Com:</span>
+                    <span className="text-sm font-bold">{org.registrationNumber || "N/A"}</span>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1 border-t border-border/50 pt-2">
+                  <span className="text-[10px] text-muted-foreground uppercase font-bold">Reprezentant Legal:</span>
+                  <span className="text-sm font-black text-primary">
+                    {org.users?.find((u: any) => u.role === 'owner') ? `${org.users.find((u: any) => u.role === 'owner').firstName} ${org.users.find((u: any) => u.role === 'owner').lastName}` : "Administrator nesetat"}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1 pt-2">
+                  <span className="text-[10px] text-muted-foreground uppercase font-bold flex items-center gap-1">
+                     <MapPin className="w-2 h-2" /> Adresă Sediu Social:
+                  </span>
+                  <span className="text-[11px] font-medium leading-tight italic">
+                    {org.address}, {org.city}, {org.county}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-muted/30 rounded-xl p-4 border border-border/50">
+              <Label className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground mb-2 block">Resurse Umane & Exploatare</Label>
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground italic">Total Angajați (Registru):</span>
@@ -250,6 +290,10 @@ export default function AdminOrgDetail({ org }: AdminOrgDetailProps) {
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground italic">Utilizatori cu acces Log-in:</span>
                   <span className="text-sm font-black text-primary">{org.users?.filter((u: any) => u.canLogin).length || 0}</span>
+                </div>
+                <div className="flex items-center justify-between border-t border-border/50 pt-2">
+                  <span className="text-xs text-muted-foreground">Suprafață Totală:</span>
+                  <span className="text-lg font-black text-primary">{org.totalAreaHa.toFixed(2)} ha</span>
                 </div>
               </div>
             </div>
@@ -332,7 +376,7 @@ export default function AdminOrgDetail({ org }: AdminOrgDetailProps) {
                           </Badge>
                         </td>
                         <td className="p-4 text-muted-foreground text-xs">
-                          {new Date(u.createdAt).toLocaleDateString('ro-RO')}
+                          {formatDate(u.createdAt)}
                         </td>
                       </tr>
                     ))}
@@ -427,7 +471,7 @@ export default function AdminOrgDetail({ org }: AdminOrgDetailProps) {
                   <tbody className="divide-y divide-muted/10">
                     {org.payments?.map((p: any) => (
                       <tr key={p.id} className="hover:bg-primary/5 transition-colors">
-                        <td className="p-4 font-bold">{new Date(p.date).toLocaleDateString('ro-RO')}</td>
+                        <td className="p-4 font-bold">{formatDate(p.date)}</td>
                         <td className="p-4">
                           <Badge className="bg-blue-50 text-blue-700 hover:bg-blue-100 border-none uppercase text-[10px] font-black">
                             {p.tier}

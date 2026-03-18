@@ -39,6 +39,7 @@ model Organization {
   
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @updatedAt @map("updated_at")
+  salaryDay          Int?      @default(15) @map("salary_day")
 
   users              User[]
   parcels            Parcel[]

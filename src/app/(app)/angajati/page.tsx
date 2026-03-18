@@ -14,7 +14,8 @@ export default async function AngajatiPage() {
     getEmployees(),
     prisma.organization.findUnique({
       where: { id: orgId as string },
-      select: { maxUsers: true }
+      // @ts-ignore
+      select: { id: true, maxUsers: true, salaryDay: true }
     })
   ]);
 
@@ -22,9 +23,10 @@ export default async function AngajatiPage() {
 
   return (
     <div className="p-6">
+      {/* @ts-ignore */}
       <EmployeesClient 
         initialEmployees={employees} 
-        maxUsers={org.maxUsers} 
+        organization={org}
       />
     </div>
   );

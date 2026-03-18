@@ -20,7 +20,7 @@ import { updateUserProfile } from "@/lib/actions/profile";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import toast from "react-hot-toast";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 
 const BaseLocationPicker = dynamic(() => import("./BaseLocationPicker"), { 
   ssr: false,
@@ -308,7 +308,7 @@ export default function ProfileClient({ user }: ProfileClientProps) {
               <tbody className="divide-y divide-muted/10">
                 {user.organization.payments.map((p: any) => (
                   <tr key={p.id} className="hover:bg-primary/5 transition-colors text-xs md:text-sm">
-                    <td className="p-3 md:p-4 font-bold">{new Date(p.date).toLocaleDateString('ro-RO')}</td>
+                    <td className="p-3 md:p-4 font-bold">{formatDate(p.date)}</td>
                     <td className="p-3 md:p-4">
                       <Badge className="bg-blue-50 text-blue-700 uppercase text-[9px] md:text-[10px] font-black border-none px-1.5">
                         {p.tier}

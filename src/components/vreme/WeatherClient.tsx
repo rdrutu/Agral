@@ -3,13 +3,13 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { 
-  CloudSun, 
-  Droplets, 
-  Wind, 
-  Thermometer, 
-  CloudRain, 
-  Sun, 
+import {
+  CloudSun,
+  Droplets,
+  Wind,
+  Thermometer,
+  CloudRain,
+  Sun,
   Cloud,
   CloudFog,
   CloudDrizzle,
@@ -23,7 +23,7 @@ import {
   Check
 } from "lucide-react";
 import { getWeatherDesc } from "@/lib/weather";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import { fetchWeatherData, addWeatherPOI, deleteWeatherPOI } from "@/lib/actions/weather";
 import dynamic from "next/dynamic";
 import toast from "react-hot-toast";
@@ -60,7 +60,7 @@ export default function WeatherClient({ initialWeather, mainLocation, pois: init
   const [pois, setPois] = useState<WeatherLocation[]>(initialPois);
   const [isLoading, setIsLoading] = useState(false);
   const [showAddPoi, setShowAddPoi] = useState(false);
-  
+
   // New POI state
   const [newPoiName, setNewPoiName] = useState("");
   const [newPoiLat, setNewPoiLat] = useState<number | null>(null);
@@ -74,7 +74,7 @@ export default function WeatherClient({ initialWeather, mainLocation, pois: init
   const forecast = daily.time.map((time: string, i: number) => {
     const info = getWeatherDesc(daily.weather_code[i]);
     return {
-      date: new Date(time).toLocaleDateString("ro-RO", { weekday: 'short', day: 'numeric', month: 'short' }),
+      time: time,
       maxTemp: Math.round(daily.temperature_2m_max[i]),
       minTemp: Math.round(daily.temperature_2m_min[i]),
       precip: daily.precipitation_sum[i],
@@ -170,8 +170,8 @@ export default function WeatherClient({ initialWeather, mainLocation, pois: init
           >
             <CloudSun className="w-4 h-4" />
             {poi.name}
-            <Trash2 
-               className="w-3.5 h-3.5 ml-1 opacity-0 group-hover:opacity-100 transition-opacity hover:text-destructive" 
+            <Trash2
+               className="w-3.5 h-3.5 ml-1 opacity-0 group-hover:opacity-100 transition-opacity hover:text-destructive"
                onClick={(e) => handleDeletePoi(poi.id!, e)}
             />
           </button>
@@ -199,8 +199,8 @@ export default function WeatherClient({ initialWeather, mainLocation, pois: init
               <div className="space-y-4">
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-muted-foreground">Numele Locației</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     placeholder="Ex: Parcela din Vale, Depozit Sud..."
                     className="w-full h-10 rounded-lg border border-input bg-background px-3 text-sm shadow-sm focus:ring-2 focus:ring-primary/20"
                     value={newPoiName}
@@ -212,13 +212,13 @@ export default function WeatherClient({ initialWeather, mainLocation, pois: init
                   <p className="opacity-80">Poți monitoriza condițiile meteo locale pentru zonele unde ai parcele sau depozite, chiar dacă sunt în alte localități.</p>
                 </div>
                 <div className="flex gap-2">
-                  <button 
+                  <button
                     onClick={() => setShowAddPoi(false)}
                     className="flex-1 h-10 rounded-lg text-sm font-bold border border-input hover:bg-muted"
                   >
                     Anulează
                   </button>
-                  <button 
+                  <button
                     onClick={handleAddPoi}
                     disabled={isLoading || !newPoiName || !newPoiLat}
                     className="flex-1 h-10 rounded-lg text-sm font-bold bg-primary text-white hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
@@ -229,13 +229,13 @@ export default function WeatherClient({ initialWeather, mainLocation, pois: init
                 </div>
               </div>
               <div className="h-[300px] rounded-xl overflow-hidden border-2 border-primary/10">
-                <BaseLocationPicker 
-                   lat={newPoiLat} 
-                   lng={newPoiLon} 
+                <BaseLocationPicker
+                   lat={newPoiLat}
+                   lng={newPoiLon}
                    onChange={(lat, lng) => {
                      setNewPoiLat(lat);
                      setNewPoiLon(lng);
-                   }} 
+                   }}
                 />
               </div>
             </div>
@@ -266,7 +266,7 @@ export default function WeatherClient({ initialWeather, mainLocation, pois: init
               </p>
             </div>
           </div>
-          
+
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 md:gap-8 shrink-0 relative z-10 border-t md:border-t-0 pt-6 md:pt-0 border-white/20">
             <div className="flex flex-col items-center">
               <span className="text-[9px] md:text-[10px] uppercase font-bold text-muted-foreground mb-1 tracking-widest">Resimțită</span>
@@ -306,7 +306,7 @@ export default function WeatherClient({ initialWeather, mainLocation, pois: init
                 "p-5 flex flex-col items-center text-center space-y-4",
                 i === 0 ? "text-white" : "text-foreground"
               )}>
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80">{day.date}</span>
+                <span className="text-[10px] font-black uppercase text-blue-600/50">{formatDate(day.time)}</span>
                 <day.icon className={cn("w-12 h-12 drop-shadow-xl", i === 0 ? "text-white" : "text-primary group-hover:scale-110 transition-transform")} />
                 <div className="flex flex-col">
                   <span className="text-3xl font-black tracking-tighter">{day.maxTemp}°</span>

@@ -22,11 +22,18 @@ import {
   Loader2,
   Clock
 } from "lucide-react";
-import { addVehicle, removeVehicle, addVehicleMaintenance } from "@/lib/actions/vehicles";
+import { addVehicle, removeVehicle, addVehicleMaintenance, updateVehicle } from "@/lib/actions/vehicles";
 import { deleteVehicleMaintenance } from "@/lib/actions/operations";
 import { toast } from "react-hot-toast";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle,
+  DialogFooter
+} from "@/components/ui/dialog";
 import { useRouter } from "next/navigation";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 
 interface VehiclesClientProps {
   initialVehicles: any[];
@@ -66,6 +73,10 @@ export default function VehiclesClient({
   const [year, setYear] = useState<number | "">("");
   const [vin, setVin] = useState("");
   const [licensePlate, setLicensePlate] = useState("");
+  const [rcaExpiry, setRcaExpiry] = useState("");
+  const [itpExpiry, setItpExpiry] = useState("");
+  const [cascoExpiry, setCascoExpiry] = useState("");
+  const [rovinietaExpiry, setRovinietaExpiry] = useState("");
 
   // Maintenance Form State
   const [activeVehicleId, setActiveVehicleId] = useState<string | null>(null);
@@ -73,6 +84,22 @@ export default function VehiclesClient({
   const [mDate, setMDate] = useState(new Date().toISOString().split('T')[0]);
   const [mCost, setMCost] = useState<number | "">("");
   const [mDetails, setMDetails] = useState("");
+  const [mExpiry, setMExpiry] = useState("");
+
+  const [editingVehicle, setEditingVehicle] = useState<any>(null);
+  const [editFormData, setEditFormData] = useState({
+    name: "",
+    type: "tractor",
+    brand: "",
+    model: "",
+    year: "" as number | "",
+    vin: "",
+    licensePlate: "",
+    rcaExpiry: "",
+    itpExpiry: "",
+    cascoExpiry: "",
+    rovinietaExpiry: ""
+  });
 
   async function handleAddVehicle() {
     if (!name || !type) return alert("Numele și tipul sunt obligatorii.");
@@ -81,10 +108,29 @@ export default function VehiclesClient({
       await addVehicle({ 
         name, type, brand, model, 
         year: typeof year === 'number' ? year : undefined, 
-        vin, licensePlate 
+        vin, licensePlate,
+        rcaExpiry, itpExpiry, cascoExpiry, rovinietaExpiry
       });
       setShowAddForm(false);
       setName(""); setBrand(""); setModel(""); setVin(""); setLicensePlate(""); setYear("");
+      router.refresh();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleUpdateVehicle() {
+    if (!editingVehicle) return;
+    setIsSubmitting(true);
+    try {
+      await updateVehicle(editingVehicle.id, {
+        ...editFormData,
+        year: typeof editFormData.year === 'number' ? editFormData.year : undefined
+      });
+      setEditingVehicle(null);
+      toast.success("Vehicul actualizat cu succes.");
       router.refresh();
     } catch (err: any) {
       alert(err.message);
@@ -101,7 +147,8 @@ export default function VehiclesClient({
         type: mType,
         date: mDate,
         cost: typeof mCost === 'number' ? mCost : undefined,
-        details: mDetails
+        details: mDetails,
+        expiryDate: mExpiry
       });
       setActiveVehicleId(null);
       setMCost(""); setMDetails("");
@@ -126,6 +173,53 @@ export default function VehiclesClient({
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
+      {/* Alerte Termene Limită */}
+      {(() => {
+        const soonExpiring = initialVehicles.flatMap(v => {
+          const alerts = [];
+          const now = new Date();
+          const soon = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000); // 15 zile
+          
+          if (v.rcaExpiry && new Date(v.rcaExpiry) <= soon) alerts.push({ v, label: "RCA", date: v.rcaExpiry, type: "rca" });
+          if (v.itpExpiry && new Date(v.itpExpiry) <= soon) alerts.push({ v, label: "ITP", date: v.itpExpiry, type: "itp" });
+          if (v.rovinietaExpiry && new Date(v.rovinietaExpiry) <= soon) alerts.push({ v, label: "Rovinietă", date: v.rovinietaExpiry, type: "rovinieta" });
+          
+          return alerts;
+        });
+
+        if (soonExpiring.length === 0) return null;
+
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+            {soonExpiring.map((alert, idx) => (
+              <Card key={idx} className={cn(
+                "border-none shadow-lg animate-in fade-in slide-in-from-left-4 duration-500",
+                new Date(alert.date) < new Date() ? "bg-red-50" : "bg-amber-50"
+              )}>
+                <CardContent className="p-4 flex items-center gap-4">
+                  <div className={cn(
+                    "p-3 rounded-xl shrink-0",
+                    new Date(alert.date) < new Date() ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-600"
+                  )}>
+                    <AlertCircle className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-foreground">
+                      {alert.label} Expiră: {alert.v.name}
+                    </h4>
+                    <p className="text-xs font-medium text-muted-foreground">
+                      Data limită: <b className={new Date(alert.date) < new Date() ? "text-red-600" : "text-amber-600"}>
+                      {formatDate(alert.date)}
+                      </b>
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        );
+      })()}
+
       {!hideHeader && (
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -210,6 +304,22 @@ export default function VehiclesClient({
                 <Label>Serie Șasiu (VIN)</Label>
                 <Input value={vin} onChange={e => setVin(e.target.value)} placeholder="JN1029..." />
               </div>
+              <div className="space-y-2">
+                <Label className="text-blue-600 font-bold">Expirare RCA</Label>
+                <Input type="date" value={rcaExpiry} onChange={e => setRcaExpiry(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-amber-600 font-bold">Expirare ITP</Label>
+                <Input type="date" value={itpExpiry} onChange={e => setItpExpiry(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-purple-600 font-bold">Expirare CASCO</Label>
+                <Input type="date" value={cascoExpiry} onChange={e => setCascoExpiry(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-green-600 font-bold">Expirare Rovinietă</Label>
+                <Input type="date" value={rovinietaExpiry} onChange={e => setRovinietaExpiry(e.target.value)} />
+              </div>
             </div>
             <div className="flex gap-3 mt-6 pt-6 border-t">
               <Button variant="ghost" onClick={() => setShowAddForm(false)}>Anulează</Button>
@@ -255,14 +365,39 @@ export default function VehiclesClient({
                       </div>
                     </div>
                     
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="text-destructive/50 hover:bg-destructive/10 hover:text-destructive md:opacity-0 group-hover:opacity-100 transition-opacity absolute top-4 right-4"
-                      onClick={() => confirm(`Ștergi ${v.name}?`) && removeVehicle(v.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    <div className="flex gap-1 md:opacity-0 group-hover:opacity-100 transition-opacity absolute top-4 right-4">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                        onClick={() => {
+                          setEditingVehicle(v);
+                          setEditFormData({
+                            name: v.name,
+                            type: v.type,
+                            brand: v.brand || "",
+                            model: v.model || "",
+                            year: v.year || "",
+                            vin: v.vin || "",
+                            licensePlate: v.licensePlate || "",
+                            rcaExpiry: v.rcaExpiry ? new Date(v.rcaExpiry).toISOString().split('T')[0] : "",
+                            itpExpiry: v.itpExpiry ? new Date(v.itpExpiry).toISOString().split('T')[0] : "",
+                            cascoExpiry: v.cascoExpiry ? new Date(v.cascoExpiry).toISOString().split('T')[0] : "",
+                            rovinietaExpiry: v.rovinietaExpiry ? new Date(v.rovinietaExpiry).toISOString().split('T')[0] : ""
+                          });
+                        }}
+                      >
+                        <Settings className="w-4 h-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 text-destructive/50 hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => confirm(`Ștergi ${v.name}?`) && removeVehicle(v.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
                   
                   {(v.licensePlate || v.vin) && (
@@ -280,6 +415,54 @@ export default function VehiclesClient({
                       )}
                     </div>
                   )}
+
+                  {/* Document Deadlines */}
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    {v.rcaExpiry && (
+                      <div className={cn(
+                        "flex flex-col p-2 rounded-lg border",
+                        new Date(v.rcaExpiry) < new Date() ? "bg-red-50 border-red-200" : "bg-blue-50/30 border-blue-100"
+                      )}>
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground">RCA</span>
+                        <span className={cn("text-xs font-bold", new Date(v.rcaExpiry) < new Date() ? "text-red-700" : "text-blue-700")}>
+                          {formatDate(v.rcaExpiry)}
+                        </span>
+                      </div>
+                    )}
+                    {v.itpExpiry && (
+                      <div className={cn(
+                        "flex flex-col p-2 rounded-lg border",
+                        new Date(v.itpExpiry) < new Date() ? "bg-red-50 border-red-200" : "bg-amber-50/30 border-amber-100"
+                      )}>
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground">ITP</span>
+                        <span className={cn("text-xs font-bold", new Date(v.itpExpiry) < new Date() ? "text-amber-700" : "text-amber-700")}>
+                          {formatDate(v.itpExpiry)}
+                        </span>
+                      </div>
+                    )}
+                    {v.rovinietaExpiry && (
+                      <div className={cn(
+                        "flex flex-col p-2 rounded-lg border",
+                        new Date(v.rovinietaExpiry) < new Date() ? "bg-red-50 border-red-200" : "bg-green-50/30 border-green-100"
+                      )}>
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground">Rovinietă</span>
+                        <span className={cn("text-xs font-bold", new Date(v.rovinietaExpiry) < new Date() ? "text-red-700" : "text-green-700")}>
+                          {formatDate(v.rovinietaExpiry)}
+                        </span>
+                      </div>
+                    )}
+                    {v.cascoExpiry && (
+                      <div className={cn(
+                        "flex flex-col p-2 rounded-lg border",
+                        new Date(v.cascoExpiry) < new Date() ? "bg-red-50 border-red-200" : "bg-purple-50/30 border-purple-100"
+                      )}>
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground">CASCO</span>
+                        <span className={cn("text-xs font-bold", new Date(v.cascoExpiry) < new Date() ? "text-red-700" : "text-purple-700")}>
+                          {formatDate(v.cascoExpiry)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </CardHeader>
 
                 <CardContent className="p-0 flex flex-col flex-1 divide-y">
@@ -327,6 +510,18 @@ export default function VehiclesClient({
                           <Label className="text-xs">Detalii / Observații</Label>
                           <Input value={mDetails} onChange={e => setMDetails(e.target.value)} className="h-9 text-sm" placeholder="ex: Schimbat filtre și ulei motor" />
                         </div>
+                        {["insurance_rca", "insurance_casco", "itp"].includes(mType) && (
+                          <div className="space-y-1.5 lg:col-span-2">
+                            <Label className="text-xs text-primary font-bold">Data Expirare Nouă</Label>
+                            <Input type="date" value={mExpiry} onChange={e => setMExpiry(e.target.value)} className="h-9 text-sm border-primary/50" />
+                          </div>
+                        )}
+                        {mType === "other" && mDetails.toLowerCase().includes("rovinieta") && (
+                          <div className="space-y-1.5 lg:col-span-2">
+                            <Label className="text-xs text-primary font-bold">Data Expirare Rovinietă</Label>
+                            <Input type="date" value={mExpiry} onChange={e => setMExpiry(e.target.value)} className="h-9 text-sm border-primary/50" />
+                          </div>
+                        )}
                         <div className="lg:col-span-4 mt-2">
                            <Button 
                              className="w-full h-9 text-sm font-bold" 
@@ -364,7 +559,7 @@ export default function VehiclesClient({
                                   {Number(log.cost)} <span className="text-[10px] text-muted-foreground uppercase font-normal">RON</span>
                                 </p>
                                 <p className="text-[10px] text-muted-foreground flex items-center justify-end gap-1 mt-1">
-                                  <Clock className="w-3 h-3" /> {new Date(log.date).toLocaleDateString('ro-RO')}
+                                  <Clock className="w-3 h-3" /> {formatDate(log.date)}
                                 </p>
                                 <Button 
                                   variant="ghost" 
@@ -391,6 +586,80 @@ export default function VehiclesClient({
           })}
         </div>
       )}
+
+      {/* Edit Vehicle Dialog */}
+      <Dialog open={!!editingVehicle} onOpenChange={(open) => !open && setEditingVehicle(null)}>
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Editează Vehicul</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+            <div className="space-y-2">
+              <Label>Nume / Alias</Label>
+              <Input value={editFormData.name} onChange={e => setEditFormData({...editFormData, name: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <Label>Tip Vehicul</Label>
+              <select 
+                className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                value={editFormData.type}
+                onChange={e => setEditFormData({...editFormData, type: e.target.value})}
+              >
+                <option value="tractor">Tractor</option>
+                <option value="combine">Combină</option>
+                <option value="trailer">Remorcă</option>
+                <option value="pickup">Pick-up / Mașină teren</option>
+                <option value="other">Alt utilaj</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label>Marcă</Label>
+              <Input value={editFormData.brand} onChange={e => setEditFormData({...editFormData, brand: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <Label>Model</Label>
+              <Input value={editFormData.model} onChange={e => setEditFormData({...editFormData, model: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <Label>An Fabricație</Label>
+              <Input type="number" value={editFormData.year} onChange={e => setEditFormData({...editFormData, year: parseInt(e.target.value)})} />
+            </div>
+            <div className="space-y-2">
+              <Label>Număr Înmatriculare</Label>
+              <Input value={editFormData.licensePlate} onChange={e => setEditFormData({...editFormData, licensePlate: e.target.value})} />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label>Serie Șasiu (VIN)</Label>
+              <Input value={editFormData.vin} onChange={e => setEditFormData({...editFormData, vin: e.target.value})} />
+            </div>
+            
+            <div className="md:col-span-2 grid grid-cols-2 gap-4 pt-4 border-t">
+              <div className="space-y-2">
+                <Label className="text-blue-600 font-bold text-xs uppercase">Expirare RCA</Label>
+                <Input type="date" value={editFormData.rcaExpiry} onChange={e => setEditFormData({...editFormData, rcaExpiry: e.target.value})} />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-amber-600 font-bold text-xs uppercase">Expirare ITP</Label>
+                <Input type="date" value={editFormData.itpExpiry} onChange={e => setEditFormData({...editFormData, itpExpiry: e.target.value})} />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-purple-600 font-bold text-xs uppercase">Expirare CASCO</Label>
+                <Input type="date" value={editFormData.cascoExpiry} onChange={e => setEditFormData({...editFormData, cascoExpiry: e.target.value})} />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-green-600 font-bold text-xs uppercase">Expirare Rovinietă</Label>
+                <Input type="date" value={editFormData.rovinietaExpiry} onChange={e => setEditFormData({...editFormData, rovinietaExpiry: e.target.value})} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditingVehicle(null)}>Anulează</Button>
+            <Button className="agral-gradient text-white px-8" onClick={handleUpdateVehicle} disabled={isSubmitting}>
+              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin"/> : "Salvează Modificările"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

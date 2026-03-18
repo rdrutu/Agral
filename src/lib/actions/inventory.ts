@@ -3,6 +3,7 @@
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getUserOrganization } from "./parcels";
+import { formatDate } from "@/lib/utils";
 
 export async function getInventory() {
   const orgId = await getUserOrganization();
@@ -205,7 +206,7 @@ export async function getInventoryItemHistory(id: string) {
           });
           if (op) {
             const parcelsStr = op.parcels.map((p: any) => p.parcel.name).join(", ");
-            enhancedDescription = `Recoltă: ${parcelsStr} (${new Date(op.date).toLocaleDateString('ro-RO')})`;
+            enhancedDescription = `Recoltă: ${parcelsStr} (${formatDate(op.date)})`;
           }
         }
 

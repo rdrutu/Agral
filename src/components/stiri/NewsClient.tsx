@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Newspaper, Calendar, ArrowRight, Filter, ChevronRight, ChevronLeft } from "lucide-react";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import { AgriNewsItem } from "@/lib/actions/news";
 import { Button } from "@/components/ui/button";
 
@@ -130,8 +130,7 @@ export default function NewsClient({ initialNews }: NewsClientProps) {
                   </Badge>
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-semibold">
-                  <Calendar className="w-3.5 h-3.5" />
-                  {new Date(news.date).toLocaleDateString('ro-RO', { day: '2-digit', month: 'short' })}
+                  <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {formatDate(news.date)}</span>
                 </div>
               </div>
               <CardTitle className="text-lg font-bold leading-snug group-hover:text-primary transition-colors line-clamp-2">

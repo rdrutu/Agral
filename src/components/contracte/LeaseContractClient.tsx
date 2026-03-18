@@ -16,13 +16,23 @@ import {
   FileText,
   Plus,
   Search,
-  Users,
-  DollarSign,
-  Trash2,
-  CheckCircle2,
-  AlertCircle,
-  Building2,
+  Calendar,
   User,
+  MapPin,
+  Download,
+  Printer,
+  Trash2,
+  AlertCircle,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  Building2,
+  Landmark,
+  Loader2,
+  Mail,
+  Edit,
+  DollarSign,
+  Users,
   ArrowRight,
   MoreVertical,
   Edit2
@@ -49,7 +59,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "react-hot-toast";
 import { PrintContractButton } from "./PrintContractButton";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import dynamic from "next/dynamic";
 
 const LeaseParcelMapSelector = dynamic(
@@ -305,9 +315,9 @@ export default function LeaseContractClient({ initialContracts, parcels, organiz
                       <td className="px-6 py-4 text-sm">
                         <div className="flex flex-col">
                           <div className="flex items-center gap-1.5 font-medium text-slate-700">
-                            {new Date(contract.startDate).toLocaleDateString("ro-RO")}
+                            {formatDate(contract.startDate)}
                             <ArrowRight className="w-3 h-3 text-muted-foreground" />
-                            {new Date(contract.endDate).toLocaleDateString("ro-RO")}
+                            {formatDate(contract.endDate)}
                           </div>
                           {isExpired ? (
                             <Badge variant="outline" className="w-fit mt-1 h-5 text-[10px] bg-red-50 text-red-700 border-red-200">Expirat</Badge>
@@ -682,21 +692,3 @@ export default function LeaseContractClient({ initialContracts, parcels, organiz
   );
 }
 
-function Loader2(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-    </svg>
-  );
-}

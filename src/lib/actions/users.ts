@@ -23,7 +23,8 @@ export async function addEmployee(data: {
   role: string, 
   canLogin?: boolean,
   monthlySalary?: number,
-  employmentType?: string
+  employmentType?: string,
+  salaryDay?: number
 }) {
   const orgId = await getUserOrganization();
   if (!orgId) throw new Error("Nu aparții unei ferme");
@@ -62,6 +63,7 @@ export async function addEmployee(data: {
         lastName: data.lastName,
         monthlySalary: data.monthlySalary,
         employmentType: data.employmentType,
+        salaryDay: data.salaryDay,
         canLogin: data.canLogin ?? (existingUser as any).canLogin
       } as any
     });
@@ -79,7 +81,8 @@ export async function addEmployee(data: {
         role: data.role,
         canLogin: data.canLogin ?? true,
         monthlySalary: data.monthlySalary,
-        employmentType: data.employmentType
+        employmentType: data.employmentType,
+        salaryDay: data.salaryDay
       } as any
     });
   }
@@ -107,7 +110,7 @@ export async function removeEmployee(userId: string) {
   revalidatePath("/angajati");
 }
 
-export async function editEmployeeSalary(userId: string, data: { monthlySalary: number, employmentType: string }) {
+export async function editEmployeeSalary(userId: string, data: { monthlySalary: number, employmentType: string, salaryDay?: number }) {
   const orgId = await getUserOrganization();
   
   const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -117,9 +120,36 @@ export async function editEmployeeSalary(userId: string, data: { monthlySalary: 
     where: { id: userId },
     data: {
       monthlySalary: data.monthlySalary,
-      employmentType: data.employmentType
+      employmentType: data.employmentType,
+      salaryDay: data.salaryDay
     } as any
   });
 
   revalidatePath("/angajati");
+}
+
+export async function paySalary(userId: string, amount: number, month: string) {
+  const orgId = await getUserOrganization();
+  if (!orgId) throw new Error("Neautorizat");
+
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user || user.orgId !== orgId) throw new Error("Angajat inexistent");
+
+  // Create Financial Transaction
+  await (prisma as any).financialTransaction.create({
+    data: {
+      orgId: orgId as string,
+      type: "expense",
+      category: "salary",
+      amount: amount,
+      date: new Date(),
+      description: `Salariu ${user.firstName} ${user.lastName} - ${month}`,
+      referenceId: userId
+    }
+  });
+
+  revalidatePath("/angajati");
+  revalidatePath("/financiar");
+  
+  return { success: true };
 }

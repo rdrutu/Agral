@@ -159,3 +159,17 @@ export async function getParcelDetails(id: string) {
     }
   }));
 }
+
+export async function updateParcel(id: string, data: { name?: string, cadastralCode?: string, areaHa?: number, soilType?: string, landUse?: string, ownership?: string }) {
+  const orgId = await getUserOrganization();
+  if (!orgId) throw new Error("Neautorizat");
+
+  await prisma.parcel.update({
+    where: { id, orgId: orgId as string },
+    data: data as any
+  });
+
+  revalidatePath("/dashboard/parcele");
+  revalidatePath("/dashboard");
+  revalidatePath(`/parcele/${id}`);
+}

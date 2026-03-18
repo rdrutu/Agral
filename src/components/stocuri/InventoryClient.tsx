@@ -1,12 +1,15 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { cn, formatDate } from "@/lib/utils";
+import toast from "react-hot-toast";
 import { useState } from "react";
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle, 
-  CardDescription 
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -717,7 +720,7 @@ export default function InventoryClient({
                               <span className="text-muted-foreground font-normal text-xs ml-2">din {Number(lot.initialQuantity).toLocaleString()}</span>
                             </p>
                             <div className="flex items-center gap-3 text-[10px] text-muted-foreground mt-0.5">
-                              <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {new Date(lot.purchaseDate).toLocaleDateString()}</span>
+                              <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {formatDate(lot.purchaseDate)}</span>
                               <span className="flex items-center gap-1"><DollarSign className="w-3 h-3" /> {Number(lot.pricePerUnit).toFixed(2)} Lei/{historyData.unit}</span>
                             </div>
                           </div>
@@ -753,7 +756,7 @@ export default function InventoryClient({
                     <tbody className="divide-y">
                       {historyData.lots.flatMap((l: any) => l.transactions).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((t: any) => (
                         <tr key={t.id} className="hover:bg-muted/10 transition-colors">
-                          <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{new Date(t.date).toLocaleString('ro-RO', { dateStyle: 'short', timeStyle: 'short' })}</td>
+                          <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{formatDate(t.date)}</td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
                               {t.type === 'intake' ? <ArrowDownCircle className="w-3.5 h-3.5 text-green-600" /> : <ArrowUpCircle className="w-3.5 h-3.5 text-amber-600" />}
@@ -820,7 +823,7 @@ export default function InventoryClient({
                     <h2 className="text-xl font-bold uppercase tracking-tight">
                       {docType === 'sale' ? 'Factură / Borderou Vânzare' : 'Notă de Recepție și Constatare'}
                     </h2>
-                    <p className="text-sm text-slate-500 font-medium mt-1">Nr. {selectedDoc.id.substring(0,8).toUpperCase()} / {new Date().toLocaleDateString()}</p>
+                    <p className="text-sm text-slate-500 font-medium mt-1">Nr. {selectedDoc.id.substring(0,8).toUpperCase()} / {formatDate(new Date())}</p>
                   </div>
                 </div>
 

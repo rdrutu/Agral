@@ -68,11 +68,21 @@ export async function getFinancialSummary() {
 
   const totalExpense = rawExpense + totalSalaries + totalOpCosts + totalMaintenance;
 
+  // Monthly stats
+  const statsByMonth: Record<string, { income: number, expense: number }> = {};
+  transactions.forEach((t: any) => {
+    const month = new Date(t.date).toLocaleDateString('ro-RO', { month: 'short', year: 'numeric' });
+    if (!statsByMonth[month]) statsByMonth[month] = { income: 0, expense: 0 };
+    if (t.type === 'income') statsByMonth[month].income += Number(t.amount);
+    else statsByMonth[month].expense += Number(t.amount);
+  });
+
   return {
     totalIncome: rawIncome,
     totalExpense,
     profit: rawIncome - totalExpense,
-    categories
+    categories,
+    statsByMonth
   };
 }
 
@@ -173,6 +183,32 @@ export async function sellCrop(data: {
   revalidatePath("/stocuri");
   revalidatePath("/financiar");
   return JSON.parse(JSON.stringify(sale));
+}
+
+export async function addFinancialTransaction(data: {
+  type: "income" | "expense";
+  category: string;
+  amount: number;
+  description: string;
+  date?: Date;
+}) {
+  const orgId = await getUserOrganization();
+  if (!orgId) throw new Error("Neautorizat");
+
+  const transaction = await prisma.financialTransaction.create({
+    data: {
+      orgId: orgId as string,
+      type: data.type,
+      category: data.category,
+      amount: data.amount,
+      description: data.description,
+      date: data.date || new Date()
+    }
+  });
+
+  const { revalidatePath } = await import("next/cache");
+  revalidatePath("/financiar");
+  return JSON.parse(JSON.stringify(transaction));
 }
 
 export async function getSaleDetails(saleId: string) {

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import toast from "react-hot-toast";
 import {
   ShieldCheck,
@@ -248,7 +248,7 @@ export default function AdminClient({ orgs, isSuperadmin }: { orgs: any[], isSup
                       <td className="px-4 py-3 hidden lg:table-cell">
                         {expiryDate ? (
                           <div className={cn("text-xs font-medium", isExpired ? "text-destructive" : "text-foreground")}>
-                            {expiryDate.toLocaleDateString('ro-RO')}
+                            {formatDate(expiryDate)}
                             {isExpired && <span className="block text-[10px] uppercase font-bold text-destructive">Expirat</span>}
                           </div>
                         ) : (
@@ -321,7 +321,7 @@ export default function AdminClient({ orgs, isSuperadmin }: { orgs: any[], isSup
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">{admin.email}</td>
                       <td className="px-4 py-3 text-xs">
-                        {new Date(admin.createdAt).toLocaleDateString('ro-RO')}
+                        {formatDate(admin.createdAt)}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <Button 

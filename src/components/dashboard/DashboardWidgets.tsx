@@ -18,7 +18,7 @@ import {
 import Link from "next/link";
 import { getWeatherDesc } from "@/lib/weather";
 import { Sun, Cloud, CloudFog, CloudDrizzle, CloudRain, Snowflake, CloudLightning } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 
 const IconMap: Record<string, any> = {
   Sun,
@@ -145,7 +145,7 @@ export function NewsWidget({ news }: { news: any[] }) {
                   {item.source}
                 </Badge>
                 <span className="text-[10px] font-bold text-muted-foreground/50">
-                  {new Date(item.date).toLocaleDateString('ro-RO', { day: '2-digit', month: 'short' })}
+                  {formatDate(item.date)}
                 </span>
               </div>
               <div className="text-sm font-bold text-foreground line-clamp-2 leading-snug group-hover/item:text-amber-600 transition-colors relative z-10">

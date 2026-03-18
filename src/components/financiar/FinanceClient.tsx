@@ -20,13 +20,31 @@ import {
   Search,
   PieChart,
   History,
-  Info
+  Info,
+  CheckCircle2,
+  Loader2
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
-import { getFinancialTransactions, getFinancialSummary } from "@/lib/actions/finance";
+import { Label } from "@/components/ui/label";
+import { cn, formatDate } from "@/lib/utils";
+import { 
+  getFinancialTransactions, 
+  getFinancialSummary, 
+  addFinancialTransaction,
+} from "@/lib/actions/finance";
+import { useRouter } from "next/navigation";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogDescription,
+  DialogTrigger,
+  DialogFooter
+} from "@/components/ui/dialog";
+import toast from "react-hot-toast";
 
 export default function FinanceClient({ 
   initialTransactions, 
@@ -37,16 +55,67 @@ export default function FinanceClient({
   initialSummary: any,
   hideHeader?: boolean
 }) {
+  const router = useRouter();
   const [transactions, setTransactions] = useState(initialTransactions);
   const [summary, setSummary] = useState(initialSummary);
   const [searchTerm, setSearchTerm] = useState("");
+  const [filterType, setFilterType] = useState<"all" | "income" | "expense">("all");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const filteredTransactions = transactions.filter(t => 
-    t.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    t.category?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Form state
+  const [formData, setFormData] = useState({
+    type: "expense" as "income" | "expense",
+    category: "other",
+    amount: "",
+    description: "",
+    date: new Date().toISOString().split('T')[0]
+  });
+
+  const filteredTransactions = transactions.filter(t => {
+    const matchesSearch = t.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          t.category?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesFilter = filterType === "all" || t.type === filterType;
+    return matchesSearch && matchesFilter;
+  });
+
+  const handleAddTransaction = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.amount || !formData.description) return toast.error("Completează toate câmpurile obligatorii");
+
+    setIsSubmitting(true);
+    try {
+      await addFinancialTransaction({
+        type: formData.type,
+        category: formData.category,
+        amount: Number(formData.amount),
+        description: formData.description,
+        date: new Date(formData.date)
+      });
+      toast.success("Tranzacție adăugată cu succes");
+      setIsModalOpen(false);
+      setFormData({
+        type: "expense",
+        category: "other",
+        amount: "",
+        description: "",
+        date: new Date().toISOString().split('T')[0]
+      });
+      router.refresh();
+      // Update local state temporarily for better UX
+      const newTransactions = await getFinancialTransactions();
+      const newSummary = await getFinancialSummary();
+      setTransactions(newTransactions);
+      setSummary(newSummary);
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
+    <>
     <div className="space-y-8 animate-in fade-in duration-700">
       {/* Header */}
       {!hideHeader && (
@@ -59,7 +128,7 @@ export default function FinanceClient({
             <Button variant="outline" className="gap-2 font-bold shadow-sm">
               <Download className="w-4 h-4" /> Exportă Raport
             </Button>
-            <Button className="agral-gradient text-white gap-2 font-bold shadow-md">
+            <Button onClick={() => setIsModalOpen(true)} className="agral-gradient text-white gap-2 font-bold shadow-md">
               <DollarSign className="w-4 h-4" /> Adaugă Tranzacție
             </Button>
           </div>
@@ -71,7 +140,7 @@ export default function FinanceClient({
            <Button variant="outline" className="gap-2 font-bold shadow-sm">
             <Download className="w-4 h-4" /> Exportă Raport
           </Button>
-          <Button className="agral-gradient text-white gap-2 font-bold shadow-md">
+          <Button onClick={() => setIsModalOpen(true)} className="agral-gradient text-white gap-2 font-bold shadow-md">
             <DollarSign className="w-4 h-4" /> Adaugă Tranzacție
           </Button>
         </div>
@@ -131,8 +200,28 @@ export default function FinanceClient({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Transactions Table */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between gap-4">
-             <div className="relative flex-1">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex bg-white p-1 rounded-xl shadow-sm border w-full sm:w-auto">
+              <button 
+                className={cn("px-4 py-2 text-xs font-black rounded-lg transition-all", filterType === 'all' ? "bg-primary text-white" : "text-muted-foreground")}
+                onClick={() => setFilterType('all')}
+              >
+                TOATE
+              </button>
+              <button 
+                className={cn("px-4 py-2 text-xs font-black rounded-lg transition-all", filterType === 'income' ? "bg-green-600 text-white" : "text-muted-foreground")}
+                onClick={() => setFilterType('income')}
+              >
+                VENITURI
+              </button>
+              <button 
+                className={cn("px-4 py-2 text-xs font-black rounded-lg transition-all", filterType === 'expense' ? "bg-red-600 text-white" : "text-muted-foreground")}
+                onClick={() => setFilterType('expense')}
+              >
+                CHELTUIELI
+              </button>
+            </div>
+             <div className="relative flex-1 w-full sm:w-auto">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input 
                 placeholder="Caută în tranzacții..." 
@@ -141,9 +230,6 @@ export default function FinanceClient({
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <Button variant="outline" size="icon" className="h-11 w-11 shrink-0 bg-white">
-              <Filter className="w-4 h-4" />
-            </Button>
           </div>
 
           <Card className="border-none shadow-lg overflow-hidden bg-white/70 backdrop-blur-md">
@@ -170,7 +256,7 @@ export default function FinanceClient({
                           </div>
                           <div>
                             <div className="font-bold text-foreground text-xs md:text-sm">
-                              {new Date(t.date).toLocaleDateString('ro-RO', { day: '2-digit', month: 'short' })}
+                              {formatDate(t.date)}
                             </div>
                             <div className="text-[9px] md:text-[10px] text-muted-foreground font-black uppercase hidden sm:block">
                               {new Date(t.date).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}
@@ -262,6 +348,37 @@ export default function FinanceClient({
             </CardContent>
           </Card>
 
+          {/* Monthly Stats */}
+          <Card className="border-none shadow-xl bg-white overflow-hidden">
+            <CardHeader className="bg-muted/10 border-b">
+              <CardTitle className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-primary" /> Tendințe Lunare
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 space-y-4">
+              {Object.entries(summary?.statsByMonth || {}).map(([month, stats]: [string, any]) => (
+                <div key={month} className="space-y-1.5 border-b border-muted/20 pb-2 last:border-0 last:pb-0">
+                  <div className="flex justify-between text-[10px] font-black uppercase text-muted-foreground">
+                    <span>{month}</span>
+                    <span className={cn(stats.income >= stats.expense ? "text-green-600" : "text-red-600")}>
+                      {(stats.income - stats.expense).toLocaleString()} RON
+                    </span>
+                  </div>
+                  <div className="flex h-2 w-full bg-muted/30 rounded-full overflow-hidden">
+                    <div 
+                      className="bg-green-500 h-full transition-all" 
+                      style={{ width: `${(stats.income / (stats.income + stats.expense || 1)) * 100}%` }}
+                    />
+                    <div 
+                      className="bg-red-500 h-full transition-all" 
+                      style={{ width: `${(stats.expense / (stats.income + stats.expense || 1)) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
           <Card className="border-none shadow-lg bg-white overflow-hidden">
             <CardHeader className="bg-muted/20 border-b">
               <CardTitle className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
@@ -279,5 +396,108 @@ export default function FinanceClient({
         </div>
       </div>
     </div>
+
+    {/* Transaction Modal */}
+    <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle className="font-black text-xl flex items-center gap-2">
+            <DollarSign className="text-primary" />
+            Adaugă Tranzacție Manuală
+          </DialogTitle>
+          <DialogDescription className="font-medium">
+            Înregistrează o intrare sau o ieșire care nu a fost generată automat.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleAddTransaction} className="space-y-5 mt-4">
+          <div className="grid grid-cols-2 gap-2 p-1 bg-muted rounded-xl">
+            <button
+              type="button"
+              className={cn(
+                "py-2 text-xs font-black rounded-lg transition-all",
+                formData.type === 'income' ? "bg-white text-green-600 shadow-sm" : "text-muted-foreground"
+              )}
+              onClick={() => setFormData({...formData, type: 'income'})}
+            >
+              VENIT
+            </button>
+            <button
+              type="button"
+              className={cn(
+                "py-2 text-xs font-black rounded-lg transition-all",
+                formData.type === 'expense' ? "bg-white text-red-600 shadow-sm" : "text-muted-foreground"
+              )}
+              onClick={() => setFormData({...formData, type: 'expense'})}
+            >
+              CHELTUIALĂ
+            </button>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs font-black uppercase opacity-70">Descriere Tranzacție</Label>
+            <Input 
+              placeholder="Ex: Reparație tractor, Vânzare cereale" 
+              value={formData.description}
+              onChange={e => setFormData({...formData, description: e.target.value})}
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-xs font-black uppercase opacity-70">Sumă (RON)</Label>
+              <Input 
+                type="number" 
+                placeholder="0.00" 
+                value={formData.amount}
+                onChange={e => setFormData({...formData, amount: e.target.value})}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-black uppercase opacity-70">Categorie</Label>
+              <select 
+                className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                value={formData.category}
+                onChange={e => setFormData({...formData, category: e.target.value})}
+              >
+                <option value="other">Altele</option>
+                <option value="sale">Vânzare</option>
+                <option value="repair">Reparații</option>
+                <option value="fuel">Combustibil</option>
+                <option value="utilities">Utilități</option>
+                <option value="lease">Arendă</option>
+                <option value="seed">Semințe</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs font-black uppercase opacity-70">Data Tranzacției</Label>
+            <Input 
+              type="date" 
+              value={formData.date}
+              onChange={e => setFormData({...formData, date: e.target.value})}
+            />
+          </div>
+
+          <DialogFooter className="pt-4">
+            <Button 
+              type="submit" 
+              className={cn(
+                "w-full font-black uppercase tracking-widest text-white shadow-xl h-12",
+                formData.type === 'income' ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"
+              )}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
+              Salvează Tranzacția
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

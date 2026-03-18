@@ -17,20 +17,36 @@ import {
   AlertCircle,
   Calculator,
   Banknote,
-  CheckCircle2
+  CheckCircle2,
+  Edit2,
+  Settings,
+  Calendar
 } from "lucide-react";
 import React from "react";
-import { addEmployee, removeEmployee, editEmployeeSalary } from "@/lib/actions/users";
+import { addEmployee, removeEmployee, editEmployeeSalary, paySalary } from "@/lib/actions/users";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle,
+  DialogFooter
+} from "@/components/ui/dialog";
 import { useRouter } from "next/navigation";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import toast from "react-hot-toast";
+import { updateOrganizationSalaryDay } from "@/lib/actions/organizations";
 
 interface EmployeesClientProps {
   initialEmployees: any[];
-  maxUsers: number;
+  organization: {
+    id: string;
+    maxUsers: number;
+    salaryDay?: number | null;
+  };
 }
 
-export default function EmployeesClient({ initialEmployees, maxUsers }: EmployeesClientProps) {
+export default function EmployeesClient({ initialEmployees, organization }: EmployeesClientProps) {
+  const { maxUsers, salaryDay: globalSalaryDay } = organization;
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -48,7 +64,14 @@ export default function EmployeesClient({ initialEmployees, maxUsers }: Employee
   const [salaryMode, setSalaryMode] = useState<"gross" | "net">("gross");
   const [payType, setPayType] = useState("full-time");
 
-  // Payroll state
+  // Editing state
+  const [editingEmployee, setEditingEmployee] = useState<any>(null);
+  const [editFormData, setEditFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    role: "worker"
+  });
   const platformUsers = initialEmployees.filter(u => u.canLogin !== false);
   const registryEmployees = initialEmployees.filter(u => u.canLogin === false);
   const currentCount = platformUsers.length;
@@ -72,9 +95,8 @@ export default function EmployeesClient({ initialEmployees, maxUsers }: Employee
         role,
         canLogin: addType === 'member',
         monthlySalary: salaryInput ? currentTaxes.brut : undefined,
-        employmentType: payType
+        employmentType: payType,
       });
-      setAddType(null);
       setEmail("");
       setFirstName("");
       setLastName("");
@@ -131,7 +153,7 @@ export default function EmployeesClient({ initialEmployees, maxUsers }: Employee
     try {
       await editEmployeeSalary(userId, {
         monthlySalary: currentTaxes.brut,
-        employmentType: payType
+        employmentType: payType,
       });
       setActivePayrollUserId(null);
       setSalaryInput("");
@@ -139,6 +161,45 @@ export default function EmployeesClient({ initialEmployees, maxUsers }: Employee
       router.refresh();
     } catch (err: any) {
       toast.error("Eroare la salvare: " + err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handlePaySalary(user: any) {
+    if (!user.monthlySalary) return toast.error("Angajatul nu are salariu setat.");
+    
+    const currentMonth = formatDate(new Date());
+    if (!confirm(`Confirmați plata salariului NET de ${calculateFromGross(user.monthlySalary).net} RON către ${user.firstName} pe luna ${currentMonth}?`)) return;
+
+    setIsSubmitting(true);
+    try {
+      await paySalary(user.id, calculateFromGross(user.monthlySalary).net, currentMonth);
+      toast.success(`Salariu plătit pentru ${user.firstName}!`);
+      router.refresh();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  // Calculate upcoming salaries
+  const todayDate = new Date().getDate();
+  const upcomingSalaries = initialEmployees.filter(u => {
+    const dayToUse = globalSalaryDay || 15;
+    const diff = dayToUse - todayDate;
+    return diff >= 0 && diff <= 3;
+  });
+
+  async function handleUpdateGlobalSalaryDay(day: number) {
+    setIsSubmitting(true);
+    try {
+      await updateOrganizationSalaryDay(organization.id, day);
+      toast.success("Ziua de salariu a fost actualizată pentru toată firma.");
+      router.refresh();
+    } catch (err: any) {
+      toast.error(err.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -191,6 +252,65 @@ export default function EmployeesClient({ initialEmployees, maxUsers }: Employee
           </CardContent>
         </Card>
       )}
+
+      {/* Global Salary Day Setting */}
+      <Card className="bg-white border-primary/10 shadow-sm border overflow-hidden">
+        <CardContent className="p-0">
+          <div className="flex flex-col md:flex-row items-center justify-between p-4 gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                <Calendar className="w-6 h-6" />
+              </div>
+              <div>
+                <h4 className="font-bold text-sm">Zi Plată Salarii (Global)</h4>
+                <p className="text-xs text-muted-foreground">Stabilește ziua din lună în care se fac plățile pentru toți angajații.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 w-full md:w-auto">
+              <div className="flex items-center gap-2 bg-muted/50 p-1 rounded-lg border">
+                {[1, 5, 10, 15, 20, 25, 30].map((day) => (
+                  <button
+                    key={day}
+                    onClick={() => handleUpdateGlobalSalaryDay(day)}
+                    disabled={isSubmitting}
+                    className={cn(
+                      "w-8 h-8 rounded-md text-xs font-bold transition-all",
+                      globalSalaryDay === day 
+                        ? "bg-primary text-white shadow-sm" 
+                        : "text-muted-foreground hover:bg-white hover:text-primary"
+                    )}
+                  >
+                    {day}
+                  </button>
+                ))}
+                <div className="px-2 border-l ml-1">
+                   <Input 
+                    type="number" 
+                    min="1" 
+                    max="31" 
+                    className="w-12 h-8 p-1 text-center text-xs font-bold border-none bg-transparent"
+                    placeholder="..."
+                    value={globalSalaryDay || ""}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      if (val >= 1 && val <= 31) handleUpdateGlobalSalaryDay(val);
+                    }}
+                   />
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {upcomingSalaries.length > 0 && (
+            <div className="bg-blue-50/50 border-t border-primary/5 p-3 flex items-center gap-2 text-blue-800 text-xs font-medium">
+              <AlertCircle className="w-4 h-4 text-blue-600" />
+              <span>
+                Termen plată apropiat (ziua {globalSalaryDay || 15}): <strong>{upcomingSalaries.length} angajați</strong> urmează să fie plătiți în următoarele 3 zile.
+              </span>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Add Member Form */}
       {addType && (
@@ -337,7 +457,7 @@ export default function EmployeesClient({ initialEmployees, maxUsers }: Employee
         </Card>
       )}
 
-    <Card className="border-none shadow-md overflow-hidden bg-white/50 backdrop-blur-sm">
+      <Card className="border-none shadow-md overflow-hidden bg-white/50 backdrop-blur-sm">
         <CardHeader className="pb-3 border-b bg-primary/5">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg flex items-center gap-2">
@@ -391,11 +511,27 @@ export default function EmployeesClient({ initialEmployees, maxUsers }: Employee
                         </div>
                       </td>
                       <td className="px-4 md:px-6 py-4 text-xs text-muted-foreground hidden xl:table-cell">
-                        {new Date(user.createdAt).toLocaleDateString('ro-RO')}
+                        {formatDate(user.createdAt)}
                       </td>
                       <td className="px-4 md:px-6 py-4 text-right">
                         {user.role !== 'owner' && (
                           <div className="flex justify-end gap-1">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-muted-foreground hover:text-primary"
+                              onClick={() => {
+                                setEditingEmployee(user);
+                                setEditFormData({
+                                  firstName: user.firstName || "",
+                                  lastName: user.lastName || "",
+                                  email: user.email || "",
+                                  role: user.role
+                                });
+                              }}
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </Button>
                             <Button 
                               variant="ghost" 
                               size="icon" 
@@ -410,6 +546,16 @@ export default function EmployeesClient({ initialEmployees, maxUsers }: Employee
                               }}
                             >
                               <Calculator className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-green-600 hover:bg-green-50"
+                              onClick={() => handlePaySalary(user)}
+                              disabled={isSubmitting || !user.monthlySalary}
+                              title="Plătește Salariu"
+                            >
+                              <Banknote className="w-4 h-4" />
                             </Button>
                             <Button 
                               variant="ghost" 
@@ -436,6 +582,7 @@ export default function EmployeesClient({ initialEmployees, maxUsers }: Employee
                         setPayType={setPayType} 
                         currentTaxes={currentTaxes} 
                         setActivePayrollUserId={setActivePayrollUserId} 
+                        globalSalaryDay={globalSalaryDay}
                       />
                     )}
                   </React.Fragment>
@@ -496,10 +643,26 @@ export default function EmployeesClient({ initialEmployees, maxUsers }: Employee
                         )}
                       </td>
                       <td className="px-4 md:px-6 py-4 text-xs text-muted-foreground hidden md:table-cell">
-                        {new Date(user.createdAt).toLocaleDateString('ro-RO')}
+                        {formatDate(user.createdAt)}
                       </td>
                       <td className="px-4 md:px-6 py-4 text-right">
                         <div className="flex justify-end gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-muted-foreground hover:text-primary"
+                            onClick={() => {
+                              setEditingEmployee(user);
+                              setEditFormData({
+                                firstName: user.firstName || "",
+                                lastName: user.lastName || "",
+                                email: user.email || "",
+                                role: user.role
+                              });
+                            }}
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </Button>
                           <Button 
                             variant="ghost" 
                             size="icon" 
@@ -514,6 +677,16 @@ export default function EmployeesClient({ initialEmployees, maxUsers }: Employee
                             }}
                           >
                             <Calculator className="w-4 h-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-green-600 hover:bg-green-50"
+                            onClick={() => handlePaySalary(user)}
+                            disabled={isSubmitting || !user.monthlySalary}
+                            title="Plătește Salariu"
+                          >
+                            <Banknote className="w-4 h-4" />
                           </Button>
                           <Button 
                             variant="ghost" 
@@ -539,6 +712,7 @@ export default function EmployeesClient({ initialEmployees, maxUsers }: Employee
                         setPayType={setPayType} 
                         currentTaxes={currentTaxes} 
                         setActivePayrollUserId={setActivePayrollUserId} 
+                        globalSalaryDay={globalSalaryDay}
                       />
                     )}
                   </React.Fragment>
@@ -559,11 +733,80 @@ export default function EmployeesClient({ initialEmployees, maxUsers }: Employee
       <p className="text-center text-xs text-muted-foreground pt-4">
         Fiecare membru cu acces consumă o licență din abonament. Angajații din Registru sunt nelimitați.
       </p>
+
+      {/* Edit Employee Dialog */}
+      <Dialog open={!!editingEmployee} onOpenChange={(open) => !open && setEditingEmployee(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Editează Informații Angajat</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Prenume</Label>
+                <Input value={editFormData.firstName} onChange={e => setEditFormData({...editFormData, firstName: e.target.value})} />
+              </div>
+              <div className="space-y-2">
+                <Label>Nume Familie</Label>
+                <Input value={editFormData.lastName} onChange={e => setEditFormData({...editFormData, lastName: e.target.value})} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input 
+                value={editFormData.email} 
+                onChange={e => setEditFormData({...editFormData, email: e.target.value})} 
+                disabled={editingEmployee?.canLogin !== false && editingEmployee?.role === 'owner'}
+              />
+              {editingEmployee?.role === 'owner' && <p className="text-[10px] text-muted-foreground italic">Email-ul proprietarului nu poate fi schimbat de aici.</p>}
+            </div>
+            <div className="space-y-2">
+              <Label>Rol</Label>
+              <select 
+                className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                value={editFormData.role}
+                onChange={e => setEditFormData({...editFormData, role: e.target.value})}
+                disabled={editingEmployee?.role === 'owner'}
+              >
+                <option value="worker">Lucrător</option>
+                <option value="agronomist">Agronom</option>
+                <option value="owner">Co-Proprietar</option>
+              </select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditingEmployee(null)}>Anulează</Button>
+            <Button 
+              className="agral-gradient text-white px-8" 
+              onClick={async () => {
+                setIsSubmitting(true);
+                try {
+                  await addEmployee({
+                    ...editingEmployee,
+                    ...editFormData,
+                    id: editingEmployee.id // Ensure we pass the ID for update
+                  });
+                  setEditingEmployee(null);
+                  toast.success("Informații actualizate!");
+                  router.refresh();
+                } catch (err: any) {
+                  toast.error(err.message);
+                } finally {
+                  setIsSubmitting(false);
+                }
+              }} 
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin"/> : "Salvează Modificările"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-function PayrollRow({ user, isSubmitting, handleSaveSalary, salaryInput, setSalaryInput, salaryMode, setSalaryMode, payType, setPayType, currentTaxes, setActivePayrollUserId }: any) {
+function PayrollRow({ user, isSubmitting, handleSaveSalary, salaryInput, setSalaryInput, salaryMode, setSalaryMode, payType, setPayType, currentTaxes, setActivePayrollUserId, globalSalaryDay }: any) {
   return (
     <tr className="bg-primary/5 shadow-inner">
       <td colSpan={5} className="px-6 py-8 border-b border-primary/20 animate-in fade-in slide-in-from-top-2">
@@ -609,6 +852,12 @@ function PayrollRow({ user, isSubmitting, handleSaveSalary, salaryInput, setSala
                     >
                       NET
                     </button>
+                  </div>
+                </div>
+                <div className="space-y-1.5 opacity-50 cursor-not-allowed">
+                  <Label className="text-xs font-bold text-muted-foreground">Zi Salariu (Global)</Label>
+                  <div className="h-10 border rounded-md flex items-center px-3 bg-muted/20 font-bold text-sm">
+                    Ziua {globalSalaryDay || 15}
                   </div>
                 </div>
               </div>

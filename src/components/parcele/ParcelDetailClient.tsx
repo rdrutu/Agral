@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { deleteAgriculturalOperation } from "@/lib/actions/operations";
+import { formatDate } from "@/lib/utils";
 import { toast } from "react-hot-toast";
 import dynamic from "next/dynamic";
 import * as turf from "@turf/turf";
@@ -154,7 +155,7 @@ export default function ParcelDetailClient({ parcel }: ParcelDetailClientProps) 
                 <div className="flex flex-col">
                   <p className="text-lg font-bold text-primary truncate leading-tight">{currentPlan?.cropType || "Niciuna"}</p>
                   {currentPlan?.sownDate && (
-                    <p className="text-[9px] font-bold text-muted-foreground mt-0.5">Din {new Date(currentPlan.sownDate).toLocaleDateString()}</p>
+                    <p className="text-[9px] font-bold text-muted-foreground mt-0.5">Din {formatDate(currentPlan.sownDate)}</p>
                   )}
                 </div>
               </div>
@@ -250,7 +251,7 @@ export default function ParcelDetailClient({ parcel }: ParcelDetailClientProps) 
                   </div>
                   <div className="flex justify-between items-center py-2 border-b border-border/50">
                     <span className="text-muted-foreground">Creat la</span>
-                    <span className="font-extrabold text-foreground">{new Date(parcel.createdAt).toLocaleDateString('ro-RO')}</span>
+                    <span className="font-extrabold text-foreground">{formatDate(parcel.createdAt)}</span>
                   </div>
                 </div>
              </Card>
@@ -309,7 +310,7 @@ export default function ParcelDetailClient({ parcel }: ParcelDetailClientProps) 
                         <div>
                           <p className="font-black text-lg text-foreground">{opParcel.operation.name}</p>
                           <div className="flex items-center gap-3 text-xs text-muted-foreground font-bold uppercase mt-1">
-                             <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {new Date(opParcel.operation.date).toLocaleDateString('ro-RO')}</span>
+                             <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {formatDate(opParcel.operation.date)}</span>
                              <span>•</span>
                              <span>{opParcel.operatedAreaHa} ha lucrate</span>
                           </div>

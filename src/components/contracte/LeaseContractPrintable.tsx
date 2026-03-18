@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatDate } from "@/lib/utils";
 
 interface LeaseContractPrintableProps {
   contract: any;
@@ -13,9 +14,9 @@ export const LeaseContractPrintable = React.forwardRef<HTMLDivElement, LeaseCont
       </div>
     );
 
-    const startDate = contract.startDate ? new Date(contract.startDate).toLocaleDateString("ro-RO") : "_________";
-    const endDate = contract.endDate ? new Date(contract.endDate).toLocaleDateString("ro-RO") : "_________";
-    const today = new Date().toLocaleDateString("ro-RO");
+    const startDate = contract.startDate ? formatDate(contract.startDate) : "_________";
+    const endDate = contract.endDate ? formatDate(contract.endDate) : "_________";
+    const today = formatDate(new Date());
     
     const years = (contract.startDate && contract.endDate) 
       ? Math.round((new Date(contract.endDate).getTime() - new Date(contract.startDate).getTime()) / (1000 * 60 * 60 * 24 * 365)) 
@@ -104,12 +105,15 @@ export const LeaseContractPrintable = React.forwardRef<HTMLDivElement, LeaseCont
             </p>
             <p className="justified mt-2">
               <span className="font-bold">ART. 2.</span> <strong>{contract.landownerType === "company" ? "Unitatea " : "Domnul "} {landownerName}</strong>, 
+              {contract.landownerType === "company" && contract.landownerRepresentative && (
+                <> reprezentată prin <strong>{contract.landownerRepresentative.toUpperCase()}</strong>, </>
+              )}
               cu domiciliul in {contract.landownerAddress || "………………………………………………………."}, 
               {contract.landownerCity ? ` loc. ${contract.landownerCity}, ` : ""}
               {contract.landownerCounty ? ` jud. ${contract.landownerCounty}, ` : ""}
               {contract.landownerCiSeries ? ` serie CI ${contract.landownerCiSeries}, ` : ""}
               {contract.landownerCiNumber ? ` nr. ${contract.landownerCiNumber}, ` : ""}
-              CNP {contract.landownerCnp || "____________________"}, 
+              {contract.landownerType === "company" ? "CUI " : "CNP "} {contract.landownerCnp || "____________________"}, 
               titular al dreptului de proprietate, denumit in continuare <strong>ARENDATOR</strong>
             </p>
             <p className="text-center my-1 font-bold italic">si</p>
@@ -184,6 +188,9 @@ export const LeaseContractPrintable = React.forwardRef<HTMLDivElement, LeaseCont
               <div>
                 <p className="font-bold uppercase mb-1">ARENDATOR,</p>
                 <p className="font-bold text-[11pt] min-h-[3rem]">{landownerName}</p>
+                {contract.landownerType === "company" && contract.landownerRepresentative && (
+                  <p className="text-[10pt] font-medium mt-[-2rem] mb-[1rem]">Prin: {contract.landownerRepresentative}</p>
+                )}
                 <div className="mt-8 border-t border-black pt-1">
                   <p className="text-[9pt] italic">(semnătura)</p>
                 </div>

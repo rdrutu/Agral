@@ -21,7 +21,7 @@ import prisma from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { getWeatherData, countyCoords } from "@/lib/weather";
 import { getAgriNews } from "@/lib/actions/news";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import { Suspense } from "react";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 
@@ -71,7 +71,7 @@ export default async function DashboardPage() {
             <div className="flex items-center gap-3 mb-2 md:mb-3">
               <div className="h-1 w-1 rounded-full bg-white/40" />
               <span className="text-[10px] md:text-xs font-bold text-white/60 uppercase tracking-tighter">
-                {new Date().toLocaleDateString('ro-RO', { weekday: 'long', day: 'numeric', month: 'long' })}
+                {formatDate(new Date())}
               </span>
             </div>
             <h2 className="text-2xl md:text-4xl font-black tracking-tight mb-2">Bună ziua, {firstName}!</h2>

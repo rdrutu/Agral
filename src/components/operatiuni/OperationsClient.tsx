@@ -6,21 +6,30 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import {
-  Tractor,
-  Plus,
-  Search,
+import { 
+  Plus, 
+  Trash2, 
+  Calendar, 
+  MapPin, 
+  Settings, 
+  ChevronRight, 
+  ArrowRight,
+  TrendingUp,
+  History,
+  Info,
+  Layers,
   CheckCircle2,
   AlertCircle,
-  MapPin,
-  Calendar,
-  FlaskConical,
-  Trash2,
+  Loader2,
+  Clock,
+  Eye,
   FileText,
+  Tractor,
+  FlaskConical,
   Calculator,
-  Loader2
+  Search
 } from "lucide-react";
-import Link from "next/link";
+import { cn, formatDate } from "@/lib/utils";
 import dynamic from "next/dynamic";
 import { createOperation, updateResourceConsumed, deleteOperation, updateOperation } from "@/lib/actions/operations";
 import { Edit } from "lucide-react";
@@ -495,6 +504,87 @@ export default function OperationsClient({
                   </div>
                 )}
                 
+                <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-4 mb-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-bold text-primary flex items-center gap-2">
+                       <Tractor className="w-4 h-4" /> Consum Motorină (Opțional)
+                    </h4>
+                    <span className="text-[10px] font-black uppercase tracking-tighter text-muted-foreground opacity-70">
+                      Input Direct
+                    </span>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Litri / Hectar</Label>
+                      <Input 
+                        type="number" 
+                        step="0.1" 
+                        placeholder="ex: 12.5" 
+                        className="h-9" 
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value);
+                          if (!isNaN(val)) {
+                            // Căutăm dacă există deja o resursă 'Motorină'
+                            const fuelIndex = resources.findIndex(r => r.name.toLowerCase().includes('motorină'));
+                            if (fuelIndex >= 0) {
+                              updateResource(resources[fuelIndex].id, "quantityPerHa", val);
+                            } else {
+                              // Adăugăm una nouă
+                              const id = Date.now();
+                              setResources(prev => [...prev, { 
+                                id, 
+                                name: "Motorină", 
+                                type: "combustibil", 
+                                quantityPerHa: val, 
+                                unit: "L", 
+                                pricePerUnit: 7.5 
+                              }]);
+                            }
+                          }
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Preț / Litr (RON)</Label>
+                      <Input 
+                        type="number" 
+                        step="0.01" 
+                        placeholder="7.50" 
+                        className="h-9"
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value);
+                          if (!isNaN(val)) {
+                            const fuelIndex = resources.findIndex(r => r.name.toLowerCase().includes('motorină'));
+                            if (fuelIndex >= 0) {
+                              updateResource(resources[fuelIndex].id, "pricePerUnit", val);
+                            }
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Sursă Motorină</Label>
+                    <select 
+                      className="w-full h-9 rounded-md border border-input bg-white px-3 text-sm"
+                      onChange={(e) => {
+                        const invId = e.target.value;
+                        const fuelIndex = resources.findIndex(r => r.name.toLowerCase().includes('motorină'));
+                        if (fuelIndex >= 0) {
+                          applyInventoryItem(resources[fuelIndex].id, invId);
+                        }
+                      }}
+                    >
+                      <option value="">🛒 Alimentare Externă (Preț manual)</option>
+                      {inventory.filter(i => i.category === "combustibil").map(inv => (
+                        <option key={inv.id} value={inv.id}>Din Magazie: {inv.name} ({Number(inv.stockQuantity)} L)</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
                 {resources.length === 0 ? (
                   <div className="text-center py-6 pb-2 text-muted-foreground text-sm border-2 border-dashed rounded-xl">
                     Niciun produs adăugat. Adaugă motorină sau inputuri pentru a genera devizul.
@@ -682,7 +772,7 @@ export default function OperationsClient({
                       </div>
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                         <Calendar className="w-3.5 h-3.5" />
-                        {new Date(op.date).toLocaleDateString("ro-RO")}
+                        {formatDate(op.date)}
                       </div>
                     </div>
                     <Badge className={`text-xs border shrink-0 ${opStatusColors[op.status] || ""}`}>

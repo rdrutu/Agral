@@ -31,6 +31,7 @@ import {
   getParcelReport,
 } from "@/lib/actions/seasons";
 import { useRouter } from "next/navigation";
+import { formatDate } from "@/lib/utils";
 
 const CROPS = [
   "Grâu", "Porumb", "Floarea Soarelui", "Rapiță", "Orz",
@@ -335,7 +336,7 @@ export default function SeasonsClient({
                 )}
               </div>
               <div className={`text-xs ${activeSeasonId === s.id ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
-                {new Date(s.startDate).toLocaleDateString("ro")} — {new Date(s.endDate).toLocaleDateString("ro")}
+                {formatDate(s.startDate)} — {formatDate(s.endDate)}
               </div>
 
               {activeSeasonId === s.id && (

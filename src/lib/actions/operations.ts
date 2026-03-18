@@ -276,8 +276,11 @@ export async function createOperation(data: any) {
 
     // 4. Automatizare Semănat -> Creare Campanie & Plan Culturi
     await triggerSowingAutomation(tx, orgId as string, data);
+    
+    // 5. Automatizare Recoltat -> Update Plan Culturi Status
+    await triggerHarvestAutomation(tx, orgId as string, data);
 
-    // 5. Înregistrăm tranzacția financiară pentru costurile de materiale
+    // 6. Înregistrăm tranzacția financiară pentru costurile de materiale
     if (totalMaterialsCost > 0) {
       await tx.financialTransaction.create({
         data: {
@@ -407,6 +410,7 @@ export async function updateOperation(operationId: string, data: any) {
       }
 
       await triggerSowingAutomation(tx, orgId as string, data);
+      await triggerHarvestAutomation(tx, orgId as string, data);
 
       // Return the full updated object
       return await _tx.agriculturalOperation.findUnique({
@@ -546,6 +550,42 @@ async function triggerSowingAutomation(tx: any, orgId: string, data: any) {
           status: "sown",
           sownDate: new Date(data.date),
           sownAreaHa: Number(Number(p.operatedAreaHa).toFixed(2))
+        }
+      });
+    }
+  }
+}
+
+async function triggerHarvestAutomation(tx: any, orgId: string, data: any) {
+  const _tx = tx as any;
+  const isHarvest = data.type === "recoltat" || 
+                    data.name.toLowerCase().includes("recoltat") || 
+                    data.name.toLowerCase().includes("recoltă");
+
+  if (!isHarvest) return;
+
+  // Găsim sezonul activ
+  let activeSeason = await _tx.season.findFirst({
+    where: { orgId, isActive: true }
+  });
+
+  if (!activeSeason) return;
+
+  for (const p of data.parcels) {
+    // Căutăm planul activ pentru această parcelă în acest sezon care nu e deja recoltat
+    const existingPlan = await _tx.cropPlan.findFirst({
+      where: {
+        seasonId: activeSeason.id,
+        parcelId: p.parcelId,
+        status: { in: ["sown", "growing", "planned"] }
+      }
+    });
+
+    if (existingPlan) {
+      await _tx.cropPlan.update({
+        where: { id: existingPlan.id },
+        data: {
+          status: "harvested"
         }
       });
     }

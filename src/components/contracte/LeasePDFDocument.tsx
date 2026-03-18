@@ -1,5 +1,6 @@
 import React from 'react';
 import { Page, Text, View, Document, StyleSheet, Font } from '@react-pdf/renderer';
+import { formatDate } from '@/lib/utils';
 
 // Register Romanian-friendly font (JSDelivr TTF sources are very standard for react-pdf)
 Font.register({
@@ -86,8 +87,8 @@ export const LeasePDFDocument = ({ contract, organization }: LeasePDFDocumentPro
     </Document>
   );
 
-  const startDate = contract.startDate ? new Date(contract.startDate).toLocaleDateString("ro-RO") : "---";
-  const endDate = contract.endDate ? new Date(contract.endDate).toLocaleDateString("ro-RO") : "---";
+  const startDate = contract.startDate ? formatDate(contract.startDate) : "---";
+  const endDate = contract.endDate ? formatDate(contract.endDate) : "---";
   const years = (contract.startDate && contract.endDate) 
     ? Math.round((new Date(contract.endDate).getTime() - new Date(contract.startDate).getTime()) / (1000 * 60 * 60 * 24 * 365)) 
     : "---";
