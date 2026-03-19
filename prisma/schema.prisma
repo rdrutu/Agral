@@ -143,8 +143,14 @@ model User {
 
   createdAt  DateTime  @default(now()) @map("created_at")
   updatedAt  DateTime  @updatedAt @map("updated_at")
+  lastSeen   DateTime? @map("last_seen")
+  isSupportActive Boolean @default(false) @map("is_support_active")
 
   organization Organization? @relation(fields: [orgId], references: [id])
+  
+  chats        ChatConversation[] @relation("UserChats")
+  helpedChats  ChatConversation[] @relation("ModeratorChats")
+  messages     ChatMessage[]
 
   @@map("users")
 }
@@ -397,4 +403,51 @@ model LeaseContract {
   parcel            Parcel       @relation(fields: [parcelId], references: [id], onDelete: Restrict)
 
   @@map("lease_contracts")
+}
+
+// -----------------------------------------------------------------------------
+// Live Support & Chat System
+// -----------------------------------------------------------------------------
+
+model SupportConfig {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  startHour   Int      @default(8)   // 0-23
+  endHour     Int      @default(20)  // 0-23
+  isActive    Boolean  @default(true)
+  welcomeMsg  String?  @default("Salut, suntem aici să te ajutăm!")
+  
+  updatedAt   DateTime @updatedAt
+  
+  @@map("support_configs")
+}
+
+model ChatConversation {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String    @map("user_id") @db.Uuid // Client (Farmer)
+  moderatorId   String?   @map("moderator_id") @db.Uuid // Assigned Moderator
+  status        String    @default("WAITING") // WAITING, ACTIVE, CLOSED
+  lastMessageAt DateTime  @default(now()) @map("last_message_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  closedAt      DateTime? @map("closed_at")
+
+  user          User      @relation("UserChats", fields: [userId], references: [id])
+  moderator     User?     @relation("ModeratorChats", fields: [moderatorId], references: [id])
+  messages      ChatMessage[]
+
+  @@map("chat_conversations")
+}
+
+model ChatMessage {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  conversationId String   @map("conversation_id") @db.Uuid
+  senderId       String   @map("sender_id") @db.Uuid
+  type           String   @default("USER") // USER, MODERATOR, SYSTEM
+  content        String   @db.Text
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User             @relation(fields: [senderId], references: [id])
+
+  @@map("chat_messages")
 }

@@ -72,7 +72,7 @@ export async function getOperations() {
   const orgId = await getUserOrganization();
   if (!orgId) return [];
 
-  return prisma.agriculturalOperation.findMany({
+  const ops = await prisma.agriculturalOperation.findMany({
     where: { orgId: orgId as string },
     include: {
       parcels: {
@@ -84,6 +84,7 @@ export async function getOperations() {
     },
     orderBy: { date: 'desc' }
   });
+  return JSON.parse(JSON.stringify(ops));
 }
 
 const safeNum = (v: any) => {

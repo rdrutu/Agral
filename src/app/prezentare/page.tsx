@@ -1,7 +1,9 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { AuthWidget } from "@/components/auth/AuthWidget";
 import {
   MapPin,
@@ -18,6 +20,7 @@ import {
 } from "lucide-react";
 
 const features = [
+  // ... (rest of the code remains the same but within the client component scope)
   {
     icon: MapPin,
     title: "Gestionare Parcele",
@@ -132,33 +135,72 @@ const testimonials = [
 ];
 
 export default function Home() {
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [isAnnual, setIsAnnual] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative selection:bg-green-100 selection:text-green-900">
+      {/* Zoom Modal / Lightbox */}
+      {selectedImage && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 md:p-12 cursor-zoom-out animate-in fade-in duration-300"
+          onClick={() => setSelectedImage(null)}
+        >
+          <div className="relative w-full h-full max-w-7xl">
+            <Image
+              src={selectedImage}
+              alt="Zoomed View"
+              fill
+              className="object-contain rounded-xl"
+              priority
+            />
+            <button
+              className="absolute top-4 right-4 w-12 h-12 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors"
+              onClick={(e) => { e.stopPropagation(); setSelectedImage(null); }}
+            >
+              <span className="text-2xl">×</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Nav */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <Link href="/" className="flex items-center">
+      <nav
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 border-b border-border ${isScrolled
+          ? "bg-background/95 backdrop-blur-lg h-14"
+          : "bg-background/80 backdrop-blur-md h-16 md:h-20"
+          }`}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full">
+          <div className="flex items-center justify-between h-full">
+            <Link href="/" className="flex items-center transition-transform hover:scale-105">
               <Image
                 src="/logo_agral_clar_cropped.png"
                 alt="Agral — Portalul Fermierilor"
-                width={110}
-                height={44}
+                width={100}
+                height={40}
                 className="object-contain mix-blend-multiply"
                 priority
               />
             </Link>
-            <div className="hidden md:flex items-center gap-8 text-sm font-medium">
-              <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">Funcționalități</a>
-              <a href="#pricing" className="text-muted-foreground hover:text-foreground transition-colors">Prețuri</a>
-              <a href="#testimonials" className="text-muted-foreground hover:text-foreground transition-colors">Testimoniale</a>
+            <div className="hidden md:flex items-center gap-10 text-sm font-bold uppercase tracking-wider">
+              {/* Links removed as requested */}
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 md:gap-4">
               <Link href="/">
-                <Button variant="ghost" className="font-semibold">Intră în cont</Button>
+                <Button variant="ghost" className="font-bold text-sm hidden sm:flex">Intră în cont</Button>
               </Link>
               <Link href="/">
-                <Button className="agral-gradient text-white font-semibold hover:opacity-90 transition-opacity">
+                <Button className={`agral-gradient text-white font-bold transition-all shadow-lg shadow-green-600/20 ${isScrolled ? 'h-9 px-4 text-xs' : 'h-11 px-6 text-sm'} rounded-xl`}>
                   Încearcă gratuit
                 </Button>
               </Link>
@@ -168,41 +210,92 @@ export default function Home() {
       </nav>
 
       {/* Hero Overview */}
-      <section className="relative px-4 pt-36 pb-20 overflow-hidden min-h-[60vh] flex flex-col items-center justify-center text-center">
-        {/* Decorative Backgrounds */}
-        <div className="absolute inset-0 bg-gradient-to-b from-green-50/80 to-transparent -z-20" />
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-green-400/20 rounded-full blur-[120px] -z-10 mix-blend-multiply" />
-        <div className="absolute top-40 -left-64 w-[500px] h-[500px] bg-emerald-300/10 rounded-full blur-[100px] -z-10" />
-        <div className="absolute bottom-0 -right-64 w-[600px] h-[600px] bg-green-200/20 rounded-full blur-[100px] -z-10" />
+      <section className="relative px-4 overflow-hidden min-h-screen pt-32 md:pt-48 pb-20 flex flex-col items-center justify-start text-center">
+        {/* Immersive Background Elements */}
+        <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] [mask-image:radial-gradient(ellipse_50%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-20 -z-20" />
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] aspect-square bg-green-400/20 rounded-full blur-[120px] -z-10 animate-pulse duration-[10s]" />
+        <div className="absolute top-[20%] right-[-5%] w-[30%] aspect-square bg-emerald-300/15 rounded-full blur-[100px] -z-10 animate-pulse duration-[15s]" />
+        <div className="absolute bottom-[-10%] left-[20%] w-[35%] aspect-square bg-lime-200/10 rounded-full blur-[100px] -z-10 animate-pulse duration-[12s]" />
 
-        <div className="max-w-4xl mx-auto z-10 animate-fade-in-up">
-          <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold text-foreground mb-6 leading-tight tracking-tight">
+        <div className="max-w-5xl mx-auto z-10 animate-fade-in-up">
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-foreground mb-6 leading-[1.05] tracking-tight">
             Digitalizarea fermei tale <br className="hidden md:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-br from-green-700 to-green-500 inline-block mt-2">
+            <span className="text-transparent bg-clip-text agral-gradient !bg-clip-text drop-shadow-sm" style={{ WebkitBackgroundClip: "text" }}>
               începe aici
             </span>
           </h1>
-          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
-            Descoperă de ce mii de fermieri au ales portalul nostru pentru a-și eficientiza munca zilnică. Gestionează totul dintr-un singur loc, clar și intuitiv.
+          <p className="text-base md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed font-semibold">
+            Simplifică managementul agricol cu singura platformă digitală completă din România. Totul într-un singur loc, accesibil de oriunde.
           </p>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link href="/">
-              <Button className="agral-gradient text-white w-full sm:w-auto h-14 px-8 text-lg font-bold shadow-lg shadow-green-600/20 hover:scale-105 transition-transform">
-                Creează cont gratuit
-              </Button>
-            </Link>
-            <a href="#features">
-              <Button variant="outline" className="w-full sm:w-auto h-14 px-8 text-lg font-bold border-2 bg-white hover:bg-green-50 hover:text-green-700 transition-colors">
-                Vezi funcționalități
-              </Button>
-            </a>
+          <div className="flex flex-col items-center justify-center gap-16">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-6 w-full">
+              <Link href="/">
+                <Button className="agral-gradient text-white w-full sm:w-auto h-16 md:h-24 px-16 text-2xl font-black shadow-2xl shadow-green-600/40 hover:scale-110 active:scale-95 transition-all rounded-[2rem]">
+                  Creează cont gratuit
+                </Button>
+              </Link>
+              <a href="#features">
+                <Button variant="outline" className="w-full sm:w-auto h-16 md:h-24 px-16 text-2xl font-black border-4 bg-white/60 backdrop-blur-sm border-white hover:bg-green-50 hover:text-green-700 transition-all rounded-[2rem] shadow-xl">
+                  Vezi funcționalități
+                </Button>
+              </a>
+            </div>
+
+            {/* Social Proof */}
+            <div className="flex items-center gap-4 bg-white/40 backdrop-blur-xl p-5 rounded-3xl border border-white/60 shadow-xl animate-fade-in-up animate-delay-200">
+              <div className="flex -space-x-4">
+                {[1, 2, 3, 4, 5].map(i => (
+                  <div key={i} className="w-14 h-14 rounded-full border-4 border-white bg-slate-200 shadow-lg overflow-hidden transition-transform hover:translate-y-[-4px]">
+                    <img src={`https://i.pravatar.cc/100?u=${i + 20}`} alt="user" className="w-full h-full object-cover" />
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-col items-start ml-4">
+                <div className="flex text-amber-500 mb-1">
+                  {[1, 2, 3, 4, 5].map(i => <Star key={i} className="w-5 h-5 fill-current" />)}
+                </div>
+                <span className="text-sm font-black text-slate-800 uppercase tracking-widest italic">2,400+ fermieri au digitalizat ferma cu Agral</span>
+              </div>
+            </div>
+
+            {/* NEW: 3-Column Mockup Gallery */}
+            <div className="w-full pt-12">
+              <div className="flex flex-col md:flex-row gap-6 lg:gap-10 w-full">
+                {[
+                  { src: "/dashboard_mockup.png", title: "Dashboard Central" },
+                  { src: "/parcele_mockup.png", title: "Gestionare Parcele" },
+                  { src: "/financiar_mockup.png", title: "Analiză Financiară" }
+                ].map((mockup, idx) => (
+                  <div
+                    key={idx}
+                    className="flex-1 group cursor-zoom-in"
+                    onClick={() => setSelectedImage(mockup.src)}
+                  >
+                    <div className="relative aspect-[16/10] rounded-3xl overflow-hidden border-4 border-white shadow-2xl transition-all duration-500 group-hover:scale-[1.03] group-hover:shadow-green-500/20 group-hover:-translate-y-2">
+                      <Image
+                        src={mockup.src}
+                        alt={mockup.title}
+                        fill
+                        className="object-cover transition-transform duration-700 group-hover:scale-110"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center p-6">
+                        <span className="text-white font-black text-lg uppercase tracking-wider">{mockup.title}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-8 text-muted-foreground font-bold italic animate-pulse">
+                Click pe imagini pentru a vedea detaliile în mărime naturală
+              </p>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Stats */}
-      <section className="px-4 pb-24 relative z-10 -mt-8">
+      <section className="px-4 pb-12 relative z-10 -mt-4">
         <div className="max-w-7xl mx-auto relative">
           {/* Subtle green glow behind stats */}
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-[150%] bg-gradient-to-r from-green-400/5 via-green-300/10 to-green-400/5 blur-3xl -z-10" />
@@ -224,7 +317,7 @@ export default function Home() {
       </section>
 
       {/* Features */}
-      <section id="features" className="py-24 px-4 relative overflow-hidden">
+      <section id="features" className="py-20 px-4 relative overflow-hidden min-h-[calc(100vh-64px)] flex flex-col justify-center">
         {/* Subtle background waves */}
         <div className="absolute top-0 right-0 w-full h-px bg-gradient-to-r from-transparent via-border to-transparent" />
         <div className="absolute top-40 right-[-10%] w-[600px] h-[600px] bg-green-500/5 rounded-full blur-[120px] -z-10" />
@@ -235,7 +328,7 @@ export default function Home() {
               O platformă completă pentru ferma ta
             </h2>
             <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-              De la parcelele din câmp până la contractele de arendă și prognoza meteo —
+              De la parcelele din câmp până la contractele de arendă și prognoza meteo
               Agral acoperă toate aspectele activității agricole.
             </p>
           </div>
@@ -261,7 +354,7 @@ export default function Home() {
       </section>
 
       {/* Why Agral */}
-      <section className="py-24 px-4 bg-gradient-to-b from-green-50/50 to-background relative overflow-hidden">
+      <section className="py-20 px-4 bg-gradient-to-b from-green-50/50 to-background relative overflow-hidden min-h-[calc(100vh-64px)] flex flex-col justify-center">
         <div className="absolute left-[-10%] bottom-0 w-[500px] h-[500px] bg-green-400/10 rounded-full blur-[100px] -z-10" />
 
         <div className="max-w-7xl mx-auto relative z-10">
@@ -322,7 +415,7 @@ export default function Home() {
       </section>
 
       {/* Testimonials */}
-      <section id="testimonials" className="py-24 px-4 relative">
+      <section id="testimonials" className="py-20 px-4 relative min-h-[calc(100vh-64px)] flex flex-col justify-center">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-20">
             <h2 className="text-4xl md:text-5xl font-extrabold text-foreground mb-4">
@@ -354,69 +447,91 @@ export default function Home() {
       </section>
 
       {/* Pricing */}
-      <section id="pricing" className="py-24 px-4 bg-gradient-to-b from-card to-background relative overflow-hidden">
+      <section id="pricing" className="py-20 px-4 bg-gradient-to-b from-card to-background relative overflow-hidden min-h-[calc(100vh-64px)] flex flex-col justify-center">
         <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-green-200 to-transparent" />
         <div className="absolute right-0 top-1/2 w-96 h-96 bg-green-500/5 rounded-full blur-[100px] -z-10" />
 
         <div className="max-w-7xl mx-auto z-10 relative">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-extrabold text-foreground mb-4">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl md:text-5xl font-extrabold text-foreground mb-6">
               Un plan pentru orice fermă
             </h2>
-            <p className="text-lg md:text-xl text-muted-foreground">
-              30 zile gratuit pe orice plan. Nicio taxă ascunsă.
-            </p>
-          </div>
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {plans.map((plan) => (
-              <div
-                key={plan.name}
-                className={`flex flex-col p-8 rounded-[2rem] border-2 transition-all duration-300 ${plan.popular
-                    ? "border-green-500 bg-gradient-to-b from-green-600 to-emerald-700 text-white shadow-2xl shadow-green-600/30 scale-105"
-                    : "border-border bg-card/80 backdrop-blur-sm hover:shadow-xl hover:border-green-200"
-                  }`}
+
+            {/* Monthly/Annual Toggle */}
+            <div className="flex items-center justify-center gap-4 mb-10">
+              <span className={`text-sm font-bold ${!isAnnual ? 'text-green-700' : 'text-muted-foreground'}`}>Lunar</span>
+              <button
+                onClick={() => setIsAnnual(!isAnnual)}
+                className="w-14 h-7 bg-muted rounded-full relative p-1 transition-colors hover:bg-slate-200"
               >
-                <h3 className={`text-2xl font-extrabold mb-2 ${plan.popular ? "text-white" : "text-foreground"}`}>
-                  {plan.name}
-                </h3>
-                <p className={`text-sm mb-6 ${plan.popular ? "text-white/80" : "text-muted-foreground"}`}>
-                  {plan.desc}
-                </p>
-                <div className="flex items-baseline gap-1 mb-8">
-                  <span className={`text-5xl font-black ${plan.popular ? "text-white" : "text-foreground"}`}>
-                    {plan.price}
-                  </span>
-                  <span className={`text-sm font-semibold ${plan.popular ? "text-white/80" : "text-muted-foreground"}`}>
-                    RON / lună
-                  </span>
-                </div>
-                <div className={`h-px w-full mb-8 ${plan.popular ? "bg-white/20" : "bg-border"}`} />
-                <ul className="space-y-4 mb-10 flex-1">
-                  {plan.features.map((f) => (
-                    <li key={f} className="flex items-start gap-3">
-                      <CheckCircle2 className={`w-5 h-5 shrink-0 ${plan.popular ? "text-green-300" : "text-green-600"}`} />
-                      <span className={`text-sm font-medium ${plan.popular ? "text-white/95" : "text-foreground/90"}`}>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-                <Link href="/">
-                  <Button
-                    className={`w-full font-bold h-14 text-lg rounded-xl transition-all ${plan.popular
+                <div className={`w-5 h-5 bg-green-600 rounded-full transition-all duration-300 shadow-md ${isAnnual ? 'translate-x-7' : 'translate-x-0'}`} />
+              </button>
+              <span className={`text-sm font-bold ${isAnnual ? 'text-green-700' : 'text-muted-foreground'}`}>Anual (-20%)</span>
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            {plans.map((plan) => {
+              const displayPrice = isAnnual
+                ? Math.floor(parseInt(plan.price) * 0.8)
+                : plan.price;
+
+              return (
+                <div
+                  key={plan.name}
+                  className={`flex flex-col p-8 rounded-[2rem] border-2 transition-all duration-300 relative ${plan.popular
+                    ? "border-green-500 bg-gradient-to-b from-green-600 to-emerald-700 text-white shadow-2xl shadow-green-600/30 md:scale-105 z-10"
+                    : "border-border bg-card/80 backdrop-blur-sm hover:shadow-xl hover:border-green-200"
+                    }`}
+                >
+                  {plan.popular && (
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-amber-400 text-amber-950 text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full shadow-lg border-2 border-white z-20">
+                      Cel mai ales
+                    </div>
+                  )}
+
+                  <h3 className={`text-2xl font-extrabold mb-2 ${plan.popular ? "text-white" : "text-foreground"}`}>
+                    {plan.name}
+                  </h3>
+                  <p className={`text-sm mb-6 ${plan.popular ? "text-white/80" : "text-muted-foreground"}`}>
+                    {plan.desc}
+                  </p>
+                  <div className="flex items-baseline gap-1 mb-8">
+                    <span className={`text-5xl font-black ${plan.popular ? "text-white" : "text-foreground"}`}>
+                      {displayPrice}
+                    </span>
+                    <span className={`text-sm font-semibold ${plan.popular ? "text-white/80" : "text-muted-foreground"}`}>
+                      RON / lună
+                    </span>
+                  </div>
+                  <div className={`h-px w-full mb-8 ${plan.popular ? "bg-white/20" : "bg-border"}`} />
+                  <ul className="space-y-4 mb-10 flex-1">
+                    {plan.features.map((f) => (
+                      <li key={f} className="flex items-start gap-3">
+                        <CheckCircle2 className={`w-5 h-5 shrink-0 ${plan.popular ? "text-green-300" : "text-green-600"}`} />
+                        <span className={`text-sm font-medium ${plan.popular ? "text-white/95" : "text-foreground/90"}`}>{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <Link href="/">
+                    <Button
+                      className={`w-full font-bold h-14 text-lg rounded-xl transition-all ${plan.popular
                         ? "bg-white text-green-700 hover:bg-green-50 hover:scale-[1.02]"
                         : "agral-gradient text-white hover:opacity-90 hover:scale-[1.02]"
-                      }`}
-                  >
-                    {plan.cta}
-                  </Button>
-                </Link>
-              </div>
-            ))}
+                        }`}
+                    >
+                      {plan.cta}
+                    </Button>
+                  </Link>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
 
       {/* CTA Final */}
-      <section className="py-24 px-4 relative overflow-hidden">
+      <section className="py-20 px-4 relative overflow-hidden min-h-[calc(100vh-64px)] flex flex-col justify-center">
         <div className="absolute inset-0 agral-gradient mix-blend-multiply opacity-[0.02]" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-[400px] bg-green-300/10 blur-[100px] -z-10" />
 
@@ -457,10 +572,10 @@ export default function Home() {
             <span className="h-6 w-px bg-border" />
             <p>© {new Date().getFullYear()} Agral. Toate drepturile rezervate.</p>
           </div>
-          <div className="flex items-center gap-8">
-            <a href="#" className="text-sm font-semibold text-muted-foreground hover:text-green-700 transition-colors">Termeni & Condiții</a>
-            <a href="#" className="text-sm font-semibold text-muted-foreground hover:text-green-700 transition-colors">Confidențialitate</a>
-            <a href="#" className="text-sm font-semibold text-muted-foreground hover:text-green-700 transition-colors">Contact</a>
+          <div className="flex items-center gap-8 text-sm font-bold uppercase tracking-wider">
+            <Link href="/termeni-si-conditii" className="text-muted-foreground hover:text-green-700 transition-colors">Termeni & Condiții</Link>
+            <Link href="/confidentialitate" className="text-muted-foreground hover:text-green-700 transition-colors">Confidențialitate</Link>
+            <Link href="/contact" className="text-muted-foreground hover:text-green-700 transition-colors">Contact</Link>
           </div>
         </div>
       </footer>

@@ -56,8 +56,15 @@ export default async function DashboardPage() {
   if (dbUser?.role === 'superadmin') {
     redirect("/admin");
   }
+  if (dbUser?.role === 'moderator') {
+    redirect("/moderator");
+  }
 
-  const firstName = dbUser?.firstName || "Fermier";
+    const firstName = dbUser?.firstName || "Fermier";
+    const hour = new Date().getHours();
+    let greeting = "Bună ziua";
+    if (hour >= 5 && hour < 12) greeting = "Bună dimineața";
+    else if (hour >= 18 || hour < 5) greeting = "Bună seara";
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto pb-10 min-h-screen p-4 md:p-8 rounded-[2.5rem]">
@@ -74,7 +81,7 @@ export default async function DashboardPage() {
                 {formatDate(new Date())}
               </span>
             </div>
-            <h2 className="text-2xl md:text-4xl font-black tracking-tight mb-2">Bună ziua, {firstName}!</h2>
+            <h2 className="text-2xl md:text-4xl font-black tracking-tight mb-2">{greeting}, {firstName}!</h2>
             <p className="text-sm md:text-base text-green-100/70 font-medium max-w-md">
               Monitorizarea fermei tale este activă. Verifică situația actualizată mai jos.
             </p>

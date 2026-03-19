@@ -181,57 +181,67 @@ export async function deleteOrganization(orgId: string) {
   revalidatePath("/admin");
 }
 
-export async function promoteToSuperadmin(targetUserId?: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user && !targetUserId) return false;
+import { createAdminClient } from "@/lib/supabase/admin";
 
-  const idToUpdate = targetUserId || user!.id;
+export async function createInternalUser(data: { 
+  email: string; 
+  password?: string; 
+  firstName: string; 
+  lastName: string; 
+  role: "superadmin" | "moderator" 
+}) {
+  const isSuper = await checkSuperadmin();
+  if (!isSuper) throw new Error("Neautorizat. Doar un superadmin poate crea conturi administrative.");
 
-  try {
-    // Verificăm dacă există utilizatorul în tabelul Prisma
-    const existingUser = await prisma.user.findUnique({
-      where: { id: idToUpdate }
-    });
+  const supabaseAdmin = createAdminClient();
 
-    if (!existingUser) {
-      if (!user) throw new Error("Nu se poate crea contul fără email-ul din sesiune.");
-      // Dacă nu există, folosim datele din sesiune pentru a-l crea și a-l seta ca superadmin direct
-      await prisma.user.create({
-        data: {
-          id: idToUpdate,
-          email: user.email!,
-          role: "superadmin",
-          orgId: null
-        }
-      });
-    } else {
-      // Dacă există, doar îi updatăm rolul și îl disociem de la orice fermă (orgId = null)
-      await prisma.user.update({
-        where: { id: idToUpdate },
-        data: { 
-          role: "superadmin",
-          orgId: null 
-        }
-      });
-    }
-  } catch (error) {
-    console.error("Eroare la promovare admin:", error);
-    throw error;
+  // 1. Create user in Supabase Auth
+  const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
+    email: data.email,
+    password: data.password || Math.random().toString(36).slice(-12), // Parola random daca nu e data
+    user_metadata: { 
+      first_name: data.firstName, 
+      last_name: data.lastName 
+    },
+    email_confirm: true // Confirmăm automat email-ul
+  });
+
+  if (authError) {
+    console.error("Auth creation error:", authError);
+    throw new Error(`Eroare la crearea contului in Auth: ${authError.message}`);
   }
 
-  revalidatePath("/");
-  revalidatePath("/admin");
-  revalidatePath("/dashboard");
-  return true;
+  // 2. Create user in Prisma DB
+  try {
+    await prisma.user.create({
+      data: {
+        id: authUser.user.id,
+        email: data.email,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        role: data.role,
+        orgId: null, // Adminii/Moderatorii nu aparțin unei ferme anume de obicei
+        canLogin: true
+      }
+    });
+
+    revalidatePath("/admin");
+    return { success: true, userId: authUser.user.id };
+  } catch (dbError: any) {
+    // Dacă eșuează în DB, ar trebui să ștergem din Auth pentru consistență
+    await supabaseAdmin.auth.admin.deleteUser(authUser.user.id);
+    throw new Error(`Eroare la salvarea in baza de date: ${dbError.message}`);
+  }
 }
+
+// promoteToSuperadmin has been replaced by createInternalUser for security.
 
 export async function getSuperadmins() {
   const isSuper = await checkSuperadmin();
   if (!isSuper) throw new Error("Neautorizat");
 
   const admins = await prisma.user.findMany({
-    where: { role: "superadmin" },
+    where: { role: { in: ["superadmin", "moderator"] } },
     orderBy: { createdAt: "desc" }
   });
 

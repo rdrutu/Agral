@@ -290,14 +290,14 @@ export async function getCropFinancialReport() {
     const seasonStart = new Date(plan.season.startDate);
     const seasonEnd = new Date(plan.season.endDate);
 
-    plan.parcel.operationParcels.forEach(opParcel => {
+    plan.parcel.operationParcels.forEach((opParcel: any) => {
       const opDate = new Date(opParcel.operation.date);
       if (opDate >= seasonStart && opDate <= seasonEnd) {
         // Prorate operation costs to this parcel
         const opTotalArea = Number(opParcel.operation.totalAreaHa);
         const share = Number(opParcel.operatedAreaHa) / opTotalArea;
 
-        opParcel.operation.resources.forEach(res => {
+        opParcel.operation.resources.forEach((res: any) => {
           const resQty = res.totalConsumed ? Number(res.totalConsumed) : (Number(res.quantityPerHa) * opTotalArea);
           report[key].totalExpenses += (resQty * share * Number(res.pricePerUnit));
         });

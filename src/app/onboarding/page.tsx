@@ -19,7 +19,7 @@ export default async function OnboardingPage() {
 
   return (
     <div
-      className="min-h-screen relative flex flex-col items-center justify-center p-4 md:p-6 bg-cover bg-center bg-fixed"
+      className="min-h-screen relative flex flex-col items-center justify-start p-4 md:p-6 bg-cover bg-center bg-fixed pt-4 md:pt-8"
       style={{
         backgroundImage: "url('/background_onboarding.png')",
       }}
@@ -27,7 +27,7 @@ export default async function OnboardingPage() {
       {/* Overlay gradient subtil alb (stânga → dreapta) */}
       <div className="absolute inset-0 bg-gradient-to-r from-white/60 to-white/10 backdrop-blur-[2px] z-0" />
 
-      <div className="relative w-full z-10 flex flex-col items-center justify-center h-full">
+      <div className="relative w-full z-10 flex flex-col items-center justify-start h-full">
         <OnboardingClient />
       </div>
     </div>

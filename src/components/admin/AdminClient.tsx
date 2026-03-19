@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,10 +24,10 @@ import {
 } from "lucide-react";
 import { 
   updateOrgSubscription, 
-  promoteToSuperadmin, 
   getSuperadmins, 
   demoteSuperadmin, 
-  cleanupGhostFarms 
+  cleanupGhostFarms,
+  createInternalUser // Added
 } from "@/lib/actions/admin";
 import { useRouter } from "next/navigation";
 
@@ -40,7 +40,12 @@ const TIERS = [
 ];
 
 export default function AdminClient({ orgs, isSuperadmin }: { orgs: any[], isSuperadmin: boolean }) {
+  const [mounted, setMounted] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const [search, setSearch] = useState("");
   const [editingOrg, setEditingOrg] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -50,26 +55,26 @@ export default function AdminClient({ orgs, isSuperadmin }: { orgs: any[], isSup
   const [loadingAdmins, setLoadingAdmins] = useState(false);
   const [isCleaning, setIsCleaning] = useState(false);
 
-  // States pt form edit
+  // States pt form edit org
   const [newTier, setNewTier] = useState("");
   const [newMaxUsers, setNewMaxUsers] = useState<number>(1);
+  
+  // States pt user nou
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newUser, setNewUser] = useState({ 
+    email: "", 
+    password: "", 
+    firstName: "", 
+    lastName: "", 
+    role: "moderator" as "superadmin" | "moderator" 
+  });
 
   const filteredOrgs = orgs.filter(o => 
     o.name.toLowerCase().includes(search.toLowerCase()) || 
     (o.county || "").toLowerCase().includes(search.toLowerCase())
   );
 
-  async function handlePromote() {
-    if (confirm("Promovați acest cont la Superadmin?")) {
-      try {
-        await promoteToSuperadmin();
-        toast.success("Succes! Reîncărcare...");
-        setTimeout(() => window.location.reload(), 1000);
-      } catch (err: any) {
-        toast.error("Eroare la promovare: " + err.message);
-      }
-    }
-  }
+    // handlePromote removed as per security request
 
   async function handleSaveSettings() {
     if (!editingOrg) return;
@@ -108,36 +113,38 @@ export default function AdminClient({ orgs, isSuperadmin }: { orgs: any[], isSup
     }
   }
 
-  async function handleCleanup() {
-    setIsCleaning(true);
+  async function handleCreateUser(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newUser.email || !newUser.firstName) return;
+    setIsSubmitting(true);
+
     try {
-      const count = await cleanupGhostFarms();
-      toast.success(`Curățenie finalizată! Am șters ${count} ferme fără activitate.`);
-      setTimeout(() => window.location.reload(), 1000);
+      await createInternalUser(newUser);
+      toast.success("Utilizator creat cu succes!");
+      setShowAddForm(false);
+      setNewUser({ email: "", password: "", firstName: "", lastName: "", role: "moderator" });
+      fetchAdmins();
     } catch (err: any) {
-      toast.error("Eroare la curățenie: " + err.message);
+      toast.error(err.message);
     } finally {
-      setIsCleaning(false);
+      setIsSubmitting(false);
     }
   }
 
   if (!isSuperadmin) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 text-center space-y-4">
+      <div className="flex flex-col items-center justify-center p-12 text-center space-y-4 h-[60vh]">
         <ShieldCheck className="w-16 h-16 text-muted-foreground opacity-50" />
         <h2 className="text-2xl font-bold">Zonă Restricționată</h2>
         <p className="text-muted-foreground max-w-md">
           Această secțiune este accesibilă doar administratorilor platformei Agral.
         </p>
-        <Button onClick={handlePromote} variant="outline" className="mt-4 border-primary text-primary">
-          [DEV] Promovează-mă pe mine Superadmin
-        </Button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 max-w-7xl">
+    <div className="space-y-6 max-w-7xl" suppressHydrationWarning>
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-extrabold text-foreground flex items-center gap-2">
@@ -150,7 +157,13 @@ export default function AdminClient({ orgs, isSuperadmin }: { orgs: any[], isSup
         </div>
         <div className="flex gap-2">
           <Button 
-            onClick={handleCleanup} 
+            onClick={() => {
+              setIsCleaning(true);
+              cleanupGhostFarms().then(count => {
+                toast.success(`Curățenie finalizată! Am șters ${count} ferme fără activitate.`);
+                setTimeout(() => window.location.reload(), 1000);
+              }).catch(err => toast.error(err.message)).finally(() => setIsCleaning(false));
+            }} 
             disabled={isCleaning}
             variant="ghost" 
             className="text-xs text-muted-foreground hover:text-destructive gap-2 h-9"
@@ -293,12 +306,85 @@ export default function AdminClient({ orgs, isSuperadmin }: { orgs: any[], isSup
       ) : (
         <Card>
           <CardHeader className="border-b bg-muted/10 pb-4">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <ShieldCheck className="w-5 h-5" /> Conturi Superadmin
-            </CardTitle>
-            <CardDescription>Persoane cu acces total la platformă</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <ShieldCheck className="w-5 h-5" /> Conturi Administrative
+                </CardTitle>
+                <CardDescription>Persoane cu acces total sau de moderare în platformă</CardDescription>
+              </div>
+              <Button onClick={() => setShowAddForm(true)} className="h-9 gap-2 font-bold uppercase text-[10px] tracking-widest">
+                 <Users className="w-4 h-4" /> Adaugă Cont
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="p-0">
+            {showAddForm && (
+              <div className="p-6 bg-muted/50 border-b animate-in slide-in-from-top-4 duration-300">
+                <form onSubmit={handleCreateUser} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] uppercase font-black text-muted-foreground">Email</Label>
+                    <Input 
+                      placeholder="email@agral.ro" 
+                      value={newUser.email}
+                      onChange={e => setNewUser({...newUser, email: e.target.value})}
+                      required
+                      className="bg-white"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] uppercase font-black text-muted-foreground">Parolă</Label>
+                    <Input 
+                      type="password"
+                      placeholder="Min 6 caractere" 
+                      value={newUser.password}
+                      onChange={e => setNewUser({...newUser, password: e.target.value})}
+                      className="bg-white"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] uppercase font-black text-muted-foreground">Prenume & Nume</Label>
+                    <div className="flex gap-2">
+                      <Input 
+                        placeholder="Prenume" 
+                        value={newUser.firstName}
+                        onChange={e => setNewUser({...newUser, firstName: e.target.value})}
+                        required
+                        className="bg-white"
+                      />
+                      <Input 
+                        placeholder="Nume" 
+                        value={newUser.lastName}
+                        onChange={e => setNewUser({...newUser, lastName: e.target.value})}
+                        required
+                        className="bg-white"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="flex-1 space-y-1.5">
+                      <Label className="text-[10px] uppercase font-black text-muted-foreground">Rol</Label>
+                      <select 
+                        className="flex h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        value={newUser.role}
+                        onChange={e => setNewUser({...newUser, role: e.target.value as any})}
+                      >
+                        <option value="moderator">Moderator</option>
+                        <option value="superadmin">Superadmin</option>
+                      </select>
+                    </div>
+                    <div className="flex gap-1 items-end">
+                      <Button type="submit" disabled={isSubmitting} className="h-10 px-4">
+                        {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Creează"}
+                      </Button>
+                      <Button type="button" variant="outline" onClick={() => setShowAddForm(false)} className="h-10 px-2">
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            )}
             {loadingAdmins ? (
               <div className="p-12 text-center">
                 <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
@@ -307,7 +393,7 @@ export default function AdminClient({ orgs, isSuperadmin }: { orgs: any[], isSup
               <table className="w-full text-sm text-left">
                 <thead className="text-xs text-muted-foreground uppercase bg-muted/20 border-b">
                   <tr>
-                    <th className="px-4 py-3">Administrator</th>
+                    <th className="px-4 py-3">Administrator / Rol</th>
                     <th className="px-4 py-3">Email</th>
                     <th className="px-4 py-3">Creat la</th>
                     <th className="px-4 py-3 text-right">Acțiuni</th>
@@ -316,8 +402,16 @@ export default function AdminClient({ orgs, isSuperadmin }: { orgs: any[], isSup
                 <tbody className="divide-y">
                   {admins.map(admin => (
                     <tr key={admin.id} className="hover:bg-muted/20 transition-colors">
-                      <td className="px-4 py-3 font-bold text-foreground">
-                        {admin.firstName || "---"} {admin.lastName || "---"}
+                      <td className="px-4 py-3">
+                        <div className="font-bold text-foreground">
+                          {admin.firstName || "---"} {admin.lastName || "---"}
+                        </div>
+                        <Badge variant="outline" className={cn(
+                          "uppercase text-[9px] font-black",
+                          admin.role === 'superadmin' ? "text-primary border-primary/20 bg-primary/5" : "text-amber-600 border-amber-200 bg-amber-50"
+                        )}>
+                          {admin.role}
+                        </Badge>
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">{admin.email}</td>
                       <td className="px-4 py-3 text-xs">

@@ -3,6 +3,7 @@ import { Header } from "@/components/layout/Header";
 import { createClient } from "@/lib/supabase/server";
 import prisma from "@/lib/prisma";
 import { redirect } from "next/navigation";
+import SupportChatWidgetV2 from "@/components/support/SupportChatWidgetV2";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   // Fetch real user data server-side
@@ -25,15 +26,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     });
 
     if (!dbUser) {
-      // User din Supabase dar fÄƒrÄƒ rÃ¢nd Ã®n Prisma -> trimitem la onboarding
       redirect("/onboarding");
     }
 
     if (dbUser) {
       userRole = dbUser.role || "owner";
       
-      // DacÄƒ utilizatorul nu e superadmin È™i nu are organizaÈ›ie, Ã®l trimitem la onboarding
-      if (!dbUser.organization && userRole !== "superadmin") {
+      if (!dbUser.organization && userRole !== "superadmin" && userRole !== "moderator") {
         redirect("/onboarding");
       }
 
@@ -42,7 +41,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       if (firstName || lastName) {
         userName = `${firstName} ${lastName}`.trim();
       } else {
-        // Fallback la email prefix
         userName = userEmail.split("@")[0] || "Utilizator";
       }
       userRole = dbUser.role || "owner";
@@ -53,6 +51,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         subExpiresAt = dbUser.organization.subscriptionExpiresAt;
       } else if (userRole === "superadmin") {
         farmName = "Administrator Agral";
+      } else if (userRole === "moderator") {
+        farmName = "Moderator Suport";
       }
     }
   }
@@ -78,6 +78,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           {children}
         </main>
       </div>
+      {userRole !== "superadmin" && userRole !== "moderator" && <SupportChatWidgetV2 />}
     </div>
   );
 }

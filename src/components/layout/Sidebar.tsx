@@ -16,7 +16,8 @@ import {
   Settings,
   ChevronsLeft,
   ChevronsRight,
-  CalendarDays, // Added CalendarDays import
+  CalendarDays,
+  Headset, // Added Headset for terminal
 } from "lucide-react";
 import { useState } from "react";
 import { cn, formatDate } from "@/lib/utils";
@@ -45,6 +46,7 @@ const groups: Record<string, string> = {
   utilitar: "Utilitar",
   avansate: "Avansate",
   admin: "Administrare Platformă",
+  support: "Suport Clienți",
 };
 
 export function Sidebar({
@@ -75,7 +77,12 @@ export function Sidebar({
 
   // Dacă utilizatorul e superadmin, arătăm doar panelul de admin, ascunzând datele de fermă
   const effectiveNavItems = userRole === "superadmin"
-    ? [{ href: "/admin", icon: Settings, label: "Admin Panel", group: "admin" }]
+    ? [
+        { href: "/admin", icon: Settings, label: "Admin Panel", group: "admin" },
+        { href: "/moderator", icon: Headset, label: "Terminal Suport", group: "support" }
+      ]
+    : userRole === "moderator"
+    ? [{ href: "/moderator", icon: Headset, label: "Terminal Suport", group: "support" }]
     : navItems;
 
   const grouped = effectiveNavItems.reduce((acc, item) => {
@@ -131,7 +138,7 @@ export function Sidebar({
           <div className="flex flex-col min-w-0">
             <span className="text-sm font-bold text-foreground truncate">{userName}</span>
             <span className="text-[10px] uppercase font-bold text-primary/70 tracking-tighter truncate border-b border-transparent pb-0.5 mb-0.5">
-              {userRole === 'owner' ? 'Proprietar' : userRole === 'superadmin' ? 'Super Admin' : userRole === 'agronomist' ? 'Agronom' : 'Lucrător'}
+              {userRole === 'owner' ? 'Proprietar' : userRole === 'superadmin' ? 'Super Admin' : userRole === 'moderator' ? 'Moderator' : userRole === 'agronomist' ? 'Agronom' : 'Lucrător'}
             </span>
             {subTier === "trial" ? (
               trialDaysLeft !== null && userRole !== "superadmin" && (

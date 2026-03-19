@@ -122,7 +122,7 @@ export async function createInventoryItem(formData: FormData) {
 
 export async function getProductSuggestions(query: string) {
   const orgId = await getUserOrganization();
-  return prisma.inventoryItem.findMany({
+  const suggestions = await prisma.inventoryItem.findMany({
     where: {
       orgId: orgId as string,
       name: { contains: query, mode: 'insensitive' }
@@ -130,6 +130,7 @@ export async function getProductSuggestions(query: string) {
     take: 5,
     select: { name: true, category: true, unit: true, pricePerUnit: true }
   });
+  return JSON.parse(JSON.stringify(suggestions));
 }
 
 export async function updateInventoryStock(id: string, newStock: number) {
