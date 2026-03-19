@@ -9,7 +9,8 @@ import {
   Headphones,
   MoreHorizontal,
   Clock,
-  ShieldAlert
+  ShieldAlert,
+  RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +21,8 @@ import {
   getSupportStatus,
   startChat,
   sendMessage,
-  getConversationMessages
+  getConversationMessages,
+  getChatState
 } from "@/lib/actions/support";
 import toast from "react-hot-toast";
 
@@ -53,12 +55,17 @@ export default function SupportChatWidgetV2() {
     if (!isOpen || !conversation) return;
 
     const fetchMessages = async () => {
-      const msgs = await getConversationMessages(conversation.id);
-      setMessages(msgs);
+      try {
+        const { messages: msgs, status } = await getChatState(conversation.id);
+        setMessages(msgs);
 
-      // Update local conversation state if status changed
-      if (msgs.some((m: any) => m.type === "MODERATOR") && conversation.status === "WAITING") {
-        setConversation({ ...conversation, status: "ACTIVE" });
+        if (status !== conversation.status) {
+          setConversation((prev: any) => ({ ...prev, status }));
+        } else if (msgs.some((m: any) => m.type === "MODERATOR") && conversation.status === "WAITING") {
+          setConversation((prev: any) => ({ ...prev, status: "ACTIVE" }));
+        }
+      } catch (e) {
+        console.error("Polling error:", e);
       }
     };
 
@@ -86,9 +93,17 @@ export default function SupportChatWidgetV2() {
     }
   };
 
+  const handleRestartChat = () => {
+    setConversation(null);
+    setMessages([]);
+    setTimeout(() => {
+      handleStartChat();
+    }, 100);
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || !conversation || isSending) return;
+    if (!input.trim() || !conversation || isSending || conversation.status === "CLOSED") return;
 
     const content = input.trim();
     setInput("");
@@ -232,9 +247,28 @@ export default function SupportChatWidgetV2() {
                     </div>
                   </div>
                 )}
-              </div>
+              {conversation.status === "CLOSED" && (
+                <div className="flex flex-col items-center gap-4 bg-red-50 p-6 rounded-2xl border border-red-100 mt-4 animate-in zoom-in-95 duration-300">
+                  <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                    <ShieldAlert className="w-6 h-6 text-red-600" />
+                  </div>
+                  <div className="text-center">
+                    <h4 className="text-sm font-black uppercase tracking-widest text-red-900">Conversație Închisă</h4>
+                    <p className="text-[10px] font-medium text-red-700/80 mt-1">Sperăm că te-am putut ajuta! Dacă mai ai și alte întrebări, poți începe o sesiune nouă de asistență.</p>
+                  </div>
+                  <Button 
+                    onClick={handleRestartChat}
+                    className="w-full bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest text-[10px] h-10 rounded-xl flex items-center gap-2"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    Conversație Nouă
+                  </Button>
+                </div>
+              )}
+            </div>
 
-              {/* Input Area */}
+            {/* Input Area */}
+            {conversation.status !== "CLOSED" && (
               <div className="p-4 bg-muted/20 border-t">
                 <form
                   onSubmit={handleSendMessage}
@@ -256,7 +290,8 @@ export default function SupportChatWidgetV2() {
                   </Button>
                 </form>
               </div>
-            </div>
+            )}
+          </div>
           )}
         </CardContent>
 

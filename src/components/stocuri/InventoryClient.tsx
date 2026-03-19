@@ -61,9 +61,11 @@ const categoryConfig: Record<string, { icon: any, color: string, label: string }
 
 export default function InventoryClient({ 
   initialInventory,
+  orgName = "Ferma Mea",
   hideHeader = false 
 }: { 
   initialInventory: any[],
+  orgName?: string,
   hideHeader?: boolean
 }) {
   const [items, setItems] = useState(initialInventory);
@@ -84,7 +86,8 @@ export default function InventoryClient({
     bagWeight: "", // Greutatea sacului
     pricePerBag: "", // Prețul pe sac
     notes: "",
-    cropType: ""
+    cropType: "",
+    minStockThreshold: ""
   });
   
   // Edit State
@@ -162,7 +165,8 @@ export default function InventoryClient({
         bagWeight: "", 
         pricePerBag: "", 
         notes: "",
-        cropType: ""
+        cropType: "",
+        minStockThreshold: ""
       });
     } catch (e) {
       console.error(e);
@@ -252,7 +256,7 @@ export default function InventoryClient({
   return (
     <div className="space-y-6 max-w-7xl">
       {/* Header */}
-      {!hideHeader && (
+      {!hideHeader ? (
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-extrabold text-foreground flex items-center gap-2">
@@ -261,17 +265,64 @@ export default function InventoryClient({
             </h2>
             <p className="text-muted-foreground mt-1">Gestionează input-urile agricole, cantitățile și prețurile de achiziție.</p>
           </div>
-          <Button
-            className="agral-gradient text-white font-semibold gap-2"
-            onClick={() => setShowForm(!showForm)}
-          >
-            {showForm ? "Anulează" : <><Plus className="w-4 h-4" /> Adaugă în Stoc</>}
-          </Button>
+          <div className="flex gap-2">
+            {activeTab === 'purchased' ? (
+              <Button
+                variant="outline"
+                className="border-primary/20 text-primary font-semibold gap-2"
+                onClick={() => {
+                  const warehouseItems = items.filter(i => i.category !== "recolta" && i.source !== "harvest");
+                  import("@/lib/reports").then(m => m.generateWarehouseReport(warehouseItems, orgName));
+                }}
+              >
+                <FileText className="w-4 h-4" /> Exportă Fișă Magazie (PDF)
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                className="border-primary/20 text-primary font-semibold gap-2"
+                onClick={() => {
+                  const harvestItems = items.filter(i => i.category === "recolta" || i.source === "harvest");
+                  import("@/lib/reports").then(m => m.generateHarvestReport(harvestItems, orgName));
+                }}
+              >
+                <Wheat className="w-4 h-4" /> Exportă Stoc Recoltă (PDF)
+              </Button>
+            )}
+            <Button
+              className="agral-gradient text-white font-semibold gap-2"
+              onClick={() => setShowForm(!showForm)}
+            >
+              {showForm ? "Anulează" : <><Plus className="w-4 h-4" /> Adaugă în Stoc</>}
+            </Button>
+          </div>
         </div>
-      )}
-
-      {hideHeader && (
-        <div className="flex justify-end">
+      ) : (
+        /* Versiune Minimalistă (pt când hideHeader e true) */
+        <div className="flex justify-end gap-2">
+          {activeTab === 'purchased' ? (
+            <Button
+              variant="outline"
+              className="border-primary/20 text-primary font-semibold gap-2"
+              onClick={() => {
+                const warehouseItems = items.filter(i => i.category !== "recolta" && i.source !== "harvest");
+                import("@/lib/reports").then(m => m.generateWarehouseReport(warehouseItems, orgName));
+              }}
+            >
+              <FileText className="w-4 h-4" /> Exportă Fișă Magazie (PDF)
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              className="border-primary/20 text-primary font-semibold gap-2"
+              onClick={() => {
+                const harvestItems = items.filter(i => i.category === "recolta" || i.source === "harvest");
+                import("@/lib/reports").then(m => m.generateHarvestReport(harvestItems, orgName));
+              }}
+            >
+              <Wheat className="w-4 h-4" /> Exportă Stoc Recoltă (PDF)
+            </Button>
+          )}
           <Button
             className="agral-gradient text-white font-semibold gap-2"
             onClick={() => setShowForm(!showForm)}
@@ -446,6 +497,20 @@ export default function InventoryClient({
                         Rezultă {parseFloat(formData.bagWeight || "0") * parseFloat(formData.quantity || "0")} Kg în total la <strong>{formData.pricePerUnit} RON/Kg</strong>
                       </p>
                     </div>
+                    <div className="space-y-1.5 md:col-span-2">
+                      <Label htmlFor="minStockThreshold" className="text-primary font-bold">Prag Minim Stoc (Alertă - Kg)</Label>
+                      <Input 
+                        id="minStockThreshold" 
+                        type="number" step="0.1" 
+                        placeholder="ex: 100" 
+                        className="h-11 border-primary/20 focus:ring-primary/30" 
+                        value={formData.minStockThreshold}
+                        onChange={(e) => setFormData(prev => ({ ...prev, minStockThreshold: e.target.value }))}
+                      />
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        Vei fi notificat când stocul total (în Kg) scade sub acest prag.
+                      </p>
+                    </div>
                   </>
                 ) : (
                   <>
@@ -472,6 +537,20 @@ export default function InventoryClient({
                         value={formData.pricePerUnit}
                         onChange={(e) => setFormData(prev => ({ ...prev, pricePerUnit: e.target.value }))}
                       />
+                    </div>
+                    <div className="space-y-1.5 md:col-span-2">
+                      <Label htmlFor="minStockThreshold" className="text-primary font-bold">Prag Minim Stoc (Alertă)</Label>
+                      <Input 
+                        id="minStockThreshold" 
+                        type="number" step="0.1" 
+                        placeholder="ex: 100" 
+                        className="h-11 border-primary/20 focus:ring-primary/30" 
+                        value={formData.minStockThreshold}
+                        onChange={(e) => setFormData(prev => ({ ...prev, minStockThreshold: e.target.value }))}
+                      />
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        Sistemul te va notifica automat când cantitatea scade sub acest prag.
+                      </p>
                     </div>
                   </>
                 )}
@@ -609,6 +688,7 @@ export default function InventoryClient({
           </table>
         </div>
       </div>
+      
       {/* Modal Vânzare */}
       {sellingItem && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 animate-in zoom-in-95 backdrop-blur-sm p-4">
@@ -668,6 +748,7 @@ export default function InventoryClient({
           </Card>
         </div>
       )}
+
       {/* Modal Istoric Produs */}
       <Dialog open={!!selectedHistoryItem} onOpenChange={(open: boolean) => { if(!open) setSelectedHistoryItem(null); }}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -704,8 +785,6 @@ export default function InventoryClient({
                 <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground px-1">Loturi în Stoc (FIFO)</h4>
                 <div className="grid gap-3">
                   {historyData.lots.filter((l: any) => Number(l.quantity) > 0).map((lot: any, idx: number) => {
-                    const activeLots = historyData.lots.filter((l: any) => Number(l.quantity) > 0);
-                    // Deoarece loturile vin sortate ASC (vechi -> noi), primul din listă e cel care urmează la consum
                     const isNextToConsume = idx === 0;
 
                     return (
@@ -768,13 +847,10 @@ export default function InventoryClient({
                             {t.type === 'intake' ? '+' : '-'}{Number(t.quantity).toLocaleString()} {historyData.unit}
                           </td>
                           <td className="px-4 py-3 text-center">
-                            {(t.type === 'sale' || t.type === 'intake') && t.referenceId && (
+                            {t.referenceId && (
                               <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-7 w-7 text-primary" 
+                                variant="ghost" size="icon" className="h-6 w-6 text-primary"
                                 onClick={() => handleViewDocument(t.referenceId, t.type)}
-                                title="Vezi Document"
                               >
                                 <FileText className="w-3.5 h-3.5" />
                               </Button>
@@ -784,110 +860,6 @@ export default function InventoryClient({
                       ))}
                     </tbody>
                   </table>
-                </div>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal Document */}
-      <Dialog open={!!selectedDoc} onOpenChange={(open: boolean) => { if(!open) setSelectedDoc(null); }}>
-        <DialogContent className="max-w-2xl print:max-w-none print:shadow-none print:border-none p-0 overflow-hidden">
-          {docLoading ? (
-            <div className="py-20 flex flex-col items-center gap-3">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-              <p className="text-sm text-muted-foreground">Se generează documentul...</p>
-            </div>
-          ) : selectedDoc && (
-            <div className="bg-white text-slate-900 min-h-[600px] flex flex-col">
-              {/* Toolbar */}
-              <div className="bg-muted/50 p-4 border-b flex justify-between items-center print:hidden">
-                <Badge variant="outline" className="font-bold text-primary border-primary/20">
-                  {docType === 'sale' ? 'Document Vânzare' : 'Notă de Recepție'}
-                </Badge>
-                <Button variant="outline" size="sm" onClick={() => window.print()} className="gap-2">
-                  <Printer className="w-4 h-4" /> Printează / Exportă PDF
-                </Button>
-              </div>
-
-              {/* Document Body */}
-              <div className="p-12 space-y-12 flex-1">
-                {/* Header Document */}
-                <div className="flex justify-between items-start border-b-2 border-slate-900 pb-8">
-                  <div>
-                    <h1 className="text-3xl font-black tracking-tighter text-slate-900 mb-1">AGRAL</h1>
-                    <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Platformă Management Fermă</p>
-                  </div>
-                  <div className="text-right">
-                    <h2 className="text-xl font-bold uppercase tracking-tight">
-                      {docType === 'sale' ? 'Factură / Borderou Vânzare' : 'Notă de Recepție și Constatare'}
-                    </h2>
-                    <p className="text-sm text-slate-500 font-medium mt-1">Nr. {selectedDoc.id.substring(0,8).toUpperCase()} / {formatDate(new Date())}</p>
-                  </div>
-                </div>
-
-                {/* Date Firme */}
-                <div className="grid grid-cols-2 gap-12">
-                  <div className="space-y-4">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 w-fit rounded">Emitent</p>
-                    <div className="space-y-1">
-                      <p className="font-black text-lg">{selectedDoc.organization?.name || "Fermă AGRAL"}</p>
-                      <p className="text-sm text-slate-600">Unitate agricolă înregistrată</p>
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 w-fit rounded">Destinatar / Cumpărător</p>
-                    <div className="space-y-1">
-                      <p className="font-black text-lg">{selectedDoc.buyer || "Client Final / Consum Propriu"}</p>
-                      <p className="text-sm text-slate-600">Cod Bare: |||||||||||||||||||||||</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Tabel Produse */}
-                <div className="space-y-4">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="border-b-2 border-slate-900">
-                        <th className="py-3 text-left text-xs font-black uppercase tracking-wider">Descriere Produs / Serviciu</th>
-                        <th className="py-3 text-right text-xs font-black uppercase tracking-wider">Cantitate</th>
-                        <th className="py-3 text-right text-xs font-black uppercase tracking-wider">U.M.</th>
-                        {docType === 'sale' && <th className="py-3 text-right text-xs font-black uppercase tracking-wider">Preț Unitar</th>}
-                        {docType === 'sale' && <th className="py-3 text-right text-xs font-black uppercase tracking-wider">Valoare Totală</th>}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y border-b border-slate-200">
-                      <tr>
-                        <td className="py-4 font-bold text-slate-800">
-                          {docType === 'sale' ? selectedDoc.inventoryItem?.name : "Recepție marfă în magazie"}
-                        </td>
-                        <td className="py-4 text-right font-bold">{Number(selectedDoc.quantity || 0).toLocaleString()}</td>
-                        <td className="py-4 text-right font-medium">{selectedDoc.unit || "-"}</td>
-                        {docType === 'sale' && <td className="py-4 text-right font-medium text-slate-600">{Number(selectedDoc.pricePerUnit).toFixed(2)} Lei</td>}
-                        {docType === 'sale' && <td className="py-4 text-right font-black text-slate-900">{Number(selectedDoc.totalAmount).toLocaleString()} Lei</td>}
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Footer Document */}
-                <div className="mt-auto grid grid-cols-2 gap-12 pt-12">
-                  <div className="border-t border-slate-200 pt-6 space-y-2">
-                    <p className="text-[10px] font-black text-slate-400 uppercase">Mențiuni</p>
-                    <p className="text-xs text-slate-600 leading-relaxed italic">
-                      Acest document a fost generat automat prin platforma AGRAL. Valabil fără ștampilă conform legii 227/2015.
-                      {selectedDoc.notes && <><br/><strong>Note:</strong> {selectedDoc.notes}</>}
-                    </p>
-                  </div>
-                  <div className="flex flex-col items-end gap-6">
-                    <div className="text-right">
-                      <p className="text-[10px] font-black text-slate-400 uppercase mb-2">Semnătură și Ștampilă</p>
-                      <div className="w-32 h-32 border border-dashed border-slate-200 rounded-xl flex items-center justify-center text-[10px] text-slate-300 italic">
-                        Loc pentru ștampilă
-                      </div>
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>

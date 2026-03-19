@@ -232,6 +232,19 @@ export async function getActiveConversations() {
   return JSON.parse(JSON.stringify(convos));
 }
 
+export async function getChatState(conversationId: string) {
+  if (!p.chatMessage || !p.chatConversation) return { messages: [], status: "WAITING" };
+  const conv = await p.chatConversation.findUnique({
+    where: { id: conversationId },
+    select: { status: true }
+  });
+  const messages = await getConversationMessages(conversationId);
+  return {
+    messages,
+    status: conv?.status || "WAITING"
+  };
+}
+
 export async function getConversationMessages(conversationId: string) {
   if (!p.chatMessage) return [];
 

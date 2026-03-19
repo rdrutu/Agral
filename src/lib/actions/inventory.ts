@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getUserOrganization } from "./parcels";
 import { formatDate } from "@/lib/utils";
+import { createNotification } from "./notifications";
 
 export async function getInventory() {
   const orgId = await getUserOrganization();
@@ -29,6 +30,7 @@ export async function createInventoryItem(formData: FormData) {
   let quantity = parseFloat(formData.get("quantity") as string);
   let unit = formData.get("unit") as string;
   let pricePerUnit = parseFloat(formData.get("pricePerUnit") as string);
+  const minStockThreshold = parseFloat(formData.get("minStockThreshold") as string || "0");
   const bagWeight = parseFloat(formData.get("bagWeight") as string || "0");
   
   // Dacă e Sac, convertim în Kg
@@ -59,6 +61,7 @@ export async function createInventoryItem(formData: FormData) {
           stockQuantity: 0,
           unit,
           pricePerUnit,
+          minStockThreshold,
           notes,
           cropType: (formData.get("cropType") as string) || null
         }
@@ -140,10 +143,24 @@ export async function updateInventoryStock(id: string, newStock: number) {
   const item = await prisma.inventoryItem.findUnique({ where: { id } });
   if (item?.orgId !== orgId) throw new Error("Neautorizat");
 
-  await prisma.inventoryItem.update({
+  const updatedItem = await prisma.inventoryItem.update({
     where: { id },
     data: { stockQuantity: newStock }
   });
+
+  // Notificare Stoc Scăzut (Manual)
+  const itemAny = updatedItem as any;
+  if (itemAny.minStockThreshold && Number(itemAny.minStockThreshold) > 0) {
+    if (Number(itemAny.stockQuantity) < Number(itemAny.minStockThreshold)) {
+      await createNotification({
+        orgId: orgId as string,
+        title: "Stoc Scăzut (Manual)",
+        message: `Atenție: Stocul pentru "${itemAny.name}" a fost actualizat manual și este sub pragul minim (${itemAny.minStockThreshold} ${itemAny.unit}).`,
+        type: "stock",
+        link: "/stocuri"
+      });
+    }
+  }
 
   revalidatePath("/stocuri");
 }

@@ -52,6 +52,7 @@ model Organization {
   financialTransactions FinancialTransaction[]
   sales              Sale[]
   leaseContracts     LeaseContract[]
+  notifications      Notification[]
 
   @@map("organizations")
 }
@@ -151,6 +152,7 @@ model User {
   chats        ChatConversation[] @relation("UserChats")
   helpedChats  ChatConversation[] @relation("ModeratorChats")
   messages     ChatMessage[]
+  notifications Notification[]
 
   @@map("users")
 }
@@ -282,6 +284,7 @@ model InventoryItem {
   name            String   // Adengo, Uree, Motorina Standard
   category        String   // combustibil, chimic, ingrasamant, samanta, recolta
   stockQuantity   Decimal  @map("stock_quantity") @db.Decimal(10, 2) @default(0)
+  minStockThreshold Decimal? @map("min_stock_threshold") @db.Decimal(10, 2) @default(0)
   unit            String   // Kg, L, To, etc.
   cropType        String?  // Porumb, Floarea Soarelui, etc. (for seeds and harvests)
   pricePerUnit    Decimal  @map("price_per_unit") @db.Decimal(10, 2)
@@ -448,6 +451,30 @@ model ChatMessage {
 
   conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender         User             @relation(fields: [senderId], references: [id])
-
+ 
   @@map("chat_messages")
+}
+ 
+// -----------------------------------------------------------------------------
+// Notifications
+// -----------------------------------------------------------------------------
+ 
+model Notification {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
+  orgId     String?  @map("org_id") @db.Uuid
+  targetRole String? @map("target_role")
+  title     String
+  message   String
+  type      String   @default("info") // info, warning, success, error, weather, stock, contract, support
+  isRead    Boolean  @default(false) @map("is_read")
+  link      String?
+  createdAt DateTime @default(now()) @map("created_at")
+ 
+  user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [orgId], references: [id], onDelete: Cascade)
+ 
+  @@map("notifications")
+  @@index([userId])
+  @@index([orgId])
 }

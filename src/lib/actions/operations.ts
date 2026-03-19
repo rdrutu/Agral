@@ -3,6 +3,7 @@
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getUserOrganization } from "./parcels";
+import { createNotification } from "./notifications";
 
 export async function deleteAgriculturalOperation(operationId: string) {
   const orgId = await getUserOrganization();
@@ -208,10 +209,24 @@ export async function createOperation(data: any) {
         }
 
         // Actualizăm stocul total în InventoryItem
-        await tx.inventoryItem.update({
+        const updatedItem = await tx.inventoryItem.update({
           where: { id: r.inventoryItemId },
           data: { stockQuantity: { decrement: totalQtyNeeded } }
         });
+
+        // Notificare Stoc Scăzut
+        const itemAny = updatedItem as any;
+        if (itemAny.minStockThreshold && Number(itemAny.minStockThreshold) > 0) {
+          if (Number(itemAny.stockQuantity) < Number(itemAny.minStockThreshold)) {
+            await createNotification({
+              orgId: orgId as string,
+              title: "Stoc Scăzut",
+              message: `Atenție: Stocul pentru "${itemAny.name}" a scăzut sub pragul minim (${itemAny.minStockThreshold} ${itemAny.unit}). Stoc actual: ${itemAny.stockQuantity} ${itemAny.unit}.`,
+              type: "stock",
+              link: "/stocuri"
+            });
+          }
+        }
 
         if (remainingToDeduct > 0) {
           console.warn(`Stoc insuficient pentru ${r.name}. Diferență neacoperită: ${remainingToDeduct}`);
@@ -388,10 +403,24 @@ export async function updateOperation(operationId: string, data: any) {
         });
 
         if (r.inventoryItemId && r.inventoryItemId !== "") {
-          await _tx.inventoryItem.update({
+          const updatedItem = await _tx.inventoryItem.update({
             where: { id: r.inventoryItemId },
             data: { stockQuantity: { decrement: consumedQty } }
           });
+
+          // Notificare Stoc Scăzut
+          const itemAny = updatedItem as any;
+          if (itemAny.minStockThreshold && Number(itemAny.minStockThreshold) > 0) {
+            if (Number(itemAny.stockQuantity) < Number(itemAny.minStockThreshold)) {
+              await createNotification({
+                orgId: orgId as string,
+                title: "Stoc Scăzut",
+                message: `Atenție: Stocul pentru "${itemAny.name}" a scăzut sub pragul minim (${itemAny.minStockThreshold} ${itemAny.unit}). Stoc actual: ${itemAny.stockQuantity} ${itemAny.unit}.`,
+                type: "stock",
+                link: "/stocuri"
+              });
+            }
+          }
         }
       }
 

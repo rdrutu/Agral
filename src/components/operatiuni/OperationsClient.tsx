@@ -33,6 +33,7 @@ import { cn, formatDate } from "@/lib/utils";
 import dynamic from "next/dynamic";
 import { createOperation, updateResourceConsumed, deleteOperation, updateOperation } from "@/lib/actions/operations";
 import { Edit } from "lucide-react";
+import { generateTreatiesRegister } from "@/lib/reports";
 
 const MapSelector = dynamic(() => import("@/components/operatiuni/MultiParcelMapSelector"), { 
   ssr: false,
@@ -66,11 +67,13 @@ export default function OperationsClient({
   initialOperations, 
   parcels, 
   inventory = [],
+  orgName = "Ferma Mea",
   hideHeader = false 
 }: { 
   initialOperations: any[], 
   parcels: any[], 
   inventory?: any[],
+  orgName?: string,
   hideHeader?: boolean 
 }) {
   const [ops, setOps] = useState(initialOperations);
@@ -319,28 +322,47 @@ export default function OperationsClient({
             </h2>
             <p className="text-muted-foreground mt-1">Gestionează operațiunile din câmp și calculează automat consumurile și devizele (Motorină, Îngrășăminte, Tratamente).</p>
           </div>
-          <Button
-            className="agral-gradient text-white font-semibold gap-2"
-            onClick={() => {
-              if (showForm) {
-                setShowForm(false);
-                setEditingOpId(null);
-              } else {
-                setEditingOpId(null);
-                setShowForm(true);
-                setResources([]);
-                setSelectedParcels([]);
-                setName("Semănat");
-              }
-            }}
-          >
-            {showForm ? "Anulează" : <><Plus className="w-4 h-4" /> Nouă Lucrare</>}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="border-primary/20 text-primary font-semibold gap-2"
+              onClick={() => generateTreatiesRegister(ops, orgName)}
+            >
+              <FileText className="w-4 h-4" /> Registru Tratamente (PDF)
+            </Button>
+            <Button
+              className="agral-gradient text-white font-semibold gap-2"
+              onClick={() => {
+                if (showForm) {
+                  setShowForm(false);
+                  setEditingOpId(null);
+                } else {
+                  setEditingOpId(null);
+                  setShowForm(true);
+                  setResources([]);
+                  setSelectedParcels([]);
+                  setName("Semănat");
+                }
+              }}
+            >
+              {showForm ? "Anulează" : <><Plus className="w-4 h-4" /> Nouă Lucrare</>}
+            </Button>
+          </div>
         </div>
       )}
 
       {hideHeader && (
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
+          <Button
+            variant="outline"
+            className="border-primary/20 text-primary font-semibold gap-2"
+            onClick={() => {
+              // @ts-ignore
+              import("@/lib/reports").then(m => m.generateTreatiesRegister(ops, orgName));
+            }}
+          >
+            <FileText className="w-4 h-4" /> Registru Tratamente (PDF)
+          </Button>
           <Button
             className="agral-gradient text-white font-semibold gap-2"
             onClick={() => {

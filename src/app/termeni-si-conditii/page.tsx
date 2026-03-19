@@ -1,17 +1,12 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft } from "lucide-react";
+import { ShieldCheck, Scale } from "lucide-react";
 
 export default function TermsPage() {
   return (
     <div className="min-h-screen bg-background py-20 px-4">
       <div className="max-w-4xl mx-auto">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
-          <Link href="/prezentare">
-            <Button variant="ghost" className="gap-2 -ml-4">
-              <ChevronLeft size={16} /> Înapoi la prezentare
-            </Button>
-          </Link>
+        <div className="flex flex-col md:flex-row md:items-center justify-end gap-6 mb-12">
 
           <div className="flex bg-muted p-1 rounded-xl shrink-0">
             <Link href="/termeni-si-conditii">

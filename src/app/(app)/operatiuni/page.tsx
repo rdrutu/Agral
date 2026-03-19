@@ -1,6 +1,7 @@
 import { getOperations } from "@/lib/actions/operations";
 import { getParcels } from "@/lib/actions/parcels";
 import { getInventory } from "@/lib/actions/inventory";
+import { getCurrentUser } from "@/lib/actions/profile";
 import OperationsClient from "@/components/operatiuni/OperationsClient";
 import { Suspense } from "react";
 import { OperationsSkeleton } from "@/components/operatiuni/OperationsSkeleton";
@@ -23,10 +24,11 @@ export default async function OperationsPage() {
 }
 
 async function OperationsDynamicContent() {
-  const [operations, parcels, inventory] = await Promise.all([
+  const [operations, parcels, inventory, user] = await Promise.all([
     getOperations(),
     getParcels(),
-    getInventory()
+    getInventory(),
+    getCurrentUser()
   ]);
 
   // Convertim obiectele complexe la plain JS
@@ -39,6 +41,7 @@ async function OperationsDynamicContent() {
       initialOperations={plainOperations} 
       parcels={plainParcels} 
       inventory={plainInventory} 
+      orgName={user?.organization?.name || "Ferma Mea"}
       hideHeader
     />
   );

@@ -8,12 +8,10 @@ import {
   TrendingUp,
   AlertCircle,
   CheckCircle2,
-  Clock,
-  ArrowRight,
+  Zap,
   Banknote,
   Tractor,
-  Calendar,
-  Zap
+  Calendar
 } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
@@ -24,6 +22,7 @@ import { getAgriNews } from "@/lib/actions/news";
 import { cn, formatDate } from "@/lib/utils";
 import { Suspense } from "react";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
+import { getSystemAlerts } from "@/lib/actions/notifications";
 
 const statusColors: Record<string, string> = {
   growing: "bg-emerald-100 text-emerald-700 border-emerald-200/50",
@@ -51,7 +50,7 @@ export default async function DashboardPage() {
   const dbUser = await prisma.user.findUnique({
     where: { id: user.id },
     include: { organization: true }
-  }) as any; // Cast dbUser to any as requested
+  }) as any;
 
   if (dbUser?.role === 'superadmin') {
     redirect("/admin");
@@ -60,16 +59,16 @@ export default async function DashboardPage() {
     redirect("/moderator");
   }
 
-    const firstName = dbUser?.firstName || "Fermier";
-    const hour = new Date().getHours();
-    let greeting = "Bună ziua";
-    if (hour >= 5 && hour < 12) greeting = "Bună dimineața";
-    else if (hour >= 18 || hour < 5) greeting = "Bună seara";
+  const firstName = dbUser?.firstName || "Fermier";
+  const hour = new Date().getHours();
+  let greeting = "Bună ziua";
+  if (hour >= 5 && hour < 12) greeting = "Bună dimineața";
+  else if (hour >= 18 || hour < 5) greeting = "Bună seara";
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto pb-10 min-h-screen p-4 md:p-8 rounded-[2.5rem]">
+    <div className="space-y-8 max-w-7xl mx-auto pb-10 min-h-screen p-4 md:p-8 rounded-[2.5rem]" suppressHydrationWarning>
       {/* Refined Header - Rendered immediately */}
-      <div className="relative overflow-hidden rounded-[1.5rem] md:rounded-[2.5rem] bg-gradient-to-br from-green-900 via-green-800 to-emerald-900 p-6 md:p-8 text-white shadow-2xl shadow-green-900/20">
+      <div className="relative overflow-hidden rounded-[1.5rem] md:rounded-[2.5rem] bg-gradient-to-br from-green-900 via-green-800 to-emerald-900 p-6 md:p-8 text-white shadow-2xl shadow-green-900/20" suppressHydrationWarning>
         <div className="absolute top-0 right-0 p-12 opacity-10 blur-2xl hidden md:block">
           <Sprout className="w-64 h-64 rotate-12" />
         </div>
@@ -178,7 +177,6 @@ async function DashboardDynamicContent({ dbUser }: { dbUser: any }) {
     include: { cropPlans: { orderBy: { id: "desc" }, take: 1 } }
   });
 
-  // Fix serialization for objects passed to DashboardClient
   const serializedRecentParcels = (recentParcels as any[]).map(p => ({
     ...p,
     areaHa: Number(p.areaHa),
@@ -205,10 +203,6 @@ async function DashboardDynamicContent({ dbUser }: { dbUser: any }) {
     realAlerts.push({ type: "warning", text: `Contractul cu ${c.landownerName} expiră curând!`, href: `/contracte` });
   });
 
-  if (realAlerts.length === 0) {
-    realAlerts.push({ type: "success", text: "Toate sistemele sunt în parametri optimi.", href: "#" });
-  }
-
   const county = (org as any)?.county || "Olt";
   const baseLat = (org as any)?.baseLat ? Number((org as any).baseLat) : null;
   const baseLng = (org as any)?.baseLng ? Number((org as any).baseLng) : null;
@@ -218,11 +212,25 @@ async function DashboardDynamicContent({ dbUser }: { dbUser: any }) {
     : (countyCoords[county] || countyCoords["Bucuresti"]);
     
   // Parallel fetch for external APIs
-  const [weather, news] = await Promise.all([
+  const [weather, news, systemAlerts] = await Promise.all([
     getWeatherData(coords.lat, coords.lon),
-    getAgriNews()
+    getAgriNews(),
+    getSystemAlerts()
   ]);
   
+  const combinedAlerts = [
+    ...realAlerts,
+    ...(systemAlerts || []).map((sa: any) => ({
+      type: sa.type,
+      text: sa.message,
+      href: sa.link
+    }))
+  ];
+
+  if (combinedAlerts.length === 0) {
+    combinedAlerts.push({ type: "success", text: "Toate sistemele sunt în parametri optimi.", href: "#" });
+  }
+
   const dashboardConfig = (dbUser as any)?.dashboardConfig;
 
   return (
@@ -259,7 +267,7 @@ async function DashboardDynamicContent({ dbUser }: { dbUser: any }) {
           weather={weather}
           county={county}
           news={news}
-          realAlerts={realAlerts}
+          realAlerts={combinedAlerts}
           todayTip={todayTip}
           recentParcels={serializedRecentParcels}
           statusColors={statusColors}

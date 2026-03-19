@@ -25,9 +25,13 @@ import {
   Bell,
   Map as MapIcon,
   Globe,
-  Wallet
+  Wallet,
+  Scale,
+  ShieldCheck,
+  ExternalLink
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 interface SettingsClientProps {
   user: {
@@ -42,7 +46,7 @@ export default function SettingsClient({ user }: SettingsClientProps) {
   const faqs = [
     {
       question: "Cum văd câtă motorină mai am în fermă?",
-      answer: "Mergi în meniul 'Magazie & Stocuri' din partea stângă. Acolo vei vedea o listă cu tot ce ai în depozit.",
+      answer: "Mergi în meniul 'Magazie și Stocuri' din partea stângă. Acolo vei vedea o listă cu tot ce ai în depozit.",
       icon: <Package className="w-4 h-4 text-amber-600" />
     },
     {
@@ -80,7 +84,7 @@ export default function SettingsClient({ user }: SettingsClientProps) {
 
   const prefSections = [
     {
-      title: "Vizualizare & Măsurători",
+      title: "Vizualizare și Măsurători",
       icon: <Globe className="w-5 h-5 text-blue-600" />,
       items: [
         { label: "Limbă sistem", value: "Română", badge: true },
@@ -89,7 +93,7 @@ export default function SettingsClient({ user }: SettingsClientProps) {
       ]
     },
     {
-      title: "Hărți & Geografie",
+      title: "Hărți și Geografie",
       icon: <MapIcon className="w-5 h-5 text-emerald-600" />,
       items: [
         { label: "Stil hartă implicit", value: "Satelit (Hibrid)", badge: true },
@@ -98,7 +102,7 @@ export default function SettingsClient({ user }: SettingsClientProps) {
       ]
     },
     {
-      title: "Notificări & Alerte",
+      title: "Notificări și Alerte",
       icon: <Bell className="w-5 h-5 text-amber-600" />,
       items: [
         { label: "Alerte meteo prin Email", value: "Activat", badge: true },
@@ -107,7 +111,7 @@ export default function SettingsClient({ user }: SettingsClientProps) {
       ]
     },
     {
-      title: "Financiar & Rapoarte",
+      title: "Financiar și Rapoarte",
       icon: <Wallet className="w-5 h-5 text-primary" />,
       items: [
         { label: "Monedă afișare", value: "RON", badge: true },
@@ -151,11 +155,11 @@ export default function SettingsClient({ user }: SettingsClientProps) {
         </div>
       </section>
 
-      {/* Section 2: Ajutor & Ghid */}
+      {/* Section 2: Ajutor și Ghid */}
       <section className="space-y-6 pt-6 border-t">
         <div className="flex items-center gap-3 border-b pb-4">
           <HelpCircle className="w-6 h-6 text-primary" />
-          <h2 className="text-2xl font-black tracking-tight">Ghid & Întrebări Frecvente</h2>
+          <h2 className="text-2xl font-black tracking-tight">Ajutor și Ghid</h2>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -191,9 +195,37 @@ export default function SettingsClient({ user }: SettingsClientProps) {
                 )}
               </div>
             ))}
+
+            <div className="space-y-4 pt-8">
+              <h3 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground">Documente Legale</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Link href="/termeni-si-conditii" target="_blank">
+                  <Card className="hover:border-primary/50 transition-colors border-dashed bg-muted/20">
+                    <CardContent className="p-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Scale className="w-5 h-5 text-primary" />
+                        <span className="text-sm font-bold">Termeni și Condiții</span>
+                      </div>
+                      <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                    </CardContent>
+                  </Card>
+                </Link>
+                <Link href="/confidentialitate" target="_blank">
+                  <Card className="hover:border-primary/50 transition-colors border-dashed bg-muted/20">
+                    <CardContent className="p-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <ShieldCheck className="w-5 h-5 text-green-600" />
+                        <span className="text-sm font-bold">Confidențialitate</span>
+                      </div>
+                      <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                    </CardContent>
+                  </Card>
+                </Link>
+              </div>
+            </div>
           </div>
 
-          {/* Quick Guides & Support */}
+          {/* Quick Guides și Support */}
           <div className="space-y-8">
             <div className="space-y-4">
               <h3 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground">Tutoriale Rapide</h3>
