@@ -20,7 +20,8 @@ import {
   CheckCircle2,
   CreditCard,
   Calendar,
-  Phone
+  Phone,
+  Info
 } from "lucide-react";
 import { 
   updateOrgSubscription, 
@@ -71,6 +72,7 @@ export default function AdminClient({ orgs, isSuperadmin }: { orgs: any[], isSup
 
   const filteredOrgs = orgs.filter(o => 
     o.name.toLowerCase().includes(search.toLowerCase()) || 
+    (o.legalName || "").toLowerCase().includes(search.toLowerCase()) ||
     (o.county || "").toLowerCase().includes(search.toLowerCase())
   );
 
@@ -147,12 +149,14 @@ export default function AdminClient({ orgs, isSuperadmin }: { orgs: any[], isSup
     <div className="space-y-6 max-w-7xl" suppressHydrationWarning>
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-extrabold text-foreground flex items-center gap-2">
-            <ShieldCheck className="w-7 h-7 text-primary" />
+          <h2 className="text-3xl font-black text-slate-900 flex items-center gap-4 tracking-tight">
+            <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center text-white shadow-xl shadow-primary/20">
+              <ShieldCheck className="w-6 h-6" />
+            </div>
             Administrare Platformă
           </h2>
-          <p className="text-muted-foreground mt-1">
-            Gestionează fermele înscrise, abonamentele și limitele de utilizatori (`maxUsers`).
+          <p className="text-slate-500 font-medium mt-2 max-w-md">
+            Gestionarea centralizată a fermelor, abonamentelor și controlului accesului la nivel de platformă.
           </p>
         </div>
         <div className="flex gap-2">
@@ -192,20 +196,23 @@ export default function AdminClient({ orgs, isSuperadmin }: { orgs: any[], isSup
       </div>
 
       {activeTab === 'orgs' ? (
-        <Card>
-        <CardHeader className="border-b bg-muted/10 pb-4">
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+        <Card className="border-none shadow-2xl rounded-[2.5rem] overflow-hidden bg-white">
+        <CardHeader className="border-b border-slate-50 bg-slate-50/50 p-8 pb-6">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-6">
             <div>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Building2 className="w-5 h-5" /> Registrul Fermelor
+              <CardTitle className="flex items-center gap-3 text-xl font-black uppercase tracking-tight">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                  <Building2 className="w-5 h-5" />
+                </div>
+                Registrul Fermelor
               </CardTitle>
-              <CardDescription>Total: {orgs.length} organizații active</CardDescription>
+              <CardDescription className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1 ml-1">Total: {orgs.length} organizații active</CardDescription>
             </div>
-            <div className="relative w-full sm:w-72">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <div className="relative w-full sm:w-80">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <Input
-                placeholder="Caută fermă..."
-                className="pl-9"
+                placeholder="Caută după nume juridic sau poreclă..."
+                className="pl-11 h-12 rounded-2xl bg-white border-2 border-slate-100 focus-visible:border-primary shadow-inner font-medium"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
               />
@@ -231,15 +238,33 @@ export default function AdminClient({ orgs, isSuperadmin }: { orgs: any[], isSup
                   const isOverLimit = org.userCount > org.maxUsers;
                   const expiryDate = org.subscriptionExpiresAt ? new Date(org.subscriptionExpiresAt) : null;
                   const isExpired = expiryDate && expiryDate < new Date();
+                  
+                  // Calcul zile trial ramase
+                  let trialDaysLeft = null;
+                  if (org.subscriptionTier?.toLowerCase() === "trial" && org.createdAt) {
+                    const trialExpiry = new Date(new Date(org.createdAt).getTime() + 30 * 24 * 60 * 60 * 1000);
+                    const msDiff = trialExpiry.getTime() - new Date().getTime();
+                    trialDaysLeft = Math.max(0, Math.ceil(msDiff / (1000 * 60 * 60 * 24)));
+                  }
 
                   return (
                     <tr key={org.id} className="hover:bg-muted/20 transition-colors">
-                      <td className="px-3 md:px-4 py-3">
-                        <div className="font-semibold text-foreground flex items-center gap-2 cursor-pointer hover:text-primary text-xs md:text-sm" onClick={() => router.push(`/admin/${org.id}`)}>
-                          {org.name}
+                      <td className="px-6 py-4">
+                        <div 
+                          className="group cursor-pointer" 
+                          onClick={() => router.push(`/admin/${org.id}`)}
+                        >
+                          <div className="font-black text-slate-900 group-hover:text-primary transition-colors text-sm lg:text-base leading-tight tracking-tight">
+                            {org.legalName || org.name}
+                          </div>
+                          {org.legalName && (
+                            <div className="text-[10px] font-bold text-slate-400 mt-0.5 flex items-center gap-1.5 italic">
+                              <Info className="w-2.5 h-2.5 opacity-40" /> {org.name}
+                            </div>
+                          )}
                         </div>
-                        <div className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
-                          <MapPin className="w-3 h-3" /> {org.county || "Nespecificat"}
+                        <div className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-300 flex items-center gap-1.5 mt-2">
+                          <MapPin className="w-2.5 h-2.5 text-primary/50" /> {org.county || "Nespecificat"}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-xs hidden xl:table-cell">
@@ -264,8 +289,13 @@ export default function AdminClient({ orgs, isSuperadmin }: { orgs: any[], isSup
                             {formatDate(expiryDate)}
                             {isExpired && <span className="block text-[10px] uppercase font-bold text-destructive">Expirat</span>}
                           </div>
+                        ) : org.subscriptionTier?.toLowerCase() === "trial" ? (
+                          <div className="text-xs">
+                            <span className="font-bold text-amber-600">TRIAL</span>
+                            <span className="block text-[10px] text-muted-foreground">{trialDaysLeft} zile rămase</span>
+                          </div>
                         ) : (
-                          <span className="text-muted-foreground italic text-xs">Fără limită (Trial)</span>
+                          <span className="text-muted-foreground italic text-xs">Fără limită</span>
                         )}
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell">

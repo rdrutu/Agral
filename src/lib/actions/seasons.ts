@@ -86,11 +86,88 @@ export async function getCropPlans(seasonId: string) {
 
   const plans = await prisma.cropPlan.findMany({
     where: { seasonId },
-    include: { parcel: true },
+    include: { 
+      parcel: {
+        include: {
+          operationParcels: {
+            include: {
+              operation: {
+                include: { resources: true }
+              }
+            }
+          }
+        }
+      } 
+    },
     orderBy: { parcel: { name: "asc" } }
   });
 
   return JSON.parse(JSON.stringify(plans));
+}
+
+export async function getCropGroupStats(seasonId: string, cropType: string) {
+  const orgId = await getUserOrganization();
+  
+  const season = await prisma.season.findUnique({ 
+    where: { id: seasonId, orgId: orgId as string }
+  });
+  if (!season) throw new Error("Sezon negăsit");
+
+  const plans = await prisma.cropPlan.findMany({
+    where: { seasonId, cropType },
+    include: {
+      parcel: {
+        include: {
+          operationParcels: {
+            include: {
+              operation: {
+                include: { resources: true }
+              }
+            }
+          }
+        }
+      }
+    }
+  });
+
+  let totalArea = 0;
+  let totalCost = 0;
+  let totalYield = 0;
+  const parcelIds: string[] = [];
+
+  const seasonStart = new Date(season.startDate);
+  const seasonEnd = new Date(season.endDate);
+
+  plans.forEach(plan => {
+    const area = Number(plan.sownAreaHa);
+    totalArea += area;
+    totalYield += Number(plan.actualYieldTha || 0) * area;
+    parcelIds.push(plan.parcelId);
+
+    // Calculate costs for this parcel during this season
+    plan.parcel.operationParcels.forEach(opParcel => {
+      const opDate = new Date(opParcel.operation.date);
+      if (opDate >= seasonStart && opDate <= seasonEnd) {
+        const opTotalArea = Number(opParcel.operation.totalAreaHa);
+        const share = Number(opParcel.operatedAreaHa) / opTotalArea;
+
+        opParcel.operation.resources.forEach(res => {
+          const resQty = res.totalConsumed ? Number(res.totalConsumed) : (Number(res.quantityPerHa) * opTotalArea);
+          totalCost += (resQty * share * Number(res.pricePerUnit));
+        });
+      }
+    });
+  });
+
+  return {
+    cropType,
+    totalArea,
+    totalCost: Math.round(totalCost * 100) / 100,
+    totalYield,
+    avgYieldTha: totalArea > 0 ? totalYield / totalArea : 0,
+    parcelCount: plans.length,
+    status: plans.every(p => p.status === "harvested") ? "harvested" : "active"
+  };
 }
 
 export async function allocateParcelsToCrop(data: {
@@ -240,6 +317,81 @@ export async function harvestCropPlan(planId: string, actualYieldTha: number) {
         referenceId: planId
       }
     });
+  });
+
+  revalidatePath("/campanii");
+  revalidatePath("/dashboard");
+}
+
+export async function harvestCropGroup(seasonId: string, cropType: string, avgYieldTha: number) {
+  const orgId = await getUserOrganization();
+
+  const plans = await prisma.cropPlan.findMany({
+    where: { 
+      seasonId, 
+      cropType,
+      season: { orgId: orgId as string }
+    },
+    include: { parcel: true }
+  });
+
+  if (plans.length === 0) throw new Error("Nu există planuri pentru această cultură.");
+
+  await prisma.$transaction(async (tx) => {
+    for (const plan of plans) {
+      const totalYield = Number(avgYieldTha) * Number(plan.sownAreaHa);
+
+      // 1. Update Crop Plan status
+      await tx.cropPlan.update({
+        where: { id: plan.id },
+        data: {
+          status: "harvested",
+          actualYieldTha: avgYieldTha,
+        }
+      });
+
+      // 2. Add to Inventory (Recoltă) - unique per crop name per org
+      const existingStock = await tx.inventoryItem.findFirst({
+        where: { 
+          orgId: orgId as string,
+          name: plan.cropType,
+          category: "recolta"
+        }
+      });
+
+      if (existingStock) {
+        await tx.inventoryItem.update({
+          where: { id: existingStock.id },
+          data: {
+            stockQuantity: { increment: totalYield }
+          }
+        });
+      } else {
+        await tx.inventoryItem.create({
+          data: {
+            orgId: orgId as string,
+            name: plan.cropType,
+            category: "recolta",
+            stockQuantity: totalYield,
+            unit: "tone",
+            pricePerUnit: 0,
+            notes: `Recoltă ${plan.cropType} în sezonul curent`
+          }
+        });
+      }
+
+      // 3. Record Financial Transaction
+      await (tx as any).financialTransaction.create({
+        data: {
+          orgId: orgId as string,
+          type: "income",
+          category: "sale", 
+          amount: 0,
+          description: `Recoltare grupată ${plan.cropType} pe parcela ${plan.parcel.name}: ${totalYield.toFixed(2)} tone`,
+          referenceId: plan.id
+        }
+      });
+    }
   });
 
   revalidatePath("/campanii");

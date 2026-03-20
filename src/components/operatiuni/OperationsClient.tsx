@@ -311,7 +311,7 @@ export default function OperationsClient({
   }
 
   return (
-    <div className="space-y-6 max-w-7xl">
+    <div className="space-y-6 max-w-7xl" suppressHydrationWarning>
       {/* Header */}
       {!hideHeader && (
         <div className="flex items-center justify-between">
@@ -352,7 +352,7 @@ export default function OperationsClient({
       )}
 
       {hideHeader && (
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end gap-2" suppressHydrationWarning>
           <Button
             variant="outline"
             className="border-primary/20 text-primary font-semibold gap-2"
@@ -763,8 +763,8 @@ export default function OperationsClient({
       {/* Tabela Operațiuni Înregistrate */}
       {!showForm && (
         <>
-          <div className="flex gap-3">
-            <div className="relative flex-1 max-w-sm">
+          <div className="flex gap-3" suppressHydrationWarning>
+            <div className="relative flex-1 max-w-sm" suppressHydrationWarning>
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="Caută lucrare..."
@@ -775,7 +775,7 @@ export default function OperationsClient({
             </div>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4" suppressHydrationWarning>
             {filteredOps.map((op) => (
               <Card key={op.id} className="card-hover">
                 <CardContent className="p-5">
@@ -877,7 +877,7 @@ export default function OperationsClient({
           </div>
 
           {filteredOps.length === 0 && (
-            <div className="text-center py-12 border-2 border-dashed rounded-xl">
+            <div className="text-center py-12 border-2 border-dashed rounded-xl" suppressHydrationWarning>
               <Tractor className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
               <p className="text-muted-foreground font-medium text-lg">Nicio lucrare înregistrată</p>
               <p className="text-sm text-muted-foreground mt-1">Acestea vor apărea aici după ce le creezi.</p>

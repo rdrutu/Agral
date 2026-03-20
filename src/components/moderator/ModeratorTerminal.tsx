@@ -17,7 +17,8 @@ import {
   ShieldCheck,
   History,
   Archive,
-  ArrowLeft
+  ArrowLeft,
+  XCircle
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle,
   CardFooter 
@@ -35,7 +36,8 @@ import {
   getConversationHistory,
   updateLastSeen,
   toggleSupportStatus,
-  getModeratorStatus
+  getModeratorStatus,
+  getSupportSchedule
 } from "@/lib/actions/support";
 import toast from "react-hot-toast";
 
@@ -58,10 +60,28 @@ export default function ModeratorTerminal({ moderatorName }: ModeratorTerminalPr
   const [showMobileList, setShowMobileList] = useState(true);
   const [isOnline, setIsOnline] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
+  const [isClosingConfirmOpen, setIsClosingConfirmOpen] = useState(false);
+  const [schedule, setSchedule] = useState({ startHour: 8, endHour: 20 });
 
-  // Load initial status
+  // Load initial status and schedule
   useEffect(() => {
-    getModeratorStatus().then(res => setIsOnline(res.active));
+    Promise.all([
+      getModeratorStatus(),
+      getSupportSchedule()
+    ]).then(([status, sched]) => {
+      setSchedule(sched);
+      
+      // Enforce online during program
+      const now = new Date();
+      const hour = now.getHours();
+      const isWorkingHours = hour >= sched.startHour && hour < sched.endHour;
+      
+      if (isWorkingHours && !status.active) {
+        handleToggleOnline(true);
+      } else {
+        setIsOnline(status.active);
+      }
+    });
   }, []);
 
   // Moderator Heartbeat (Presence)
@@ -89,7 +109,7 @@ export default function ModeratorTerminal({ moderatorName }: ModeratorTerminalPr
     };
 
     fetchActive();
-    const interval = setInterval(fetchActive, 5000);
+    const interval = setInterval(fetchActive, 10000); // 10s for active convos
     return () => clearInterval(interval);
   }, [view]);
 
@@ -113,7 +133,7 @@ export default function ModeratorTerminal({ moderatorName }: ModeratorTerminalPr
     };
 
     fetchMessages();
-    const interval = setInterval(fetchMessages, 3000);
+    const interval = setInterval(fetchMessages, 5000); // 5s for messages
     return () => clearInterval(interval);
   }, [selectedChat]);
 
@@ -152,21 +172,37 @@ export default function ModeratorTerminal({ moderatorName }: ModeratorTerminalPr
     }
   };
 
-  const handleClose = async () => {
+  const handleClose = () => {
     if (!selectedChat) return;
-    if (!confirm("Ești sigur că vrei să închizi această conversație?")) return;
+    setIsClosingConfirmOpen(true);
+  };
 
+  const confirmClose = async () => {
+    if (!selectedChat) return;
+    setIsToggling(true);
     try {
       await closeConversation(selectedChat.id);
       setSelectedChat(null);
       setMessages([]);
       toast.success("Conversație închisă");
+      setIsClosingConfirmOpen(false);
     } catch (err) {
       toast.error("Eroare la închidere");
+    } finally {
+      setIsToggling(false);
     }
   };
 
+  const now = new Date();
+  const currentHour = now.getHours();
+  const isWorkingHours = currentHour >= schedule.startHour && currentHour < schedule.endHour;
+
   const handleToggleOnline = async (checked: boolean) => {
+    if (isWorkingHours && !checked) {
+       toast.error("Nu poți fi offline în timpul programului de lucru");
+       return;
+    }
+
     setIsToggling(true);
     try {
       await toggleSupportStatus(checked);
@@ -200,19 +236,24 @@ export default function ModeratorTerminal({ moderatorName }: ModeratorTerminalPr
           <div className="flex items-center justify-between p-3 bg-white/5 rounded-2xl mb-4 border border-white/10">
              <div className="flex flex-col">
                 <span className="text-[10px] font-black uppercase tracking-tighter opacity-70">Status Suport</span>
-                <span className="text-[9px] font-bold italic">{isOnline ? "Fermierii te pot vedea" : "Ești invizibil"}</span>
+                <span className="text-[9px] font-bold italic">
+                  {isWorkingHours 
+                    ? "Program normal (Online obligatoriu)" 
+                    : (isOnline ? "Fermierii te pot vedea" : "Ești invizibil")}
+                </span>
              </div>
              <button 
-               onClick={() => handleToggleOnline(!isOnline)}
-               disabled={isToggling}
+               onClick={() => !isWorkingHours && handleToggleOnline(!isOnline)}
+               disabled={isToggling || isWorkingHours}
                className={cn(
                  "w-12 h-6 rounded-full transition-all duration-300 relative border-2",
-                 isOnline ? "bg-green-500 border-green-500" : "bg-slate-700 border-slate-700"
+                 isOnline ? "bg-green-500 border-green-500" : "bg-slate-700 border-slate-700",
+                 isWorkingHours && "opacity-50 cursor-not-allowed"
                )}
              >
                 <div className={cn(
-                  "absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all duration-300",
-                  isOnline ? "left-[calc(100%-1.25rem)]" : "left-0.5"
+                   "absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all duration-300",
+                   isOnline ? "left-[calc(100%-1.25rem)]" : "left-0.5"
                 )} />
              </button>
           </div>
@@ -259,8 +300,8 @@ export default function ModeratorTerminal({ moderatorName }: ModeratorTerminalPr
                   setShowMobileList(false);
                 }}
                 className={cn(
-                  "w-full p-4 rounded-2xl text-left transition-all duration-300 flex items-center gap-3 group relative overflow-hidden",
-                  selectedChat?.id === chat.id 
+                   "w-full p-4 rounded-2xl text-left transition-all duration-300 flex items-center gap-3 group relative overflow-hidden",
+                   selectedChat?.id === chat.id 
                     ? "bg-primary text-white shadow-lg shadow-primary/30" 
                     : "hover:bg-primary/5 bg-white mb-1"
                 )}
@@ -273,7 +314,7 @@ export default function ModeratorTerminal({ moderatorName }: ModeratorTerminalPr
                 </div>
                 <div className="flex-1 overflow-hidden">
                   <div className="flex items-center justify-between mb-0.5">
-                    <span className="font-bold text-sm truncate">{chat.user.firstName} {chat.user.lastName}</span>
+                    <span className="font-bold text-sm truncate">{chat.user?.firstName || "Utilizator"} {chat.user?.lastName || "Șters"}</span>
                     <span className={cn(
                       "text-[9px] font-black",
                       selectedChat?.id === chat.id ? "text-white/60" : "text-muted-foreground"
@@ -285,7 +326,7 @@ export default function ModeratorTerminal({ moderatorName }: ModeratorTerminalPr
                     "text-[10px] truncate font-medium",
                     selectedChat?.id === chat.id ? "text-white/80" : "text-muted-foreground"
                   )}>
-                    {chat.messages?.[0]?.content || "Începe discuția..."}
+                    {chat.messages?.[0]?.content || "No message"}
                   </p>
                 </div>
                 {chat.status === "WAITING" && (
@@ -305,7 +346,38 @@ export default function ModeratorTerminal({ moderatorName }: ModeratorTerminalPr
           "flex-1 flex flex-col md:flex-row gap-4 md:gap-6 h-full min-w-0 transition-all duration-300",
           showMobileList && "hidden md:flex"
         )}>
-          <Card className="flex-1 flex flex-col border-none shadow-xl rounded-3xl md:rounded-[2rem] overflow-hidden bg-white h-full">
+          <Card className="flex-1 flex-col border-none shadow-xl rounded-3xl md:rounded-[2rem] overflow-hidden bg-white h-full relative flex">
+            {/* Custom Confirmation Modal */}
+            {isClosingConfirmOpen && (
+              <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 p-4">
+                <div className="bg-white rounded-[2rem] p-8 max-w-sm w-full shadow-2xl border animate-in zoom-in-95 duration-200">
+                  <div className="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center text-red-600 mb-6 mx-auto">
+                    <XCircle className="w-10 h-10" />
+                  </div>
+                  <h3 className="text-xl font-extrabold text-center mb-2">Închide Chat?</h3>
+                  <p className="text-muted-foreground text-center text-xs font-medium mb-8">
+                    Această conversație va fi arhivată. Ești sigur că vrei să o închizi acum?
+                  </p>
+                  <div className="flex gap-3">
+                    <Button 
+                      variant="outline" 
+                      className="flex-1 h-12 rounded-xl font-bold border-2"
+                      onClick={() => setIsClosingConfirmOpen(false)}
+                      disabled={isToggling}
+                    >
+                      Anulare
+                    </Button>
+                    <Button 
+                      className="flex-1 h-12 rounded-xl bg-red-600 hover:bg-red-700 font-bold"
+                      onClick={confirmClose}
+                      disabled={isToggling}
+                    >
+                      {isToggling ? "..." : "Da, Închide"}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
             <CardHeader className="p-4 md:p-6 border-b flex flex-row items-center justify-between">
                <div className="flex items-center gap-3 md:gap-4">
                   <Button 
@@ -320,7 +392,7 @@ export default function ModeratorTerminal({ moderatorName }: ModeratorTerminalPr
                     <MessageSquare className="w-5 h-5 md:w-6 md:h-6 text-primary" />
                   </div>
                   <div className="min-w-0">
-                    <CardTitle className="text-base md:text-xl font-black truncate">{selectedChat.user.firstName} {selectedChat.user.lastName}</CardTitle>
+                    <CardTitle className="text-base md:text-xl font-black truncate">{selectedChat.user?.firstName || "Utilizator"} {selectedChat.user?.lastName || "Șters"}</CardTitle>
                     <div className="flex items-center gap-2">
                        <Badge variant="outline" className="text-[8px] md:text-[9px] font-black uppercase text-primary border-primary/20">
                           {selectedChat.status}
@@ -423,43 +495,47 @@ export default function ModeratorTerminal({ moderatorName }: ModeratorTerminalPr
                         <UserIcon className="w-6 h-6 text-muted-foreground" />
                      </div>
                      <div>
-                        <h4 className="text-sm font-black tracking-tight">{selectedChat.user.firstName} {selectedChat.user.lastName}</h4>
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase">{selectedChat.user.role}</p>
+                         <h4 className="text-sm font-black tracking-tight">{selectedChat.user?.firstName || "Utilizator"} {selectedChat.user?.lastName || "Șters"}</h4>
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase">{selectedChat.user?.role || "Fără rol"}</p>
                      </div>
                   </div>
                   <div className="space-y-2">
                      <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
-                        <Mail className="w-3.5 h-3.5" /> {selectedChat.user.email}
+                        <Mail className="w-3.5 h-3.5" /> {selectedChat.user?.email || "N/A"}
                      </div>
                   </div>
                </div>
 
                 <div className="space-y-4 pt-6 border-t">
                   <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Detalii Organizație</h4>
-                  {selectedChat.user.organization ? (
+                  {selectedChat.user?.organization ? (
                     <div className="space-y-4">
                        <div className="flex items-center gap-3">
                           <Building2 className="w-5 h-5 text-primary" />
                           <div className="flex flex-col">
-                             <span className="text-sm font-black leading-tight">{selectedChat.user.organization.legalName || selectedChat.user.organization.name}</span>
-                             <span className="text-[9px] font-bold text-muted-foreground uppercase">{selectedChat.user.organization.registrationNumber || "Fără RO/J"}</span>
+                             <span className="text-sm font-black leading-tight">{selectedChat.user?.organization?.legalName || selectedChat.user?.organization?.name}</span>
+                             <span className="text-[9px] font-bold text-muted-foreground uppercase">{selectedChat.user?.organization?.registrationNumber || "Fără RO/J"}</span>
                           </div>
                        </div>
                        <div className="space-y-3 bg-muted/20 p-4 rounded-2xl">
                           <div className="flex items-center justify-between">
                              <span className="text-[8px] font-black uppercase text-muted-foreground">CUI / CIF</span>
-                             <span className="text-[10px] font-bold">{selectedChat.user.organization.cui || "Nespecificat"}</span>
+                             <span className="text-[10px] font-bold">{selectedChat.user?.organization?.cui || "Nespecificat"}</span>
                           </div>
                           <div className="flex items-center justify-between">
                              <span className="text-[8px] font-black uppercase text-muted-foreground">Abonament</span>
                              <Badge variant="secondary" className="text-[8px] font-black uppercase bg-primary/10 text-primary border-none">
-                                {selectedChat.user.organization.subscriptionTier}
+                                {selectedChat.user?.organization?.subscriptionTier}
                              </Badge>
                           </div>
                           <div className="flex items-center justify-between">
                              <span className="text-[8px] font-black uppercase text-muted-foreground">Expiră la</span>
-                             <span className="text-[10px] font-bold">
-                                {selectedChat.user.organization.subscriptionExpiresAt ? new Date(selectedChat.user.organization.subscriptionExpiresAt).toLocaleDateString() : "Nelimitat"}
+                             <span className="text-[10px] font-bold text-amber-600">
+                                {selectedChat.user?.organization?.subscriptionExpiresAt 
+                                  ? new Date(selectedChat.user.organization.subscriptionExpiresAt).toLocaleDateString() 
+                                  : (selectedChat.user?.organization?.subscriptionTier?.toLowerCase() === "trial") 
+                                    ? "30 zile Trial" 
+                                    : "Nelimitat"}
                              </span>
                           </div>
                        </div>
@@ -470,7 +546,7 @@ export default function ModeratorTerminal({ moderatorName }: ModeratorTerminalPr
                              <History className="w-3 h-3" /> Ultimele Plăți
                           </h5>
                           <div className="space-y-2">
-                             {selectedChat.user.organization.payments?.length > 0 ? (
+                             {selectedChat.user?.organization?.payments?.length > 0 ? (
                                selectedChat.user.organization.payments.map((p: any, i: number) => (
                                  <div key={i} className="flex items-center justify-between p-2 rounded-xl bg-muted/10 border border-muted/20">
                                     <span className="text-[9px] font-bold">{new Date(p.date).toLocaleDateString()}</span>
@@ -486,11 +562,11 @@ export default function ModeratorTerminal({ moderatorName }: ModeratorTerminalPr
                        <div className="space-y-2 pt-2">
                           <div className="flex items-center gap-2 text-[10px] font-bold">
                              <Phone className="w-3 h-3 text-muted-foreground" />
-                             <span>{selectedChat.user.organization.phone || "Fără telefon"}</span>
+                             <span>{selectedChat.user?.organization?.phone || "Fără telefon"}</span>
                           </div>
                           <div className="flex items-start gap-2 text-[10px] font-bold">
                              <MapPin className="w-3 h-3 text-muted-foreground mt-0.5" />
-                             <span className="leading-tight">{selectedChat.user.organization.address}, {selectedChat.user.organization.county}</span>
+                             <span className="leading-tight">{selectedChat.user?.organization?.address || "Nespecificat"}, {selectedChat.user?.organization?.county || ""}</span>
                           </div>
                        </div>
                     </div>

@@ -66,8 +66,63 @@ export default function FinanceClient({
   const [viewMode, setViewMode] = useState<"transactions" | "crops">("transactions");
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<"all" | "income" | "expense">("all");
+  const [period, setPeriod] = useState<"overall" | "month" | "quarter" | "year" | "custom">("overall");
+  const [customDates, setCustomDates] = useState({ 
+    start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+    end: new Date().toISOString().split('T')[0]
+  });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Period ranges
+  const getDatesForPeriod = (p: string) => {
+    const now = new Date();
+    let start: Date | undefined;
+    const end = now;
+
+    if (p === "month") {
+      start = new Date();
+      start.setMonth(now.getMonth() - 1);
+    } else if (p === "quarter") {
+      start = new Date();
+      start.setMonth(now.getMonth() - 3);
+    } else if (p === "year") {
+      start = new Date(now.getFullYear(), 0, 1);
+    } else if (p === "custom") {
+      start = new Date(customDates.start);
+      start.setHours(0, 0, 0, 0);
+      const customEnd = new Date(customDates.end);
+      customEnd.setHours(23, 59, 59, 999);
+      return { start, end: customEnd };
+    }
+
+    return { start, end };
+  };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      // Don't refetch on initial load if overall, unless manually triggered
+      if (period === "overall" && initialSummary === summary) return;
+      
+      setIsLoading(true);
+      try {
+        const { start, end } = getDatesForPeriod(period);
+        const [newTrans, newSum] = await Promise.all([
+          getFinancialTransactions(start, end),
+          getFinancialSummary(start, end)
+        ]);
+        setTransactions(newTrans);
+        setSummary(newSum);
+      } catch (err) {
+        toast.error("Eroare la actualizarea datelor");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [period, customDates]);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -107,12 +162,16 @@ export default function FinanceClient({
         description: "",
         date: new Date().toISOString().split('T')[0]
       });
+      
+      // Re-fetch current period
+      const { start, end } = getDatesForPeriod(period);
+      const [newTrans, newSum] = await Promise.all([
+        getFinancialTransactions(start, end),
+        getFinancialSummary(start, end)
+      ]);
+      setTransactions(newTrans);
+      setSummary(newSum);
       router.refresh();
-      // Update local state temporarily for better UX
-      const newTransactions = await getFinancialTransactions();
-      const newSummary = await getFinancialSummary();
-      setTransactions(newTransactions);
-      setSummary(newSummary);
     } catch (err: any) {
       toast.error(err.message);
     } finally {
@@ -122,7 +181,7 @@ export default function FinanceClient({
 
   return (
     <>
-    <div className="space-y-8 animate-in fade-in duration-700">
+    <div className="space-y-8 animate-in fade-in duration-700" suppressHydrationWarning>
       {/* Header */}
       {!hideHeader && (
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -130,11 +189,71 @@ export default function FinanceClient({
             <h1 className="text-3xl font-black tracking-tight text-foreground">Gestiune Financiară</h1>
             <p className="text-muted-foreground font-medium">Monitorizează veniturile, cheltuielile și profitabilitatea fermei.</p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" className="gap-2 font-bold shadow-sm">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center bg-white p-1 rounded-xl shadow-sm border mr-2 gap-1">
+                <Button 
+                  variant={period === "overall" ? "secondary" : "ghost"} 
+                  size="sm" 
+                  className="h-8 text-[10px] font-black uppercase rounded-lg"
+                  onClick={() => setPeriod("overall")}
+                >
+                  Overall
+                </Button>
+                <Button 
+                  variant={period === "year" ? "secondary" : "ghost"} 
+                  size="sm" 
+                  className="h-8 text-[10px] font-black uppercase rounded-lg"
+                  onClick={() => setPeriod("year")}
+                >
+                  An curent
+                </Button>
+                <Button 
+                  variant={period === "quarter" ? "secondary" : "ghost"} 
+                  size="sm" 
+                  className="h-8 text-[10px] font-black uppercase rounded-lg"
+                  onClick={() => setPeriod("quarter")}
+                >
+                  Trimestru
+                </Button>
+                <Button 
+                  variant={period === "month" ? "secondary" : "ghost"} 
+                  size="sm" 
+                  className="h-8 text-[10px] font-black uppercase rounded-lg"
+                  onClick={() => setPeriod("month")}
+                >
+                  Lună
+                </Button>
+                <Button 
+                  variant={period === "custom" ? "secondary" : "ghost"} 
+                  size="sm" 
+                  className="h-8 text-[10px] font-black uppercase rounded-lg"
+                  onClick={() => setPeriod("custom")}
+                >
+                  Custom
+                </Button>
+
+                {period === "custom" && (
+                  <div className="flex items-center gap-2 px-2 border-l ml-1">
+                    <Input 
+                      type="date" 
+                      className="h-7 text-[10px] w-28 p-1 border-none bg-muted/50 focus-visible:ring-0" 
+                      value={customDates.start}
+                      onChange={(e) => setCustomDates(prev => ({ ...prev, start: e.target.value }))}
+                    />
+                    <span className="text-[10px] font-black">-</span>
+                    <Input 
+                      type="date" 
+                      className="h-7 text-[10px] w-28 p-1 border-none bg-muted/50 focus-visible:ring-0" 
+                      value={customDates.end}
+                      onChange={(e) => setCustomDates(prev => ({ ...prev, end: e.target.value }))}
+                    />
+                  </div>
+                )}
+            </div>
+            <Button variant="outline" className="gap-2 font-bold shadow-sm h-10">
               <Download className="w-4 h-4" /> Exportă Raport
             </Button>
-            <Button onClick={() => setIsModalOpen(true)} className="agral-gradient text-white gap-2 font-bold shadow-md">
+            <Button onClick={() => setIsModalOpen(true)} className="agral-gradient text-white gap-2 font-bold shadow-md h-10">
               <DollarSign className="w-4 h-4" /> Adaugă Tranzacție
             </Button>
           </div>
@@ -153,7 +272,7 @@ export default function FinanceClient({
       )}
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className={cn("grid grid-cols-1 md:grid-cols-3 gap-6 transition-opacity duration-300", isLoading && "opacity-50")}>
         <Card className="border-none shadow-xl bg-gradient-to-br from-green-50/50 to-white overflow-hidden relative group">
           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
             <TrendingUp size={80} className="text-green-600" />

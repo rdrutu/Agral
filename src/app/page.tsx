@@ -10,7 +10,7 @@ export default function Home() {
       {/* Background Image */}
       <div className="absolute inset-0 z-0">
         <Image
-          src="/background_register.png"
+          src="/background.png"
           alt="Agral Background"
           fill
           className="object-cover object-center"

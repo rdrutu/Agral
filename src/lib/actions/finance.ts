@@ -4,36 +4,64 @@ import prisma from "@/lib/prisma";
 import { getUserOrganization } from "./parcels";
 import { formatMonthYear } from "@/lib/utils";
 
-export async function getFinancialTransactions() {
+export async function getFinancialTransactions(startDate?: Date, endDate?: Date) {
   const orgId = await getUserOrganization();
   if (!orgId) return [];
 
+  const where: any = { orgId: orgId as string };
+  if (startDate || endDate) {
+    where.date = {};
+    if (startDate) where.date.gte = startDate;
+    if (endDate) where.date.lte = endDate;
+  }
+
   const transactions = await prisma.financialTransaction.findMany({
-    where: { orgId: orgId as string },
+    where,
     orderBy: { date: "desc" },
   });
 
   return JSON.parse(JSON.stringify(transactions));
 }
 
-export async function getFinancialSummary() {
+export async function getFinancialSummary(startDate?: Date, endDate?: Date) {
   const orgId = await getUserOrganization();
   if (!orgId) return null;
 
+  const transactionWhere: any = { orgId: orgId as string };
+  if (startDate || endDate) {
+    transactionWhere.date = {};
+    if (startDate) transactionWhere.date.gte = startDate;
+    if (endDate) transactionWhere.date.lte = endDate;
+  }
+
+  const opWhere: any = { operation: { orgId: orgId as string } };
+  if (startDate || endDate) {
+    opWhere.operation.date = {};
+    if (startDate) opWhere.operation.date.gte = startDate;
+    if (endDate) opWhere.operation.date.lte = endDate;
+  }
+
+  const maintWhere: any = { vehicle: { orgId: orgId as string } };
+  if (startDate || endDate) {
+    maintWhere.date = {};
+    if (startDate) maintWhere.date.gte = startDate;
+    if (endDate) maintWhere.date.lte = endDate;
+  }
+
   const [transactions, users, operationResources, maintenance] = await Promise.all([
     prisma.financialTransaction.findMany({
-      where: { orgId: orgId as string }
+      where: transactionWhere
     }),
     prisma.user.findMany({
       where: { orgId: orgId as string, monthlySalary: { not: null } },
       select: { monthlySalary: true }
     }),
     prisma.operationResource.findMany({
-      where: { operation: { orgId: orgId as string } },
+      where: opWhere,
       select: { totalConsumed: true, quantityPerHa: true, pricePerUnit: true, operation: { select: { totalAreaHa: true } } }
     }),
     prisma.vehicleMaintenance.findMany({
-      where: { vehicle: { orgId: orgId as string } },
+      where: maintWhere,
       select: { cost: true }
     })
   ]);
@@ -54,8 +82,20 @@ export async function getFinancialSummary() {
     categories[cat] += Number(t.amount);
   });
 
-  // Add Dynamic Costs
-  const totalSalaries = users.reduce((sum, u) => sum + Number(u.monthlySalary || 0), 0);
+  // Salaries are a bit special - if we are filtering for a period, we might want to scale them.
+  // But usually farmers want to see the "fixed costs" if they fall within the period.
+  // For now, let's only include salaries if we are in "Overall" or if the period is significant.
+  // Actually, let's keep it simple: if filtering by date, we show transaction-based salaries if any,
+  // or we don't include the "virtual" monthly salaries unless it's overall.
+  
+  let totalSalaries = 0;
+  if (!startDate && !endDate) {
+     totalSalaries = users.reduce((sum, u) => sum + Number(u.monthlySalary || 0), 0);
+  } else {
+    // If we have a range, maybe we just count months?
+    // User requested "Overall" to be default, so let's stick to that for virtual costs.
+  }
+
   const totalOpCosts = operationResources.reduce((sum, res) => {
     const qty = res.totalConsumed ? Number(res.totalConsumed) : (Number(res.quantityPerHa) * Number(res.operation.totalAreaHa));
     return sum + (qty * Number(res.pricePerUnit));
@@ -63,7 +103,7 @@ export async function getFinancialSummary() {
   const totalMaintenance = maintenance.reduce((sum, m) => sum + Number(m.cost || 0), 0);
 
   // Add to categories
-  categories["Salarii"] = (categories["Salarii"] || 0) + totalSalaries;
+  if (totalSalaries > 0) categories["Salarii"] = (categories["Salarii"] || 0) + totalSalaries;
   categories["Lucrări"] = (categories["Lucrări"] || 0) + totalOpCosts;
   categories["Mentenanță"] = (categories["Mentenanță"] || 0) + totalMaintenance;
 

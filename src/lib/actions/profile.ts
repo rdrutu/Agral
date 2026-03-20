@@ -40,6 +40,15 @@ export async function updateUserProfile(data: {
   salaryDay?: number;
   baseLat?: number | null;
   baseLng?: number | null;
+  iban?: string;
+  bankName?: string;
+  website?: string;
+  representativeName?: string;
+  representativeCnp?: string;
+  representativeCiSeries?: string;
+  representativeCiNumber?: string;
+  representativeRole?: string;
+  entityType?: string;
 }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -74,6 +83,15 @@ export async function updateUserProfile(data: {
           salaryDay: data.salaryDay,
           baseLat: data.baseLat,
           baseLng: data.baseLng,
+          iban: data.iban,
+          bankName: data.bankName,
+          website: data.website,
+          representativeName: data.representativeName,
+          representativeCnp: data.representativeCnp,
+          representativeCiSeries: data.representativeCiSeries,
+          representativeCiNumber: data.representativeCiNumber,
+          representativeRole: data.representativeRole,
+          entityType: data.entityType,
         }
       });
     }

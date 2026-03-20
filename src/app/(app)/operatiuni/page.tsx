@@ -10,8 +10,8 @@ export const dynamic = "force-dynamic";
 
 export default async function OperationsPage() {
   return (
-    <div className="space-y-6 max-w-7xl">
-      <div className="flex flex-col gap-1">
+    <div className="space-y-6 max-w-7xl" suppressHydrationWarning>
+      <div className="flex flex-col gap-1" suppressHydrationWarning>
         <h1 className="text-3xl font-black tracking-tight">Operațiuni Agricole</h1>
         <p className="text-muted-foreground">Înregistrează și gestionează lucrările din câmp.</p>
       </div>

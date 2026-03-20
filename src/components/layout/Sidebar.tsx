@@ -95,7 +95,7 @@ export function Sidebar({
   let trialDaysLeft = null;
   let subscriptionExpiryStr = null;
 
-  if (subTier === "trial" && orgCreatedAt) {
+  if (subTier?.toLowerCase() === "trial" && orgCreatedAt) {
     const trialExpiry = new Date(new Date(orgCreatedAt).getTime() + 30 * 24 * 60 * 60 * 1000);
     const msDiff = trialExpiry.getTime() - new Date().getTime();
     trialDaysLeft = Math.max(0, Math.ceil(msDiff / (1000 * 60 * 60 * 24)));

@@ -80,6 +80,28 @@ export async function getSupportStatus() {
   }
 }
 
+export async function getSupportSchedule() {
+  try {
+    let config: any = null;
+    try {
+      config = await p.supportConfig?.findFirst();
+    } catch { /* Ignore */ }
+
+    if (!config) {
+      const raw = await prisma.$queryRaw<any[]>`SELECT * FROM support_configs LIMIT 1`.catch(() => []);
+      config = raw[0];
+    }
+
+    return {
+      startHour: config?.startHour ?? 8,
+      endHour: config?.endHour ?? 20,
+      isActive: config?.isActive ?? true
+    };
+  } catch (err) {
+    return { startHour: 8, endHour: 20, isActive: true };
+  }
+}
+
 export async function startChat() {
   const user = await getCurrentUser();
   if (!user) throw new Error("Neautorizat");
@@ -137,8 +159,8 @@ export async function sendMessage(conversationId: string, content: string, type:
     data: { lastMessageAt: new Date() }
   });
 
-  revalidatePath("/setari");
-  revalidatePath("/moderator");
+  // revalidatePath("/setari");
+  // revalidatePath("/moderator");
   return msg;
 }
 
@@ -167,8 +189,8 @@ export async function joinChat(conversationId: string) {
     }
   });
 
-  revalidatePath("/setari");
-  revalidatePath("/moderator");
+  // revalidatePath("/setari");
+  // revalidatePath("/moderator");
   return conversation;
 }
 
@@ -177,6 +199,15 @@ export async function closeConversation(conversationId: string) {
   if (!user) throw new Error("Neautorizat");
 
   if (!p.chatConversation) throw new Error("Client Prisma neactualizat.");
+
+  // Check if conversation exists and is not already closed
+  const existing = await p.chatConversation.findUnique({
+    where: { id: conversationId }
+  });
+
+  if (!existing || existing.status === "CLOSED") {
+    return existing;
+  }
 
   const conversation = await p.chatConversation.update({
     where: { id: conversationId },
@@ -195,8 +226,8 @@ export async function closeConversation(conversationId: string) {
     }
   });
 
-  revalidatePath("/setari");
-  revalidatePath("/moderator");
+  // revalidatePath("/setari");
+  // revalidatePath("/moderator");
   return conversation;
 }
 
@@ -229,7 +260,10 @@ export async function getActiveConversations() {
     orderBy: { lastMessageAt: "desc" }
   });
 
-  return JSON.parse(JSON.stringify(convos));
+  // Filter out conversations where the user no longer exists
+  const validConvos = convos.filter((c: any) => c.user);
+
+  return JSON.parse(JSON.stringify(validConvos));
 }
 
 export async function getChatState(conversationId: string) {
@@ -293,7 +327,10 @@ export async function getConversationHistory() {
     orderBy: { createdAt: "desc" }
   });
 
-  return JSON.parse(JSON.stringify(history));
+  // Filter out conversations where the user no longer exists
+  const validHistory = history.filter((c: any) => c.user);
+
+  return JSON.parse(JSON.stringify(validHistory));
 }
 
 /**

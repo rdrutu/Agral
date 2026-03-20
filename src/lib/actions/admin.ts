@@ -42,6 +42,7 @@ export async function getAllOrganizations() {
     return {
       id: org.id,
       name: org.name,
+      legalName: org.legalName,
       county: org.county,
       subscriptionTier: org.subscriptionTier,
       maxUsers: org.maxUsers,
@@ -67,7 +68,7 @@ export async function getOrganizationDetails(orgId: string) {
       users: { orderBy: { createdAt: "asc" } },
       payments: { orderBy: { date: "desc" } },
       _count: { select: { parcels: true } },
-      parcels: { select: { areaHa: true } }
+      parcels: { select: { id: true, areaHa: true, name: true, cadastralCode: true } }
     } as any
   });
 
@@ -160,6 +161,40 @@ export async function updateOrgSubscription(orgId: string, data: { tier: string,
   });
 
   revalidatePath("/admin");
+  revalidatePath(`/admin/${orgId}`);
+}
+
+export async function updateOrganizationLegalDetails(orgId: string, data: any) {
+  const isSuper = await checkSuperadmin();
+  if (!isSuper) throw new Error("Neautorizat. Ai nevoie de rol superadmin.");
+
+  await prisma.organization.update({
+    where: { id: orgId },
+    data: {
+      legalName: data.legalName,
+      registrationNumber: data.registrationNumber,
+      entityType: data.entityType,
+      cui: data.cui,
+      caen: data.caen,
+      iban: data.iban,
+      bankName: data.bankName,
+      website: data.website,
+      email: data.email,
+      phone: data.phone,
+      address: data.address,
+      city: data.city,
+      county: data.county,
+      // Reprezentant
+      representativeName: data.representativeName,
+      representativeCnp: data.representativeCnp,
+      representativeCiSeries: data.representativeCiSeries,
+      representativeCiNumber: data.representativeCiNumber,
+      representativeRole: data.representativeRole,
+    }
+  });
+
+  revalidatePath("/admin");
+  revalidatePath(`/admin/${orgId}`);
 }
 
 export async function deleteOrganization(orgId: string) {

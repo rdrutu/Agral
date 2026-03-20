@@ -43,6 +43,15 @@ interface ProfileClientProps {
       registrationNumber: string | null;
       caen: string | null;
       phone: string | null;
+      iban: string | null;
+      bankName: string | null;
+      website: string | null;
+      representativeName: string | null;
+      representativeCnp: string | null;
+      representativeCiSeries: string | null;
+      representativeCiNumber: string | null;
+      representativeRole: string | null;
+      entityType: string | null;
       baseLat: number | null;
       baseLng: number | null;
       payments: any[];
@@ -65,6 +74,17 @@ export default function ProfileClient({ user }: ProfileClientProps) {
   const [phone, setPhone] = useState(user.organization?.phone || "");
   const [county, setCounty] = useState(user.organization?.county || "");
   const [address, setAddress] = useState(user.organization?.address || "");
+  const [iban, setIban] = useState(user.organization?.iban || "");
+  const [bankName, setBankName] = useState(user.organization?.bankName || "");
+  const [website, setWebsite] = useState(user.organization?.website || "");
+  const [entityType, setEntityType] = useState(user.organization?.entityType || "SRL");
+  
+  const [representativeName, setRepresentativeName] = useState(user.organization?.representativeName || "");
+  const [representativeCnp, setRepresentativeCnp] = useState(user.organization?.representativeCnp || "");
+  const [representativeCiSeries, setRepresentativeCiSeries] = useState(user.organization?.representativeCiSeries || "");
+  const [representativeCiNumber, setRepresentativeCiNumber] = useState(user.organization?.representativeCiNumber || "");
+  const [representativeRole, setRepresentativeRole] = useState(user.organization?.representativeRole || "Administrator");
+
   const [baseLat, setBaseLat] = useState<number | null>(user.organization?.baseLat ? Number(user.organization.baseLat) : null);
   const [baseLng, setBaseLng] = useState<number | null>(user.organization?.baseLng ? Number(user.organization.baseLng) : null);
 
@@ -83,6 +103,8 @@ export default function ProfileClient({ user }: ProfileClientProps) {
         orgName: isSuper ? undefined : orgName, 
         county, address,
         legalName, registrationNumber, caen, cui, phone,
+        iban, bankName, website, entityType,
+        representativeName, representativeCnp, representativeCiSeries, representativeCiNumber, representativeRole,
         baseLat, baseLng
       });
       setSaved(true);
@@ -156,112 +178,207 @@ export default function ProfileClient({ user }: ProfileClientProps) {
 
       {/* Date Ferma - Ascunse pentru Admin */}
       {!isSuper && (
-        <Card>
-          <CardHeader className="border-b pb-4">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Building2 className="w-4 h-4 text-primary" /> Datele Fermei
-            </CardTitle>
-            <CardDescription>Informații despre organizația ta agricolă.</CardDescription>
-          </CardHeader>
-          <CardContent className="p-5 space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="orgName" className="flex items-center gap-1.5">
-                <Sprout className="w-3.5 h-3.5" /> Nume Afișat (Ferma / Cont)
-              </Label>
-              <Input
-                id="orgName"
-                value={orgName}
-                onChange={(e) => setOrgName(e.target.value)}
-                placeholder="Ferma Popescu Agro"
-              />
-            </div>
+        <>
+          <Card>
+            <CardHeader className="border-b pb-4">
+              <CardTitle className="flex items-center gap-2 text-base font-black uppercase tracking-tight">
+                <User className="w-4 h-4 text-primary" /> Reprezentant Legal
+              </CardTitle>
+              <CardDescription>Informații despre persoana care administrează organizația.</CardDescription>
+            </CardHeader>
+            <CardContent className="p-5 space-y-4">
+              <div className="space-y-1.5">
+                <Label className="font-bold text-[10px] uppercase tracking-widest text-slate-400">Nume Administrator</Label>
+                <Input value={representativeName} onChange={e => setRepresentativeName(e.target.value)} className="bg-slate-50 border-none font-black text-lg h-12" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                 <div className="space-y-1.5">
+                    <Label className="font-bold text-[10px] uppercase tracking-widest text-slate-400">CNP</Label>
+                    <Input value={representativeCnp} onChange={e => setRepresentativeCnp(e.target.value)} className="bg-slate-50 border-none font-bold tracking-widest h-11" />
+                 </div>
+                 <div className="space-y-1.5">
+                    <Label className="font-bold text-[10px] uppercase tracking-widest text-slate-400">Funcție</Label>
+                    <Input value={representativeRole} onChange={e => setRepresentativeRole(e.target.value)} className="bg-slate-50 border-none font-bold h-11" />
+                 </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                 <div className="space-y-1.5">
+                    <Label className="font-bold text-[10px] uppercase tracking-widest text-slate-400">Serie CI</Label>
+                    <Input value={representativeCiSeries} onChange={e => setRepresentativeCiSeries(e.target.value)} className="bg-slate-50 border-none font-black text-center h-11 uppercase" />
+                 </div>
+                 <div className="space-y-1.5">
+                    <Label className="font-bold text-[10px] uppercase tracking-widest text-slate-400">Număr CI</Label>
+                    <Input value={representativeCiNumber} onChange={e => setRepresentativeCiNumber(e.target.value)} className="bg-slate-50 border-none font-black text-center h-11" />
+                 </div>
+              </div>
+            </CardContent>
+          </Card>
 
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="space-y-1.5 lg:col-span-2">
-                <Label htmlFor="legalName">Titlu Legal (PFA/SRL)</Label>
-                <Input
-                  id="legalName"
-                  value={legalName}
-                  onChange={(e) => setLegalName(e.target.value)}
-                  placeholder="SC Popescu Agro SRL"
-                />
-              </div>
+          <Card>
+            <CardHeader className="border-b pb-4">
+              <CardTitle className="flex items-center gap-2 text-base font-black uppercase tracking-tight">
+                <Building2 className="w-4 h-4 text-primary" /> Datele Fermei
+              </CardTitle>
+              <CardDescription>Informații despre organizația ta agricolă.</CardDescription>
+            </CardHeader>
+            <CardContent className="p-5 space-y-4">
               <div className="space-y-1.5">
-                <Label htmlFor="cui">CUI / CIF</Label>
-                <Input
-                  id="cui"
-                  value={cui}
-                  onChange={(e) => setCui(e.target.value)}
-                  placeholder="4231..."
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="registrationNumber">Nr. Reg. Com.</Label>
-                <Input
-                  id="registrationNumber"
-                  value={registrationNumber}
-                  onChange={(e) => setRegistrationNumber(e.target.value)}
-                  placeholder="J40/..."
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="caen">Cod CAEN</Label>
-                <Input
-                  id="caen"
-                  value={caen}
-                  onChange={(e) => setCaen(e.target.value)}
-                  placeholder="0111"
-                />
-              </div>
-              <div className="space-y-1.5">
-                 <Label htmlFor="phone">Telefon Contact</Label>
-                 <Input
-                    id="phone"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="07..."
-                  />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="county" className="flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5" /> Județ
+                <Label htmlFor="orgName" className="flex items-center gap-1.5">
+                  <Sprout className="w-3.5 h-3.5" /> Nume Afișat (Ferma / Cont)
                 </Label>
                 <Input
-                  id="county"
-                  value={county}
-                  onChange={(e) => setCounty(e.target.value)}
-                  placeholder="ex: Olt, Dolj"
+                  id="orgName"
+                  value={orgName}
+                  onChange={(e) => setOrgName(e.target.value)}
+                  placeholder="Ferma Popescu Agro"
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="address">Adresă Sediu</Label>
-                <Input
-                  id="address"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder="Strada..."
-                />
-              </div>
-            </div>
 
-            <div className="pt-4 border-t">
-              <Label className="flex items-center gap-2 mb-3 text-sm font-bold">
-                <MapPin className="w-4 h-4 text-primary" /> Poziționare Sediu Fermă
-              </Label>
-              <BaseLocationPicker 
-                lat={baseLat} 
-                lng={baseLng} 
-                onChange={(lat, lng) => {
-                  setBaseLat(lat);
-                  setBaseLng(lng);
-                }} 
-              />
-            </div>
-          </CardContent>
-        </Card>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="space-y-1.5 lg:col-span-3">
+                  <Label htmlFor="legalName" className="font-bold text-[10px] uppercase tracking-widest text-slate-400">Titlu Legal (SRL/PFA)</Label>
+                  <Input
+                    id="legalName"
+                    value={legalName}
+                    onChange={(e) => setLegalName(e.target.value)}
+                    placeholder="SC Popescu Agro SRL"
+                    className="bg-slate-50 border-none font-bold"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="entityType" className="font-bold text-[10px] uppercase tracking-widest text-slate-400">Formă</Label>
+                  <select 
+                    value={entityType} 
+                    onChange={e => setEntityType(e.target.value)}
+                    className="w-full h-10 rounded-md border-none bg-slate-50 px-3 py-2 text-sm font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <option value="SRL">SRL</option>
+                    <option value="PFA">PFA</option>
+                    <option value="II">I.I.</option>
+                    <option value="IF">I.F.</option>
+                    <option value="SA">S.A.</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="cui" className="font-bold text-[10px] uppercase tracking-widest text-slate-400">CUI / CIF</Label>
+                  <Input
+                    id="cui"
+                    value={cui}
+                    onChange={(e) => setCui(e.target.value)}
+                    placeholder="4231..."
+                    className="bg-slate-50 border-none font-bold tracking-widest"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="registrationNumber" className="font-bold text-[10px] uppercase tracking-widest text-slate-400">Nr. Reg. Com.</Label>
+                  <Input
+                    id="registrationNumber"
+                    value={registrationNumber}
+                    onChange={(e) => setRegistrationNumber(e.target.value)}
+                    placeholder="J40/..."
+                    className="bg-slate-50 border-none font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                 <div className="space-y-1.5">
+                    <Label htmlFor="iban" className="font-bold text-[10px] uppercase tracking-widest text-slate-400">Cont IBAN (RON)</Label>
+                    <Input
+                      id="iban"
+                      value={iban}
+                      onChange={(e) => setIban(e.target.value)}
+                      placeholder="RO..."
+                      className="bg-slate-50 border-none font-bold tracking-tight uppercase"
+                    />
+                 </div>
+                 <div className="space-y-1.5">
+                    <Label htmlFor="bankName" className="font-bold text-[10px] uppercase tracking-widest text-slate-400">Bancă</Label>
+                    <Input
+                      id="bankName"
+                      value={bankName}
+                      onChange={(e) => setBankName(e.target.value)}
+                      placeholder="Banca Transilvania"
+                      className="bg-slate-50 border-none font-bold"
+                    />
+                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="caen" className="font-bold text-[10px] uppercase tracking-widest text-slate-400">Cod CAEN</Label>
+                  <Input
+                    id="caen"
+                    value={caen}
+                    onChange={(e) => setCaen(e.target.value)}
+                    placeholder="0111"
+                    className="bg-slate-50 border-none font-bold"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                   <Label htmlFor="phone" className="font-bold text-[10px] uppercase tracking-widest text-slate-400">Telefon Contact</Label>
+                   <Input
+                      id="phone"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="07..."
+                      className="bg-slate-50 border-none font-bold"
+                    />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="website" className="font-bold text-[10px] uppercase tracking-widest text-slate-400">Website</Label>
+                  <Input
+                    id="website"
+                    value={website}
+                    onChange={(e) => setWebsite(e.target.value)}
+                    placeholder="www.ferma.ro"
+                    className="bg-slate-50 border-none font-bold text-blue-600"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="county" className="font-bold text-[10px] uppercase tracking-widest text-slate-400">Județ</Label>
+                  <Input
+                    id="county"
+                    value={county}
+                    onChange={(e) => setCounty(e.target.value)}
+                    placeholder="Olt"
+                    className="bg-slate-50 border-none font-bold"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="address" className="font-bold text-[10px] uppercase tracking-widest text-slate-400">Adresă Sediu</Label>
+                  <Input
+                    id="address"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    placeholder="Strada..."
+                    className="bg-slate-50 border-none font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-4 border-t">
+                <Label className="flex items-center gap-2 mb-3 text-sm font-bold">
+                  <MapPin className="w-4 h-4 text-primary" /> Poziționare Sediu Fermă
+                </Label>
+                <BaseLocationPicker 
+                  lat={baseLat} 
+                  lng={baseLng} 
+                  onChange={(lat, lng) => {
+                    setBaseLat(lat);
+                    setBaseLng(lng);
+                  }} 
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </>
       )}
 
       {/* Save Button */}

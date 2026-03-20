@@ -11,12 +11,7 @@ export const dynamic = "force-dynamic";
 
 export default async function FinancePage() {
   return (
-    <main className="p-4 md:p-8 max-w-7xl mx-auto space-y-8 mt-1 lg:mt-0">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-3xl font-black tracking-tight">Management Financiar</h1>
-        <p className="text-muted-foreground">Monitorizează veniturile, cheltuielile și fluxul de numerar.</p>
-      </div>
-
+    <main className="p-4 md:p-8 max-w-7xl mx-auto space-y-8 mt-1 lg:mt-0" suppressHydrationWarning>
       <Suspense fallback={<FinanceSkeleton />}>
         <FinanceDynamicContent />
       </Suspense>
@@ -36,7 +31,6 @@ async function FinanceDynamicContent() {
       initialTransactions={transactions} 
       initialSummary={summary} 
       initialCropReport={cropReport}
-      hideHeader
     />
   );
 }

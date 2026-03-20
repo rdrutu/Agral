@@ -16,6 +16,14 @@ export async function submitOnboarding(data: {
   cui: string;
   phone: string;
   caen: string;
+  iban?: string;
+  bankName?: string;
+  website?: string;
+  representativeName?: string;
+  representativeCnp?: string;
+  representativeCiSeries?: string;
+  representativeCiNumber?: string;
+  representativeRole?: string;
   lat: number | null;
   lng: number | null;
   parcelData: { geoJson: any; areaHa: number } | null;
@@ -47,6 +55,14 @@ export async function submitOnboarding(data: {
       cui: data.cui,
       phone: data.phone,
       caen: data.caen,
+      iban: data.iban,
+      bankName: data.bankName,
+      website: data.website,
+      representativeName: data.representativeName,
+      representativeCnp: data.representativeCnp,
+      representativeCiSeries: data.representativeCiSeries,
+      representativeCiNumber: data.representativeCiNumber,
+      representativeRole: data.representativeRole,
       baseLat: data.lat ?? undefined,
       baseLng: data.lng ?? undefined,
       subscriptionTier: "trial",

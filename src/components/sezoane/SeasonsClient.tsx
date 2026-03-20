@@ -20,7 +20,6 @@ import {
   ChevronDown,
   ChevronUp,
   Wheat,
-  History as HistoryIcon,
   LayoutList,
 } from "lucide-react";
 import Link from "next/link";
@@ -32,6 +31,7 @@ import {
   deleteSeason,
   removeCropPlan,
   harvestCropPlan,
+  harvestCropGroup,
   getParcelReport,
 } from "@/lib/actions/seasons";
 import { useRouter } from "next/navigation";
@@ -83,18 +83,10 @@ export default function SeasonsClient({
   const [seeds, setSeeds] = useState(seedItems || []);
   const [selectedSeedId, setSelectedSeedId] = useState<string>("none");
 
-  // Sync state with props after initial mount (important for router.refresh() and navigation)
-  useEffect(() => {
-    setPlans(initialPlans);
-  }, [initialPlans]);
-
-  useEffect(() => {
-    setActiveSeasonId(currentSeasonId);
-  }, [currentSeasonId]);
-
-  useEffect(() => {
-    setSeasons(initialSeasons);
-  }, [initialSeasons]);
+  // Sync state with props
+  useEffect(() => { setPlans(initialPlans); }, [initialPlans]);
+  useEffect(() => { setActiveSeasonId(currentSeasonId); }, [currentSeasonId]);
+  useEffect(() => { setSeasons(initialSeasons); }, [initialSeasons]);
 
   // UI States
   const [showNewSeason, setShowNewSeason] = useState(false);
@@ -104,13 +96,13 @@ export default function SeasonsClient({
 
   // Harvest modal state
   const [harvestPlanId, setHarvestPlanId] = useState<string | null>(null);
+  const [harvestGroupData, setHarvestGroupData] = useState<{ cropType: string } | null>(null);
   const [harvestYield, setHarvestYield] = useState("");
 
   // Report state
   const [reportParcelId, setReportParcelId] = useState<string | null>(null);
   const [reportData, setReportData] = useState<any>(null);
   const [loadingReport, setLoadingReport] = useState(false);
-  const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
 
   // Form State for new season
   const [sName, setSName] = useState("");
@@ -119,40 +111,72 @@ export default function SeasonsClient({
 
   const activeSeasonData = seasons.find((s) => s.id === activeSeasonId);
 
-  // ─── Create Season ────────────────────────────────────────────
+  // Grouped Data Calculation
+  const cropGroups = plans.reduce((acc: any, plan: any) => {
+    const crop = plan.cropType;
+    if (!acc[crop]) {
+      acc[crop] = {
+        cropType: crop,
+        plans: [],
+        totalArea: 0,
+        totalCost: 0,
+        totalYield: 0,
+        status: "harvested"
+      };
+    }
+    acc[crop].plans.push(plan);
+    const area = Number(plan.sownAreaHa || plan.parcel.areaHa);
+    acc[crop].totalArea += area;
+    acc[crop].totalYield += Number(plan.actualYieldTha || 0) * area;
+    
+    if (activeSeasonData) {
+      const seasonStart = new Date(activeSeasonData.startDate);
+      const seasonEnd = new Date(activeSeasonData.endDate);
+      plan.parcel.operationParcels?.forEach((opParcel: any) => {
+        const opDate = new Date(opParcel.operation.date);
+        if (opDate >= seasonStart && opDate <= seasonEnd) {
+          const opTotalArea = Number(opParcel.operation.totalAreaHa);
+          const share = Number(opParcel.operatedAreaHa) / opTotalArea;
+          opParcel.operation.resources.forEach((res: any) => {
+            const qty = res.totalConsumed ? Number(res.totalConsumed) : (Number(res.quantityPerHa) * opTotalArea);
+            acc[crop].totalCost += (qty * share * Number(res.pricePerUnit));
+          });
+        }
+      });
+    }
+
+    if (plan.status !== "harvested") acc[crop].status = plan.status;
+    return acc;
+  }, {});
+
+  const [expandedCrop, setExpandedCrop] = useState<string | null>(null);
+
+  // ─── Handlers ──────────────────────────────────────────────────
   async function handleCreateSeason() {
-    if (!sName || !sStart || !sEnd) return alert("Completați toate datele sezonului!");
+    if (!sName || !sStart || !sEnd) return alert("Completați toate datele!");
     setIsSubmitting(true);
     try {
       const newS = await createSeason({ name: sName, startDate: sStart, endDate: sEnd });
-      setSeasons((prev) => [newS, ...prev]);
+      setSeasons(p => [newS, ...p]);
       setActiveSeasonId(newS.id);
       setShowNewSeason(false);
       setSName(""); setSStart(""); setSEnd("");
       router.refresh();
-    } catch {
-      alert("Eroare la crearea campaniei.");
-    } finally {
-      setIsSubmitting(false);
-    }
+    } catch { alert("Eroare la crearea campaniei."); }
+    finally { setIsSubmitting(false); }
   }
 
-  // ─── Set Active Season ────────────────────────────────────────
   async function handleSetActive(id: string) {
     setIsSubmitting(true);
     try {
       await setActiveSeason(id);
-      setSeasons((prev) => prev.map((s) => ({ ...s, isActive: s.id === id })));
+      setSeasons(p => p.map(s => ({ ...s, isActive: s.id === id })));
       setActiveSeasonId(id);
       router.refresh();
-    } catch {
-      alert("Eroare la activarea campaniei.");
-    } finally {
-      setIsSubmitting(false);
-    }
+    } catch { alert("Eroare la activare."); }
+    finally { setIsSubmitting(false); }
   }
 
-  // ─── Allocate Parcels to Crop ─────────────────────────────────
   async function handleAllocate() {
     if (selectedParcels.length === 0 || !activeSeasonId) return alert("Selectați parcele!");
     setIsSubmitting(true);
@@ -163,109 +187,78 @@ export default function SeasonsClient({
         cropType: bulkCrop,
         inventoryItemId: selectedSeedId !== "none" ? selectedSeedId : undefined
       });
-
-      // Update local state for immediate feedback
-      setPlans((prev) => [
-        ...prev.filter((p) => !selectedParcels.includes(p.parcelId)),
-        ...selectedParcels.map((pId: string) => ({
-          id: Math.random().toString(),
-          seasonId: activeSeasonId,
-          parcelId: pId,
-          cropType: bulkCrop,
-          status: "planned",
-          parcel: allParcels.find((ap) => ap.id === pId),
-        })),
-      ]);
-
-      if (selectedSeedId !== "none") {
-        // Logic for local stock deduction if needed
-      }
-
       setSelectedParcels([]);
       setSelectedSeedId("none");
       router.refresh();
-    } catch {
-      alert("Eroare la alocarea culturii.");
-    } finally {
-      setIsSubmitting(false);
-    }
+    } catch { alert("Eroare la alocare."); }
+    finally { setIsSubmitting(false); }
   }
 
-  // ─── Remove Plan ──────────────────────────────────────────────
   async function handleRemovePlan(planId: string) {
-    if (confirm("Golești parcela pentru această campanie? Acțiunea e ireversibilă.")) {
+    if (confirm("Golești parcela?")) {
       await removeCropPlan(planId);
-      setPlans((prev) => prev.filter((p) => p.id !== planId));
+      setPlans(p => p.filter(item => item.id !== planId));
       router.refresh();
     }
   }
 
-  // ─── Delete Season ────────────────────────────────────────────
   async function handleDeleteSeason(id: string) {
-    if (confirm("Stergi definitiv Campania și tot istoricul planificat pe ea?")) {
+    if (confirm("Stergi definitiv Campania?")) {
       await deleteSeason(id);
       window.location.reload();
     }
   }
 
-  // ─── Harvest Plan ─────────────────────────────────────────────
+  async function handleHarvestGroup() {
+    if (!harvestGroupData || !activeSeasonId) return;
+    const yieldTha = parseFloat(harvestYield);
+    if (isNaN(yieldTha) || yieldTha < 0) return alert("Producție invalidă.");
+    setIsSubmitting(true);
+    try {
+      await harvestCropGroup(activeSeasonId, harvestGroupData.cropType, yieldTha);
+      setPlans(prev => prev.map(p => 
+        p.cropType === harvestGroupData.cropType ? { ...p, status: "harvested", actualYieldTha: yieldTha } : p
+      ));
+      setHarvestGroupData(null);
+      setHarvestYield("");
+      router.refresh();
+    } catch { alert("Eroare la recoltare grup."); }
+    finally { setIsSubmitting(false); }
+  }
+
   async function handleHarvest() {
     if (!harvestPlanId) return;
     const yieldTha = parseFloat(harvestYield);
-    if (isNaN(yieldTha) || yieldTha < 0) {
-      alert("Introduceți o producție validă (t/ha).");
-      return;
-    }
+    if (isNaN(yieldTha) || yieldTha < 0) return alert("Producție invalidă.");
     setIsSubmitting(true);
     try {
       await harvestCropPlan(harvestPlanId, yieldTha);
-      setPlans((prev) =>
-        prev.map((p) =>
-          p.id === harvestPlanId ? { ...p, status: "harvested", actualYieldTha: yieldTha } : p
-        )
-      );
+      setPlans(p => p.map(pi => pi.id === harvestPlanId ? { ...pi, status: "harvested", actualYieldTha: yieldTha } : pi));
       setHarvestPlanId(null);
       setHarvestYield("");
       router.refresh();
-    } catch {
-      alert("Eroare la înregistrarea recoltei.");
-    } finally {
-      setIsSubmitting(false);
-    }
+    } catch { alert("Eroare la recoltare."); }
+    finally { setIsSubmitting(false); }
   }
 
-  // ─── Parcel Report ────────────────────────────────────────────
   async function handleToggleReport(parcelId: string) {
-    if (reportParcelId === parcelId) {
-      setReportParcelId(null);
-      setReportData(null);
-      return;
-    }
+    if (reportParcelId === parcelId) { setReportParcelId(null); setReportData(null); return; }
     setReportParcelId(parcelId);
     setLoadingReport(true);
     try {
       const data = await getParcelReport(parcelId, activeSeasonId!);
       setReportData(data);
-    } catch {
-      alert("Nu s-au putut încărca datele raportului.");
-    } finally {
-      setLoadingReport(false);
-    }
+    } catch { alert("Eroare raport."); }
+    finally { setLoadingReport(false); }
   }
 
   // ─── Helpers ──────────────────────────────────────────────────
-  const toggleSelection = (parcelId: string) => {
-    setSelectedParcels((prev) =>
-      prev.includes(parcelId) ? prev.filter((p) => p !== parcelId) : [...prev, parcelId]
-    );
+  const toggleSelection = (id: string) => {
+    setSelectedParcels(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
   };
 
-  const getPlanForParcel = (parcelId: string) =>
-    plans.find((p) => p.parcelId === parcelId);
-
-  // O parcelă e "ocupată" dacă are un plan activ (nu recoltat) în sezonul curent
-  const isParcelOccupied = (parcelId: string) => {
-    const plan = getPlanForParcel(parcelId);
+  const isParcelOccupied = (id: string) => {
+    const plan = plans.find(p => p.parcelId === id);
     return plan && plan.status !== "harvested";
   };
 
@@ -289,12 +282,7 @@ export default function SeasonsClient({
         <div className="lg:col-span-1 space-y-4">
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-bold text-lg">Campaniile Tale</h3>
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 gap-1 border-primary/30 text-primary"
-              onClick={() => setShowNewSeason(!showNewSeason)}
-            >
+            <Button size="sm" variant="outline" className="h-8 gap-1 border-primary/30 text-primary" onClick={() => setShowNewSeason(!showNewSeason)}>
               <Plus className="w-4 h-4" /> Nouă
             </Button>
           </div>
@@ -303,26 +291,15 @@ export default function SeasonsClient({
             <Card className="border-primary/50 shadow-md bg-muted/20">
               <CardContent className="p-4 space-y-3">
                 <div>
-                  <Label className="text-xs text-muted-foreground">Nume Campanie</Label>
-                  <Input
-                    className="h-8 text-sm"
-                    placeholder="ex: Toamnă 25 - Primăvară 26"
-                    value={sName}
-                    onChange={(e) => setSName(e.target.value)}
-                  />
+                  <Label className="text-xs text-muted-foreground">Nume</Label>
+                  <Input className="h-8 text-sm" placeholder="ex: 2025" value={sName} onChange={(e) => setSName(e.target.value)} />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Început</Label>
-                    <Input type="date" className="h-8 text-sm" value={sStart} onChange={(e) => setSStart(e.target.value)} />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Sfârșit</Label>
-                    <Input type="date" className="h-8 text-sm" value={sEnd} onChange={(e) => setSEnd(e.target.value)} />
-                  </div>
+                  <Input type="date" className="h-8 text-sm" value={sStart} onChange={(e) => setSStart(e.target.value)} />
+                  <Input type="date" className="h-8 text-sm" value={sEnd} onChange={(e) => setSEnd(e.target.value)} />
                 </div>
                 <Button className="w-full h-8 mt-2" size="sm" onClick={handleCreateSeason} disabled={isSubmitting}>
-                  {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Salvează Campanie"}
+                  {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Salvează"}
                 </Button>
               </CardContent>
             </Card>
@@ -331,51 +308,21 @@ export default function SeasonsClient({
           {seasons.map((s) => (
             <div
               key={s.id}
-              className={`p-3 rounded-xl border flex flex-col gap-2 cursor-pointer transition-all ${
-                activeSeasonId === s.id
-                  ? "bg-primary text-primary-foreground shadow-md scale-[1.02] border-primary"
-                  : "bg-card hover:border-primary/40"
-              }`}
-              onClick={() => {
-                if (activeSeasonId !== s.id) {
-                  router.push(`/campanii?seasonId=${s.id}`);
-                }
-              }}
+              className={cn(
+                "p-3 rounded-xl border flex flex-col gap-2 cursor-pointer transition-all",
+                activeSeasonId === s.id ? "bg-primary text-primary-foreground shadow-md border-primary" : "bg-card hover:border-primary/40"
+              )}
+              onClick={() => { if (activeSeasonId !== s.id) router.push(`/campanii?seasonId=${s.id}`); }}
             >
               <div className="flex items-center justify-between">
                 <span className="font-bold">{s.name}</span>
-                {s.isActive && (
-                  <Badge variant="secondary" className="bg-white/20 hover:bg-white/20 border-none text-xs">
-                    <CheckCircle2 className="w-3 h-3 mr-1" /> Activă
-                  </Badge>
-                )}
+                {s.isActive && <Badge variant="secondary" className="bg-white/20 border-none text-xs"><CheckCircle2 className="w-3 h-3 mr-1" /> Activă</Badge>}
               </div>
-              <div className={`text-xs ${activeSeasonId === s.id ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
-                {formatDate(s.startDate)} — {formatDate(s.endDate)}
-              </div>
-
+              <div className="text-xs opacity-70">{formatDate(s.startDate)} — {formatDate(s.endDate)}</div>
               {activeSeasonId === s.id && (
                 <div className="flex gap-2 mt-2 pt-2 border-t border-white/20">
-                  {!s.isActive && (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      className="flex-1 h-7 text-xs"
-                      onClick={(e) => { e.stopPropagation(); handleSetActive(s.id); }}
-                    >
-                      Setează ca Activă
-                    </Button>
-                  )}
-                  {seasons.length > 1 && (
-                    <Button
-                      size="icon"
-                      variant="destructive"
-                      className="h-7 w-7 opacity-80"
-                      onClick={(e) => { e.stopPropagation(); handleDeleteSeason(s.id); }}
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
-                  )}
+                  {!s.isActive && <Button size="sm" variant="secondary" className="flex-1 h-7 text-xs" onClick={(e) => { e.stopPropagation(); handleSetActive(s.id); }}>Activare</Button>}
+                  <Button size="icon" variant="destructive" className="h-7 w-7 opacity-80" onClick={(e) => { e.stopPropagation(); handleDeleteSeason(s.id); }}><Trash2 className="w-3 h-3" /></Button>
                 </div>
               )}
             </div>
@@ -383,7 +330,7 @@ export default function SeasonsClient({
         </div>
 
         {/* PANEL DREAPTA: Parcele & Alocări */}
-        <div className="lg:col-span-3">
+        <div className="lg:col-span-3 space-y-6">
           <Card className="shadow-lg border-border">
             <CardHeader className="bg-muted/10 pb-4 border-b">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -391,281 +338,199 @@ export default function SeasonsClient({
                   <CardTitle className="text-xl text-primary flex items-center gap-2">
                     <Sprout className="w-5 h-5" /> Plan de Culturi: {activeSeasonData?.name}
                   </CardTitle>
-                  <CardDescription className="text-sm">
-                    Bifați parcelele <strong>libere sau recoltate</strong> și atribuiți grupat o cultură.
-                  </CardDescription>
+                  <CardDescription>Vizualizare grupată și analize pe cultură.</CardDescription>
                 </div>
 
                 {selectedParcels.length > 0 && (
-                  <div className="p-2 md:p-3 bg-primary/10 border border-primary/20 rounded-xl flex flex-wrap items-center gap-2 animate-in fade-in slide-in-from-right-4">
-                    <span className="text-sm font-semibold text-primary px-1">{selectedParcels.length} alese</span>
-                    <select
-                      className="h-9 rounded-md border border-input bg-background px-2 text-sm flex-1 min-w-[120px]"
-                      value={bulkCrop}
-                      onChange={(e) => setBulkCrop(e.target.value)}
-                    >
-                      {CROPS.map((c) => (
-                        <option key={c} value={c}>{CROP_EMOJI[c] || "🌱"} {c}</option>
-                      ))}
+                  <div className="p-2 md:p-3 bg-primary/10 border border-primary/20 rounded-xl flex flex-wrap items-center gap-2 animate-in fade-in">
+                    <span className="text-sm font-semibold text-primary">{selectedParcels.length} alese</span>
+                    <select className="h-9 rounded-md border bg-background px-2 text-sm" value={bulkCrop} onChange={(e) => setBulkCrop(e.target.value)}>
+                      {CROPS.map(c => <option key={c} value={c}>{CROP_EMOJI[c] || "🌱"} {c}</option>)}
                     </select>
-                    
-                    <select
-                      className="h-9 rounded-md border border-input bg-background px-2 text-xs font-bold text-primary flex-1 min-w-[150px]"
-                      value={selectedSeedId}
-                      onChange={(e) => setSelectedSeedId(e.target.value)}
-                    >
-                      <option value="none">Sămânță din stoc (opțional)</option>
-                      {seeds.map((s: any) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name} ({s.stockQuantity} {s.unit})
-                        </option>
-                      ))}
+                    <select className="h-9 rounded-md border bg-background px-2 text-xs" value={selectedSeedId} onChange={(e) => setSelectedSeedId(e.target.value)}>
+                      <option value="none">Sămânță (opțional)</option>
+                      {seeds.map(sd => <option key={sd.id} value={sd.id}>{sd.name}</option>)}
                     </select>
- 
-                    <Button size="sm" className="h-9 px-4 gap-1 shadow-sm w-full sm:w-auto agral-gradient text-white" onClick={handleAllocate} disabled={isSubmitting}>
-                      {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                      Aplică Alocarea
-                    </Button>
+                    <Button size="sm" className="h-9 agral-gradient text-white" onClick={handleAllocate} disabled={isSubmitting}>Aplică</Button>
                   </div>
                 )}
               </div>
             </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                   <thead className="text-[10px] text-muted-foreground uppercase bg-muted/40 border-b font-black tracking-widest">
+            <CardContent className="p-4 md:p-6">
+              {Object.keys(cropGroups).length === 0 ? (
+                <div className="text-center py-16 opacity-50">
+                  <Leaf className="w-12 h-12 mx-auto mb-4" />
+                  <p>Nicio cultură planificată în acest sezon.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {Object.values(cropGroups).map((group: any) => {
+                    const isExpanded = expandedCrop === group.cropType;
+                    const isHarvested = group.status === "harvested";
+                    
+                    return (
+                      <Card key={group.cropType} className={cn("overflow-hidden border", isExpanded && "ring-2 ring-primary/20 shadow-md")}>
+                        <div className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer" onClick={() => setExpandedCrop(isExpanded ? null : group.cropType)}>
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center text-2xl">{CROP_EMOJI[group.cropType] || "🌱"}</div>
+                            <div>
+                               <div className="flex items-center gap-2">
+                                 <h3 className="text-lg font-black">{group.cropType}</h3>
+                                 <Badge className={cn("text-[10px]", STATUS_COLORS[group.status])}>{STATUS_LABELS[group.status]}</Badge>
+                               </div>
+                               <p className="text-xs text-muted-foreground">{group.plans.length} parcele • {group.totalArea.toFixed(2)} ha</p>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-6">
+                            <div className="text-right">
+                              <p className="text-[10px] uppercase font-black opacity-50">Cost</p>
+                              <p className="text-lg font-black">{group.totalCost.toLocaleString()} RON</p>
+                            </div>
+                            {isHarvested && (
+                               <div className="text-right">
+                                 <p className="text-[10px] uppercase font-black opacity-50">Recoltă</p>
+                                 <p className="text-lg font-black text-green-600">{group.totalYield.toLocaleString()} tone</p>
+                               </div>
+                            )}
+                            {!isHarvested && (
+                               <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white font-bold" onClick={(e) => { e.stopPropagation(); setHarvestGroupData({ cropType: group.cropType }); setHarvestYield(""); }}>
+                                 Recoltează Tot
+                               </Button>
+                            )}
+                            <div className="p-1">{isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}</div>
+                          </div>
+                        </div>
+
+                        {isExpanded && (
+                          <div className="border-t bg-muted/5 p-4 space-y-4 animate-in slide-in-from-top-2">
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                               <div className="bg-white p-3 rounded-lg border">
+                                 <p className="text-[10px] font-black opacity-50 uppercase">Cost/ha</p>
+                                 <p className="font-black text-orange-600">{(group.totalCost / group.totalArea).toFixed(0)} RON</p>
+                               </div>
+                               {isHarvested && (
+                                 <div className="bg-white p-3 rounded-lg border">
+                                   <p className="text-[10px] font-black opacity-50 uppercase">Medie t/ha</p>
+                                   <p className="font-black text-green-600">{(group.totalYield / group.totalArea).toFixed(2)}</p>
+                                 </div>
+                               )}
+                            </div>
+
+                            <div className="bg-white rounded-lg border overflow-hidden">
+                              <table className="w-full text-xs">
+                                <thead className="bg-muted/50 border-b text-[10px] uppercase font-black">
+                                  <tr>
+                                    <th className="p-2 text-left">Parcelă</th>
+                                    <th className="p-2 text-left">ha</th>
+                                    <th className="p-2 text-left">Status</th>
+                                    <th className="p-2 text-right">Acțiuni</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y">
+                                  {group.plans.map((p: any) => (
+                                    <tr key={p.id} className="hover:bg-muted/10">
+                                      <td className="p-2 font-bold">{p.parcel.name}</td>
+                                      <td className="p-2 text-muted-foreground">{p.parcel.areaHa}</td>
+                                      <td className="p-2">
+                                        <Badge variant="outline" className={cn("text-[9px]", STATUS_COLORS[p.status])}>{STATUS_LABELS[p.status]}</Badge>
+                                      </td>
+                                      <td className="p-2 text-right flex justify-end gap-1">
+                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600" onClick={() => handleToggleReport(p.parcelId)}><TrendingUp className="w-4 h-4" /></Button>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleRemovePlan(p.id)}><Trash2 className="w-4 h-4" /></Button>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+
+                            {reportParcelId && group.plans.some((p: any) => p.parcelId === reportParcelId) && reportData && (
+                               <div className="p-4 bg-white rounded-lg border border-primary/20 shadow-sm animate-in fade-in">
+                                  <div className="flex justify-between items-center mb-2">
+                                    <h4 className="font-black text-sm">Analiză: {reportData.parcelName}</h4>
+                                    <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={() => setReportParcelId(null)}>Închide</Button>
+                                  </div>
+                                  <div className="grid grid-cols-4 gap-2 text-center">
+                                    <div className="p-2 bg-muted/20 rounded">
+                                      <p className="text-[8px] uppercase opacity-50">Cost</p>
+                                      <p className="text-xs font-bold">{reportData.totalCost} RON</p>
+                                    </div>
+                                    <div className="p-2 bg-muted/20 rounded">
+                                      <p className="text-[8px] uppercase opacity-50">RON/ha</p>
+                                      <p className="text-xs font-bold text-orange-600">{reportData.costPerHa}</p>
+                                    </div>
+                                    <div className="p-2 bg-muted/20 rounded">
+                                      <p className="text-[8px] uppercase opacity-50">Lucrări</p>
+                                      <p className="text-xs font-bold">{reportData.breakdown.length}</p>
+                                    </div>
+                                    <div className="p-2 bg-muted/20 rounded">
+                                      <Link href={`/parcele/${reportParcelId}`} className="text-[8px] font-black text-primary uppercase">Detalii</Link>
+                                    </div>
+                                  </div>
+                               </div>
+                            )}
+                          </div>
+                        )}
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* New Parcel List */}
+          <div className="space-y-4">
+             <h3 className="font-bold flex items-center gap-2"><LayoutList className="w-4 h-4" /> Parcele Disponibile</h3>
+             <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/30 border-b text-[10px] uppercase font-black text-muted-foreground">
                     <tr>
-                      <th className="px-3 md:px-4 py-3 w-8">Bifă</th>
-                      <th className="px-3 md:px-4 py-3">Parcelă</th>
-                      <th className="px-3 md:px-4 py-3 hidden md:table-cell">Suprafață</th>
-                      <th className="px-3 md:px-4 py-3">Cultură & Status</th>
-                      <th className="px-3 md:px-4 py-3 text-right">Acțiuni</th>
+                      <th className="p-3 w-10">Select</th>
+                      <th className="p-3">Parcelă</th>
+                      <th className="p-3">Suprafață</th>
+                      <th className="p-3">Status</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y text-xs md:text-sm">
-                    {allParcels.map((p) => {
-                      const plan = getPlanForParcel(p.id);
-                      const occupied = isParcelOccupied(p.id);
-                      const isSelected = selectedParcels.includes(p.id);
-                      const isHarvested = plan?.status === "harvested";
-                      const isReportOpen = reportParcelId === p.id;
-
-                      return (
-                        <Fragment key={p.id}>
-                          <tr
-                            className={`transition-colors ${
-                              isSelected ? "bg-primary/5" : occupied ? "bg-amber-50/40" : "hover:bg-muted/20"
-                            }`}
-                          >
-                            <td className="px-3 md:px-4 py-3">
-                              <input
-                                type="checkbox"
-                                className="w-4 h-4 rounded border-gray-300 cursor-pointer accent-primary disabled:opacity-40 disabled:cursor-not-allowed"
-                                checked={isSelected}
-                                disabled={!!occupied}
-                                onChange={() => toggleSelection(p.id)}
-                                title={occupied ? `Parcelă ocupată cu ${plan?.cropType}` : "Selectează"}
-                              />
-                            </td>
-                             <td className="px-3 md:px-4 py-3 font-bold text-foreground">
-                              <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-2">
-                                <div className="flex items-center gap-1.5 truncate max-w-[120px] md:max-w-none">
-                                  {occupied && !isHarvested ? (
-                                    <span title="Parcelă cu cultură activă" className="text-xs">🔒</span>
-                                  ) : (
-                                    <MapPin className="w-3 h-3 md:w-4 md:h-4 text-muted-foreground" />
-                                  )}
-                                  <span className="text-xs md:text-sm truncate">{p.name}</span>
-                                </div>
-                                <span className="text-[10px] md:hidden text-muted-foreground font-medium italic">
-                                  {p.areaHa?.toString()} ha
-                                </span>
-                              </div>
-                            </td>
-                            <td className="px-3 md:px-4 py-3 text-muted-foreground hidden md:table-cell">
-                              {p.areaHa?.toString()} ha
-                            </td>
-                            <td className="px-3 md:px-4 py-3">
-                              {plan ? (
-                                <div className="flex items-center gap-2">
-                                  <span className="text-base md:text-lg">{CROP_EMOJI[plan.cropType] || "🌱"}</span>
-                                  <div className="min-w-0">
-                                    <div className="font-bold text-foreground text-[10px] md:text-sm truncate">{plan.cropType}</div>
-                                    <Badge className={`text-[8px] md:text-[9px] border px-1 md:px-1.5 py-0 font-black uppercase ${STATUS_COLORS[plan.status]}`}>
-                                      {STATUS_LABELS[plan.status] || plan.status}
-                                    </Badge>
-                                    {isHarvested && plan.actualYieldTha && (
-                                      <span className="text-[9px] md:text-xs text-muted-foreground ml-1 font-bold">
-                                        {Number(plan.actualYieldTha).toFixed(1)} t/ha
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              ) : (
-                                <span className="text-muted-foreground italic text-[10px] md:text-xs">Liberă</span>
-                              )}
-                            </td>
-                            <td className="px-3 md:px-4 py-3">
-                              <div className="flex items-center justify-end gap-1">
-                                {plan && plan.status !== "harvested" && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-7 px-2 text-[10px] md:text-xs gap-1 border-amber-300 text-amber-700 hover:bg-amber-50"
-                                    onClick={() => { setHarvestPlanId(plan.id); setHarvestYield(""); }}
-                                    title="Recoltează"
-                                  >
-                                    <Wheat className="w-3 h-3" /> <span className="hidden sm:inline">Recoltează</span>
-                                  </Button>
-                                )}
-                                {plan && (
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 text-blue-600 hover:bg-blue-50"
-                                    onClick={() => handleToggleReport(p.id)}
-                                    title="Raport"
-                                  >
-                                    {isReportOpen ? <ChevronUp className="w-4 h-4" /> : <TrendingUp className="w-4 h-4" />}
-                                  </Button>
-                                )}
-                                {plan && (
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 text-destructive hover:bg-destructive/10"
-                                    onClick={() => handleRemovePlan(plan.id)}
-                                    title="Șterge"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-
-                          {/* Report Panel (inline expansion) */}
-                          {isReportOpen && (
-                            <tr key={`report-${p.id}`}>
-                              <td colSpan={5} className="px-3 md:px-4 py-3 bg-blue-50/60 border-b">
-                                {loadingReport ? (
-                                  <div className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground py-2">
-                                    <Loader2 className="w-4 h-4 animate-spin" /> Se încarcă...
-                                  </div>
-                                ) : reportData ? (
-                                  <div className="space-y-3">
-                                    <div className="flex items-center gap-2">
-                                      <TrendingUp className="w-4 h-4 text-blue-600" />
-                                      <span className="font-bold text-blue-900 text-xs md:text-sm">Fișa Parcelei — {reportData.parcelName}</span>
-                                    </div>
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
-                                      <div className="bg-white rounded-lg p-2 border text-center shadow-sm">
-                                        <div className="text-sm md:text-lg font-extrabold text-primary">{reportData.totalCost} RON</div>
-                                        <div className="text-[9px] md:text-[10px] text-muted-foreground">Cost total</div>
-                                      </div>
-                                      <div className="bg-white rounded-lg p-2 border text-center shadow-sm">
-                                        <div className="text-sm md:text-lg font-extrabold text-orange-600">{reportData.costPerHa} RON</div>
-                                        <div className="text-[9px] md:text-[10px] text-muted-foreground">Cost / Ha</div>
-                                      </div>
-                                      <div className="bg-white rounded-lg p-2 border text-center shadow-sm">
-                                        <div className="text-sm md:text-lg font-extrabold text-green-600">
-                                          {reportData.actualYieldTha ? `${reportData.actualYieldTha} t/ha` : "—"}
-                                        </div>
-                                        <div className="text-[9px] md:text-[10px] text-muted-foreground">Producție</div>
-                                      </div>
-                                      <div className="bg-white rounded-lg p-2 border text-center shadow-sm">
-                                        <div className="text-sm md:text-lg font-extrabold text-gray-700">{reportData.areaHa} ha</div>
-                                        <div className="text-[9px] md:text-[10px] text-muted-foreground">Suprafață</div>
-                                      </div>
-                                    </div>
-                                    {reportData.breakdown.length > 0 && (
-                                      <div className="bg-white rounded-lg border overflow-hidden shadow-sm">
-                                        <div className="px-3 py-1.5 bg-muted/40 text-[9px] md:text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b">
-                                          Detaliu costuri (sezon curent)
-                                        </div>
-                                        {reportData.breakdown.map((b: any) => (
-                                          <div key={b.name} className="flex justify-between items-center px-3 py-1.5 text-[10px] md:text-xs border-t">
-                                            <span className="text-foreground">{b.name}</span>
-                                            <span className="font-semibold text-primary">{b.totalCost} RON</span>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    )}
-
-                                    <div className="pt-4 border-t border-dashed">
-                                      <p className="text-[10px] text-muted-foreground font-medium text-center italic">
-                                        Pentru istoricul complet al culturilor și lucrărilor trecute, accesează pagina de 
-                                        <Link href={`/parcele/${reportParcelId}`} className="text-primary hover:underline ml-1 font-bold">Detalii Parcelă</Link>.
-                                      </p>
-                                    </div>
-                                  </div>
-                                ) : null}
-                              </td>
-                            </tr>
-                          )}
-                        </Fragment>
-                      );
+                  <tbody className="divide-y">
+                    {allParcels.filter(p => !isParcelOccupied(p.id)).map(p => {
+                       const isSelected = selectedParcels.includes(p.id);
+                       return (
+                         <tr key={p.id} className={cn("hover:bg-muted/20", isSelected && "bg-primary/5")}>
+                           <td className="p-3"><input type="checkbox" checked={isSelected} onChange={() => toggleSelection(p.id)} className="w-4 h-4 accent-primary" /></td>
+                           <td className="p-3 font-bold">{p.name}</td>
+                           <td className="p-3">{p.areaHa} ha</td>
+                           <td className="p-3"><Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Liberă</Badge></td>
+                         </tr>
+                       )
                     })}
                   </tbody>
                 </table>
-
-                {allParcels.length === 0 && (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <MapPin className="w-10 h-10 mx-auto mb-2 opacity-40" />
-                    <p>Nu ai parcele înregistrate.</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+             </div>
+          </div>
         </div>
       </div>
 
       {/* HARVEST MODAL */}
-      {harvestPlanId && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-md mx-4 shadow-2xl">
-            <CardHeader className="border-b bg-amber-50">
-              <CardTitle className="flex items-center gap-2 text-amber-900">
-                <Wheat className="w-5 h-5" /> Înregistrare Recoltă
-              </CardTitle>
+      {(harvestPlanId || harvestGroupData) && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md shadow-2xl">
+            <CardHeader className="bg-amber-50 border-b">
+              <CardTitle className="text-amber-900 flex items-center gap-2"><Wheat className="w-5 h-5" /> Înregistrare Recoltă</CardTitle>
               <CardDescription>
-                Introduceti producția obținută pentru a închide planul de cultură.
+                {harvestGroupData ? `Producea medie (t/ha) pentru tot grupul ${harvestGroupData?.cropType}` : "Introduceți producția reală (t/ha)."}
               </CardDescription>
             </CardHeader>
             <CardContent className="p-5 space-y-4">
-              <div>
-                <Label htmlFor="yieldInput">Producție reală (tone / hectar)</Label>
-                <Input
-                  id="yieldInput"
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  placeholder="ex: 5.5"
-                  className="mt-1.5 h-11 text-lg font-bold"
-                  value={harvestYield}
-                  onChange={(e) => setHarvestYield(e.target.value)}
-                  autoFocus
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Dacă nu cunoașteți exact, puneți 0 — îl puteți actualiza mai târziu.
-                </p>
+              <div className="space-y-2">
+                <Label>Producție t/ha</Label>
+                <Input type="number" step="0.1" value={harvestYield} onChange={(e) => setHarvestYield(e.target.value)} autoFocus className="text-lg font-bold h-12" />
               </div>
-              <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => { setHarvestPlanId(null); setHarvestYield(""); }}
-                >
-                  Anulează
-                </Button>
-                <Button
-                  className="flex-1 bg-amber-600 hover:bg-amber-700 text-white gap-2"
-                  onClick={handleHarvest}
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                  Confirmă Recolta
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={() => { setHarvestPlanId(null); setHarvestGroupData(null); setHarvestYield(""); }}>Anulează</Button>
+                <Button className="flex-1 bg-amber-600 hover:bg-amber-700 text-white" onClick={harvestGroupData ? handleHarvestGroup : handleHarvest} disabled={isSubmitting}>
+                   {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Confirmă"}
                 </Button>
               </div>
             </CardContent>

@@ -30,6 +30,18 @@ model Organization {
   subscriptionStatus String    @default("active") @map("subscription_status")
   maxUsers           Int       @default(1) @map("max_users")
   phone              String?
+  email              String?
+  website            String?
+  iban               String?
+  bankName           String?   @map("bank_name")
+  
+  // Reprezentant Legal
+  representativeName      String? @map("representative_name")
+  representativeCnp       String? @map("representative_cnp")
+  representativeCiSeries  String? @map("representative_ci_series")
+  representativeCiNumber  String? @map("representative_ci_number")
+  representativeRole      String? @default("Administrator") @map("representative_role")
+
   activeDiscount     Decimal?  @default(0) @map("active_discount") @db.Decimal(10, 2)
   subscriptionExpiresAt DateTime? @map("subscription_expires_at")
   

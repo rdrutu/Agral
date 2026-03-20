@@ -3,7 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export function OperationsSkeleton() {
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-6 animate-in fade-in duration-500" suppressHydrationWarning>
       <div className="flex justify-between gap-4">
         <Skeleton className="h-10 flex-1 max-w-sm" />
         <Skeleton className="h-10 w-32" />
