@@ -25,6 +25,28 @@ export const metadata: Metadata = {
   title: "Agral — Portalul Fermierilor",
   description: "Gestionează-ți ferma inteligent: parcele, contracte de arendă, vreme, finanțe — totul într-un singur loc.",
   keywords: ["agricultura", "fermier", "parcele", "arenda", "management ferma", "Romania"],
+  openGraph: {
+    title: "Agral — Portalul Fermierilor",
+    description: "Gestionează-ți ferma inteligent: parcele, contracte de arendă, vreme, finanțe.",
+    url: "https://agral.ro",
+    siteName: "Agral",
+    images: [
+      {
+        url: "https://agral.ro/dashboard_mockup.png",
+        width: 1200,
+        height: 630,
+        alt: "Agral Dashboard Preview",
+      },
+    ],
+    locale: "ro_RO",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Agral — Portalul Fermierilor",
+    description: "Gestionează-ți ferma inteligent.",
+    images: ["https://agral.ro/dashboard_mockup.png"],
+  },
 };
 
 export default function RootLayout({
