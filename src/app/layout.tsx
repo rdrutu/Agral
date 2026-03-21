@@ -33,10 +33,10 @@ export const metadata: Metadata = {
     siteName: "Agral",
     images: [
       {
-        url: "https://agral.ro/dashboard_mockup.png",
+        url: "https://agral.ro/imagine_distribuita.png",
         width: 1200,
         height: 630,
-        alt: "Agral Dashboard Preview",
+        alt: "Agral Preview",
       },
     ],
     locale: "ro_RO",
@@ -46,7 +46,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Agral — Portalul Fermierilor",
     description: "Gestionează-ți ferma inteligent.",
-    images: ["https://agral.ro/dashboard_mockup.png"],
+    images: ["https://agral.ro/imagine_distribuita.png"],
   },
 };
 
