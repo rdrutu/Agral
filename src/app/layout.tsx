@@ -3,7 +3,7 @@ import { Nunito, Raleway } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import { CookieBanner } from "@/components/common/CookieBanner";
-import { Analytics } from "@vercel/analytics/next";
+import { Analytics } from "@vercel/analytics/react";
 
 // Raleway — matching logo-ul Agral (geometric, bold caps)
 const raleway = Raleway({
