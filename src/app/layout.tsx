@@ -3,6 +3,7 @@ import { Nunito, Raleway } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import { CookieBanner } from "@/components/common/CookieBanner";
+import { Analytics } from "@vercel/analytics/next";
 
 // Raleway — matching logo-ul Agral (geometric, bold caps)
 const raleway = Raleway({
@@ -68,6 +69,7 @@ export default function RootLayout({
         />
         {children}
         <CookieBanner />
+        <Analytics />
       </body>
     </html>
   );
