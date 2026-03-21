@@ -219,9 +219,9 @@ export function DashboardClient({
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8" suppressHydrationWarning>
       {/* Controls */}
-      <div className="flex justify-end items-center gap-4">
+      <div className="flex justify-end items-center gap-4" suppressHydrationWarning>
         {isEditMode ? (
           <>
             <Button 
@@ -320,7 +320,7 @@ export function DashboardClient({
       )}
 
       {/* Grid Layout */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6" suppressHydrationWarning>
         {config.filter(w => w.visible).map(w => (
           <React.Fragment key={w.id}>
             {renderWidget(w.id)}
