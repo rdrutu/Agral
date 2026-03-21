@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import { CookieBanner } from "@/components/common/CookieBanner";
 import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 // Raleway — matching logo-ul Agral (geometric, bold caps)
 const raleway = Raleway({
@@ -92,6 +93,7 @@ export default function RootLayout({
         {children}
         <CookieBanner />
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
