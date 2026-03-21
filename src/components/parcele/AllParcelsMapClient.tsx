@@ -5,6 +5,7 @@ import { MapContainer, TileLayer, Polygon, Popup, Tooltip, useMap, Marker } from
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useRouter } from "next/navigation";
+import { Layers } from "lucide-react";
 
 const cropIcons: Record<string, string> = {
   "Grâu": "🌾",
@@ -52,8 +53,12 @@ function MapBoundsFitter({ parcels, farmBase }: { parcels: any[], farmBase?: {la
     }
 
     if (allCoords.length > 0) {
-      const bounds = L.latLngBounds(allCoords);
-      map.fitBounds(bounds, { padding: [50, 50] });
+      try {
+        const bounds = L.latLngBounds(allCoords);
+        map.fitBounds(bounds, { padding: [50, 50], animate: false });
+      } catch (e) {
+        console.error("Leaflet fitBounds error", e);
+      }
     }
   }, [parcels, farmBase, map]);
 
@@ -62,13 +67,21 @@ function MapBoundsFitter({ parcels, farmBase }: { parcels: any[], farmBase?: {la
 
 export default function AllParcelsMapClient({ 
   parcels, 
+  groups = [],
   farmBase 
 }: { 
   parcels: any[],
+  groups?: any[],
   farmBase?: {lat: number, lng: number} | null
 }) {
   const [mounted, setMounted] = useState(false);
   const router = useRouter();
+
+  // Create a mapping of groupId to color
+  const groupColorsMap = (groups || []).reduce((acc: any, g: any, idx: number) => {
+    acc[g.id] = colors[idx % colors.length];
+    return acc;
+  }, {});
 
   useEffect(() => {
     setMounted(true);
@@ -106,10 +119,11 @@ export default function AllParcelsMapClient({
         <MapBoundsFitter parcels={parcels} farmBase={farmBase} />
 
         {/* Poligoane */}
-        {parcels.map((p, i) => {
+        {parcels.map((p) => {
           if (!p.coordinates?.geometry?.coordinates) return null;
           
-          const baseColor = colors[i % colors.length];
+          // Use group color if available, otherwise fallback to index-based or gray
+          const baseColor = p.groupId ? groupColorsMap[p.groupId] : "#94a3b8"; 
           const ring = p.coordinates.geometry.coordinates[0];
           const positions: [number, number][] = ring.map((coord: [number, number]) => [coord[1], coord[0]]);
 
@@ -130,6 +144,11 @@ export default function AllParcelsMapClient({
               <Tooltip direction="center" className="font-bold text-sm bg-white/90 shadow-lg border-none rounded-lg p-3">
                 <div className="flex flex-col items-center gap-1">
                   <span className="text-foreground text-base mb-1">{p.name}</span>
+                  {p.groupId && (
+                    <div className="text-[10px] text-primary bg-primary/10 px-2 py-0.5 rounded-full mb-1">
+                      Sector: {groups.find(g => g.id === p.groupId)?.name}
+                    </div>
+                  )}
                   <div className="flex items-center gap-2 bg-muted/50 px-2 py-1 rounded w-full justify-center">
                      <span className="text-muted-foreground text-xs">Suprafață:</span>
                      <span className="text-primary text-sm">{Number(p.areaHa).toFixed(2)} ha</span>
@@ -143,9 +162,6 @@ export default function AllParcelsMapClient({
                       <span className="text-gray-500">Teren {p.landUse}</span>
                     )}
                   </span>
-                  <div className="text-[10px] text-blue-600 mt-2 font-normal flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded-full">
-                     Click pentru a deschide parcela
-                  </div>
                 </div>
               </Tooltip>
             </Polygon>
@@ -167,12 +183,13 @@ export default function AllParcelsMapClient({
           const center: [number, number] = [latSum / ring.length, lngSum / ring.length];
           
           const cropEmoji = cropType && cropIcons[cropType] ? cropIcons[cropType] : "📍";
+          const baseColor = p.groupId ? groupColorsMap[p.groupId] : "#10b981"; 
           
           const iconHtml = `
             <div style="
               width: 32px; 
               height: 32px; 
-              background-color: #10b981; 
+              background-color: ${baseColor}; 
               border: 2.5px solid white; 
               border-radius: 50% 50% 50% 0; 
               transform: rotate(-45deg); 
@@ -238,16 +255,38 @@ export default function AllParcelsMapClient({
         )}
       </MapContainer>
 
-      {/* Helper Legend overlay */}
-      <div className="absolute bottom-4 left-4 z-[400] bg-background/95 backdrop-blur-md px-3 py-2 rounded-xl text-xs font-semibold shadow-xl border flex flex-col gap-2 pointer-events-none">
-        <h4 className="border-b pb-1 text-muted-foreground">Legendă Hartă</h4>
-        <div className="flex items-center gap-2">
-           <div className="w-4 h-4 rounded-full bg-blue-600 border border-white shadow-sm flex items-center justify-center text-[10px]">🏢</div>
-           Sediu Fermă
-        </div>
-        <div className="flex items-center gap-2">
-           <div className="w-4 h-4 rounded-full bg-emerald-500 border border-white shadow-sm flex items-center justify-center text-[10px]">📍</div>
-           Parcelă Agricolă
+      {/* Legendă Sectoare Overlay */}
+      <div className="absolute bottom-4 left-4 z-[400] bg-background/95 backdrop-blur-md px-4 py-3 rounded-2xl text-xs font-semibold shadow-2xl border border-primary/10 flex flex-col gap-2 min-w-[140px]">
+        <h4 className="border-b pb-1.5 text-foreground flex items-center gap-2 font-bold uppercase tracking-tighter">
+          <Layers className="w-3.5 h-3.5 text-primary" />
+          Sectoare
+        </h4>
+        {groups.length > 0 ? (
+          <div className="flex flex-col gap-2 max-h-[150px] overflow-y-auto pr-2 custom-scrollbar">
+            {groups.map((g, idx) => (
+              <div key={g.id} className="flex items-center gap-2.5">
+                <div 
+                  className="w-3.5 h-3.5 rounded-full border border-white shadow-sm shrink-0" 
+                  style={{ backgroundColor: colors[idx % colors.length] }} 
+                />
+                <span className="truncate max-w-[100px] text-muted-foreground">{g.name}</span>
+              </div>
+            ))}
+            <div className="flex items-center gap-2.5 opacity-60">
+                <div className="w-3.5 h-3.5 rounded-full bg-slate-400 border border-white shadow-sm shrink-0" />
+                <span className="text-muted-foreground">Fără sector</span>
+            </div>
+          </div>
+        ) : (
+          <div className="text-[10px] text-muted-foreground italic">
+            Niciun sector definit
+          </div>
+        )}
+        <div className="mt-2 pt-2 border-t flex flex-col gap-2 border-primary/5">
+           <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded-full bg-blue-600 border border-white shadow-sm flex items-center justify-center text-[10px]">🏢</div>
+              <span className="text-muted-foreground">Sediu Fermă</span>
+           </div>
         </div>
       </div>
     </div>

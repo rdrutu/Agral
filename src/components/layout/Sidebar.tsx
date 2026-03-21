@@ -111,6 +111,7 @@ export function Sidebar({
         collapsed ? "w-20" : "w-72",
         className ? className : "hidden lg:flex"
       )}
+      suppressHydrationWarning
     >
       {/* Toggle Button */}
       <button

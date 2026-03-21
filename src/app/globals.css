@@ -281,3 +281,73 @@
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.15);
 }
+
+/* Leaflet & Map Enhancements */
+.leaflet-container {
+  cursor: crosshair !important;
+}
+
+/* Stiluri premium pentru pinii de desenare a parcelei - FIX STABILITATE */
+.leaflet-editing-icon {
+  width: 12px !important;
+  height: 12px !important;
+  margin-left: -6px !important;
+  margin-top: -6px !important;
+  border-radius: 50% !important;
+  background: white !important;
+  border: 2px solid #16a34a !important; /* Agral Green */
+  box-shadow: 0 0 8px rgba(0,0,0,0.3) !important;
+  /* Eliminat transition pentru stabilitate maximă */
+  pointer-events: auto !important;
+}
+
+.leaflet-editing-icon:hover {
+  background: #16a34a !important;
+  cursor: pointer !important;
+}
+
+/* Accent pentru primul punct (Start) - încercăm un selector mai specific */
+.leaflet-marker-pane .leaflet-div-icon.leaflet-editing-icon:first-of-type,
+.leaflet-marker-pane .leaflet-marker-icon:not(.custom-farm-marker):first-child {
+  background-color: #f59e0b !important; /* Gold */
+  border-color: #d97706 !important;
+  width: 16px !important;
+  height: 16px !important;
+  margin-left: -8px !important;
+  margin-top: -8px !important;
+  z-index: 1000 !important;
+  box-shadow: 0 0 15px rgba(245, 158, 11, 0.6) !important;
+}
+
+/* Adăugăm un mic punct alb în interiorul punctului de start pentru a-l face și mai vizibil */
+.leaflet-editing-icon:first-of-type::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 4px;
+  height: 4px;
+  background: white;
+  border-radius: 50%;
+  z-index: 2;
+}
+
+/* Poligonul în editare */
+.leaflet-draw-guide-dash {
+  background-color: rgba(22, 163, 74, 0.5) !important;
+}
+
+/* Dezactivăm outline-ul urat pe markerele active */
+.leaflet-marker-icon:focus {
+  outline: none !important;
+}
+
+.custom-farm-marker {
+  filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2));
+  transition: transform 0.3s ease;
+}
+
+.custom-farm-marker:hover {
+  transform: scale(1.1) rotate(-45deg) !important;
+}

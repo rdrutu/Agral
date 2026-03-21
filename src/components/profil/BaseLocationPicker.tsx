@@ -26,7 +26,8 @@ function LocationMarker({ lat, lng, onChange }: BaseLocationPickerProps) {
   const map = useMapEvents({
     click(e) {
       onChange(e.latlng.lat, e.latlng.lng);
-      map.flyTo(e.latlng, map.getZoom());
+      // Nu facem flyTo cu zoom fix, lăsăm zoom-ul curent al utilizatorului
+      map.panTo(e.latlng);
     },
   });
 
@@ -37,11 +38,14 @@ function LocationMarker({ lat, lng, onChange }: BaseLocationPickerProps) {
 
 function SetViewOnChange({ lat, lng }: { lat: number | null, lng: number | null }) {
   const map = useMap();
+  const [hasSetInitial, setHasSetInitial] = useState(false);
+
   useEffect(() => {
-    if (lat && lng) {
-      map.setView([lat, lng], 13);
+    if (lat && lng && !hasSetInitial) {
+      map.setView([lat, lng], 14);
+      setHasSetInitial(true);
     }
-  }, [lat, lng, map]);
+  }, [lat, lng, map, hasSetInitial]);
   return null;
 }
 

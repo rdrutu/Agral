@@ -50,8 +50,12 @@ function MapBoundsFitter({ parcels }: { parcels: any[] }) {
     });
 
     if (allCoords.length > 0) {
-      const bounds = L.latLngBounds(allCoords);
-      map.fitBounds(bounds, { padding: [50, 50] });
+      try {
+        const bounds = L.latLngBounds(allCoords);
+        map.fitBounds(bounds, { padding: [50, 50], animate: false });
+      } catch (e) {
+        console.error("Leaflet fitBounds error", e);
+      }
     }
   }, [parcels, map]);
 

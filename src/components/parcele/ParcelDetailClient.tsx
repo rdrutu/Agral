@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { deleteAgriculturalOperation } from "@/lib/actions/operations";
 import { formatDate, cn } from "@/lib/utils";
 import { toast } from "react-hot-toast";
@@ -51,7 +52,9 @@ const statusColors: Record<string, string> = {
 export default function ParcelDetailClient({ parcel }: ParcelDetailClientProps) {
   const [activeTab, setActiveTab] = useState("overview");
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [isDeletingParcel, setIsDeletingParcel] = useState(false);
   const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
+  const router = useRouter();
 
   // Deep-linking to tab
   useEffect(() => {
@@ -73,6 +76,22 @@ export default function ParcelDetailClient({ parcel }: ParcelDetailClientProps) 
       toast.error("Eroare la ștergere");
     } finally {
       setIsDeleting(null);
+    }
+  };
+
+  const handleDeleteParcel = async () => {
+    if (!confirm("Sigur vrei să ștergi această parcelă? Această acțiune este ireversibilă și nu poate fi efectuată dacă parcela are lucrări sau planuri active.")) return;
+    
+    setIsDeletingParcel(true);
+    try {
+      const { deleteParcel } = await import("@/lib/actions/parcels");
+      await deleteParcel(parcel.id);
+      toast.success("Parcelă ștearsă cu succes");
+      router.push("/parcele");
+    } catch (e: any) {
+      toast.error(e.message || "Eroare la ștergerea parcelei");
+    } finally {
+      setIsDeletingParcel(false);
     }
   };
 
@@ -165,12 +184,23 @@ export default function ParcelDetailClient({ parcel }: ParcelDetailClientProps) 
                   <span className="flex items-center gap-1 font-black text-primary">{parcel.areaHa} ha</span>
                 </div>
               </div>
-              <Badge className={`text-md px-4 py-1 font-black uppercase tracking-widest border ${statusColors[currentPlan?.status || 'planned']}`}>
-                {currentPlan?.status === 'sown' ? 'Semănat' : 
-                 currentPlan?.status === 'growing' ? 'În vegetație' : 
-                 currentPlan?.status === 'harvested' ? 'Recoltat' : 
-                 currentPlan?.status === 'planned' ? 'Planificat' : 'Liberă'}
-              </Badge>
+              <div className="flex flex-col items-end gap-3">
+                <Badge className={`text-md px-4 py-1 font-black uppercase tracking-widest border ${statusColors[currentPlan?.status || 'planned']}`}>
+                  {currentPlan?.status === 'sown' ? 'Semănat' : 
+                   currentPlan?.status === 'growing' ? 'În vegetație' : 
+                   currentPlan?.status === 'harvested' ? 'Recoltat' : 
+                   currentPlan?.status === 'planned' ? 'Planificat' : 'Liberă'}
+                </Badge>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-muted-foreground hover:text-red-600 hover:bg-red-50 font-black text-[10px] uppercase tracking-widest gap-2"
+                  onClick={handleDeleteParcel}
+                  disabled={isDeletingParcel}
+                >
+                  {isDeletingParcel ? "Se șterge..." : <><Trash2 className="w-3 h-3" /> Șterge Parcela</>}
+                </Button>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

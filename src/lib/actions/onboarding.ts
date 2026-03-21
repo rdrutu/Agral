@@ -27,16 +27,22 @@ export async function submitOnboarding(data: {
   lat: number | null;
   lng: number | null;
   parcelData: { geoJson: any; areaHa: number } | null;
+  parcelName?: string;
+  parcelOwnership?: string;
 }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) throw new Error("Neautorizat.");
 
-  let dbUser = await prisma.user.findUnique({ where: { id: user.id } });
-  if (!dbUser) {
-    dbUser = await prisma.user.create({ data: { id: user.id, email: user.email || "" } });
-  }
+  const dbUser = await prisma.user.upsert({
+    where: { id: user.id },
+    update: {},
+    create: {
+      id: user.id,
+      email: user.email || "",
+    }
+  });
 
   if (dbUser.orgId) {
     // Dacă are deja, doar îl trimitem în dashboard (se poate întâmpla prin repetare apel)
@@ -85,7 +91,8 @@ export async function submitOnboarding(data: {
     await prisma.parcel.create({
       data: {
         orgId: newOrg.id,
-        name: "Prima Parcela",
+        name: data.parcelName || "Prima Parcela",
+        ownership: data.parcelOwnership || "owned",
         areaHa: data.parcelData.areaHa,
         coordinates: data.parcelData.geoJson ? JSON.parse(JSON.stringify(data.parcelData.geoJson)) : undefined,
       } as any

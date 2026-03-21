@@ -48,7 +48,7 @@ export function Header({
   };
 
   return (
-    <header className="h-16 border-b border-border bg-background/95 backdrop-blur flex items-center px-4 md:px-6 gap-4 sticky top-0 z-40">
+    <header className="h-16 border-b border-border bg-card/50 backdrop-blur-md px-4 lg:px-8 flex items-center justify-between sticky top-0 z-30 transition-all duration-300" suppressHydrationWarning>
       <div className="flex lg:hidden items-center mr-2">
         <Sheet>
           <SheetTrigger asChild>

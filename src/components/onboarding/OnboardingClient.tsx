@@ -56,6 +56,8 @@ export function OnboardingClient() {
   const [lng, setLng] = useState<number | null>(null);
 
   const [parcelData, setParcelData] = useState<{ geoJson: any; areaHa: number } | null>(null);
+  const [parcelName, setParcelName] = useState("");
+  const [parcelOwnership, setParcelOwnership] = useState("owned");
 
   useState(() => {
     const fetchUser = async () => {
@@ -128,6 +130,8 @@ export function OnboardingClient() {
         lat,
         lng,
         parcelData,
+        parcelName,
+        parcelOwnership,
       });
       // Redirect to dashboard on success
       router.push("/dashboard");
@@ -191,16 +195,16 @@ export function OnboardingClient() {
             <CardContent className="space-y-6 max-w-2xl mx-auto pb-10">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="firstName" className="font-black text-[10px] uppercase tracking-widest text-slate-400 ml-1">Prenume</Label>
+                  <Label htmlFor="firstName" className="font-black text-[10px] uppercase tracking-widest text-slate-400 ml-1">Prenume <span className="text-red-500">*</span></Label>
                   <Input id="firstName" placeholder="Ion" value={firstName} onChange={(e) => setFirstName(e.target.value)} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="lastName" className="font-black text-[10px] uppercase tracking-widest text-slate-400 ml-1">Nume</Label>
+                  <Label htmlFor="lastName" className="font-black text-[10px] uppercase tracking-widest text-slate-400 ml-1">Nume <span className="text-red-500">*</span></Label>
                   <Input id="lastName" placeholder="Popa" value={lastName} onChange={(e) => setLastName(e.target.value)} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner" />
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="orgName" className="font-black text-[10px] uppercase tracking-widest text-slate-400 ml-1">Numele Fermei (Brand Comercial)</Label>
+                <Label htmlFor="orgName" className="font-black text-[10px] uppercase tracking-widest text-slate-400 ml-1">Numele Fermei (Brand Comercial) <span className="text-red-500">*</span></Label>
                 <Input id="orgName" placeholder="Ex: Agro Muntenia" value={orgName} onChange={(e) => setOrgName(e.target.value)} className="h-14 rounded-xl bg-slate-50 border-none shadow-inner text-lg font-bold" />
                 <p className="text-[10px] text-slate-400 italic ml-1">Acest nume va fi afișat în aplicație și pe rapoartele interne.</p>
               </div>
@@ -226,7 +230,7 @@ export function OnboardingClient() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label className="font-black text-[10px] uppercase tracking-widest text-primary ml-1">Denumire Juridică</Label>
+                    <Label className="font-black text-[10px] uppercase tracking-widest text-primary ml-1">Denumire Juridică <span className="text-red-500">*</span></Label>
                     <Input placeholder="SC Agro Muntenia SRL" value={legalName} onChange={e => setLegalName(e.target.value)} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner font-bold" />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
@@ -247,7 +251,7 @@ export function OnboardingClient() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label className="font-black text-[10px] uppercase tracking-widest text-slate-400 ml-1">CUI / CIF</Label>
+                      <Label className="font-black text-[10px] uppercase tracking-widest text-slate-400 ml-1">CUI / CIF <span className="text-red-500">*</span></Label>
                       <Input placeholder="RO1234..." value={cui} onChange={e => setCui(e.target.value)} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner font-bold tracking-widest uppercase" />
                     </div>
                     <div className="space-y-2">
@@ -275,15 +279,15 @@ export function OnboardingClient() {
 
               <div className="pt-6 border-t border-slate-100 flex flex-col md:flex-row gap-4">
                 <div className="flex-1 space-y-2">
-                  <Label className="font-black text-[10px] uppercase tracking-widest text-slate-400 ml-1">Județ</Label>
+                  <Label className="font-black text-[10px] uppercase tracking-widest text-slate-400 ml-1">Județ <span className="text-red-500">*</span></Label>
                   <Input value={county} onChange={e => setCounty(e.target.value)} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner font-bold" />
                 </div>
                 <div className="flex-1 space-y-2">
-                  <Label className="font-black text-[10px] uppercase tracking-widest text-slate-400 ml-1">Oraș</Label>
+                  <Label className="font-black text-[10px] uppercase tracking-widest text-slate-400 ml-1">Oraș <span className="text-red-500">*</span></Label>
                   <Input value={city} onChange={e => setCity(e.target.value)} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner font-bold" />
                 </div>
                 <div className="flex-[2] space-y-2">
-                  <Label className="font-black text-[10px] uppercase tracking-widest text-slate-400 ml-1">Adresă completă / Sediu</Label>
+                  <Label className="font-black text-[10px] uppercase tracking-widest text-slate-400 ml-1">Adresă completă / Sediu <span className="text-red-500">*</span></Label>
                   <Input value={address} onChange={e => setAddress(e.target.value)} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner font-bold" />
                 </div>
               </div>
@@ -305,12 +309,12 @@ export function OnboardingClient() {
             </CardHeader>
             <CardContent className="space-y-6 max-w-2xl mx-auto pb-10">
               <div className="space-y-3">
-                <Label className="font-black text-[10px] uppercase tracking-widest text-slate-400 ml-1">Nume Complet Administrator</Label>
+                <Label className="font-black text-[10px] uppercase tracking-widest text-slate-400 ml-1">Nume Complet Administrator <span className="text-red-500">*</span></Label>
                 <Input value={representativeName} onChange={e => setRepresentativeName(e.target.value)} placeholder="Ion Popescu" className="h-14 rounded-xl bg-slate-50 border-none shadow-inner font-black text-lg" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="font-black text-[10px] uppercase tracking-widest text-slate-400 ml-1">CNP</Label>
+                  <Label className="font-black text-[10px] uppercase tracking-widest text-slate-400 ml-1">CNP <span className="text-red-500">*</span></Label>
                   <Input value={representativeCnp} onChange={e => setRepresentativeCnp(e.target.value)} placeholder="500..." className="h-12 rounded-xl bg-slate-50 border-none shadow-inner font-bold tracking-widest" />
                 </div>
                 <div className="space-y-2">
@@ -376,9 +380,44 @@ export function OnboardingClient() {
                 />
               </div>
               {parcelData && (
-                <div className="mt-6 flex items-center justify-center gap-2 text-green-700 bg-green-50 p-3 rounded-lg border border-green-200">
-                  <CheckCircle2 className="w-5 h-5" />
-                  <span className="font-bold">Parcelă salvată temporar (Suprafață: {parcelData.areaHa.toFixed(2)} Ha). Apasă "Finalizează și Intră" pentru a o adăuga.</span>
+                <div className="mt-8 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <div className="flex items-center gap-2 text-green-700 bg-green-50 p-3 rounded-xl border border-green-200 shadow-sm">
+                    <CheckCircle2 className="w-5 h-5" />
+                    <span className="font-bold text-sm">Parcelă detectată: {parcelData.areaHa.toFixed(2)} Ha</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="parcelName" className="font-black text-[10px] uppercase tracking-widest text-slate-400 ml-1">Nume Parcelă <span className="text-red-500">*</span></Label>
+                      <Input 
+                        id="parcelName" 
+                        placeholder="Ex: Tarlaua 14 / Solă 5" 
+                        value={parcelName} 
+                        onChange={(e) => setParcelName(e.target.value)} 
+                        className="h-12 rounded-xl bg-slate-50 border-none shadow-inner font-bold"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="font-black text-[10px] uppercase tracking-widest text-slate-400 ml-1">Regim Juridic</Label>
+                      <div className="flex bg-slate-50 p-1 rounded-xl shadow-inner h-12">
+                        <button 
+                          type="button"
+                          onClick={() => setParcelOwnership("owned")}
+                          className={`flex-1 rounded-lg text-xs font-black uppercase tracking-tighter transition-all ${parcelOwnership === 'owned' ? 'bg-white shadow-sm text-green-700' : 'text-slate-400'}`}
+                        >
+                          Proprietate
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => setParcelOwnership("rented")}
+                          className={`flex-1 rounded-lg text-xs font-black uppercase tracking-tighter transition-all ${parcelOwnership === 'rented' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-400'}`}
+                        >
+                          Arendă
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-slate-400 italic text-center">Aceste detalii pot fi modificate ulterior din meniul de management al parcelei.</p>
                 </div>
               )}
             </CardContent>

@@ -69,19 +69,19 @@ export default async function DashboardPage() {
     <div className="space-y-8 max-w-7xl mx-auto pb-10 min-h-screen p-4 md:p-8 rounded-[2.5rem]" suppressHydrationWarning>
       {/* Refined Header - Rendered immediately */}
       <div className="relative overflow-hidden rounded-[1.5rem] md:rounded-[2.5rem] bg-gradient-to-br from-green-900 via-green-800 to-emerald-900 p-6 md:p-8 text-white shadow-2xl shadow-green-900/20" suppressHydrationWarning>
-        <div className="absolute top-0 right-0 p-12 opacity-10 blur-2xl hidden md:block">
+        <div className="absolute top-0 right-0 p-12 opacity-10 blur-2xl hidden md:block" suppressHydrationWarning>
           <Sprout className="w-64 h-64 rotate-12" />
         </div>
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6">
-          <div>
-            <div className="flex items-center gap-3 mb-2 md:mb-3">
-              <div className="h-1 w-1 rounded-full bg-white/40" />
-              <span className="text-[10px] md:text-xs font-bold text-white/60 uppercase tracking-tighter">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6" suppressHydrationWarning>
+          <div suppressHydrationWarning>
+            <div className="flex items-center gap-3 mb-2 md:mb-3" suppressHydrationWarning>
+              <div className="h-1 w-1 rounded-full bg-white/40" suppressHydrationWarning />
+              <span className="text-[10px] md:text-xs font-bold text-white/60 uppercase tracking-tighter" suppressHydrationWarning>
                 {formatDate(new Date())}
               </span>
             </div>
-            <h2 className="text-2xl md:text-4xl font-black tracking-tight mb-2">{greeting}, {firstName}!</h2>
-            <p className="text-sm md:text-base text-green-100/70 font-medium max-w-md">
+            <h2 className="text-2xl md:text-4xl font-black tracking-tight mb-2" suppressHydrationWarning>{greeting}, {firstName}!</h2>
+            <p className="text-sm md:text-base text-green-100/70 font-medium max-w-md" suppressHydrationWarning>
               Monitorizarea fermei tale este activă. Verifică situația actualizată mai jos.
             </p>
           </div>
@@ -100,28 +100,49 @@ async function DashboardDynamicContent({ dbUser }: { dbUser: any }) {
   const org = dbUser?.organization;
   const orgId = org?.id || "00000000-0000-0000-0000-000000000000";
 
-  // 1. Fetch Real KPI Values
-  const [totalArea, parcelCount, activeSeason, operationalExpenses, hrExpenses] = await Promise.all([
-    prisma.parcel.aggregate({
+  // Run ALL asynchronous data fetching in a massive parallel burst
+  const [
+    kpisResult,
+    recentParcels,
+    expiringContracts,
+    weather,
+    news,
+    systemAlerts
+  ] = await Promise.all([
+    // 0: KPIs (nested Promise.all)
+    Promise.all([
+      prisma.parcel.aggregate({ where: { orgId }, _sum: { areaHa: true } }),
+      prisma.parcel.count({ where: { orgId } }),
+      prisma.season.findFirst({ where: { orgId, isActive: true } as any, orderBy: { startDate: "desc" } }),
+      (prisma as any).agriculturalOperation?.aggregate({ where: { orgId }, _sum: { totalAreaHa: true } }),
+      (prisma.user.aggregate({ where: { orgId }, _sum: { monthlySalary: true } }) as any)
+    ]),
+    
+    // 1: Recent Parcels
+    prisma.parcel.findMany({
       where: { orgId },
-      _sum: { areaHa: true }
+      orderBy: { createdAt: "desc" },
+      take: 4,
+      include: { cropPlans: { orderBy: { id: "desc" }, take: 1 } }
     }),
-    prisma.parcel.count({
-      where: { orgId }
+
+    // 2: Expiring Contracts
+    (prisma as any).leaseContract?.findMany({
+      where: { orgId, endDate: { lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) } },
+      take: 2
     }),
-    prisma.season.findFirst({
-      where: { orgId, isActive: true } as any,
-      orderBy: { startDate: "desc" }
-    }),
-    (prisma as any).agriculturalOperation?.aggregate({
-      where: { orgId },
-      _sum: { totalAreaHa: true }
-    }),
-    (prisma.user.aggregate({
-      where: { orgId },
-      _sum: { monthlySalary: true }
-    }) as any)
+
+    // 3: Weather
+    getWeatherData(((org as any)?.baseLat ? Number((org as any).baseLat) : null) || countyCoords[(org as any)?.county || "Olt"].lat, ((org as any)?.baseLng ? Number((org as any).baseLng) : null) || countyCoords[(org as any)?.county || "Olt"].lon).catch(() => null),
+
+    // 4: News
+    getAgriNews(),
+
+    // 5: System Alerts
+    getSystemAlerts()
   ]);
+
+  const [totalArea, parcelCount, activeSeason, operationalExpenses, hrExpenses] = kpisResult;
 
   const totalMonthlyCost = Number((hrExpenses as any)._sum.monthlySalary || 0);
   const totalOpArea = Number(operationalExpenses?._sum.totalAreaHa || 0);
@@ -169,14 +190,8 @@ async function DashboardDynamicContent({ dbUser }: { dbUser: any }) {
     },
   ];
 
-  // 2. Fetch Recent Parcels
-  const recentParcels = await prisma.parcel.findMany({
-    where: { orgId },
-    orderBy: { createdAt: "desc" },
-    take: 4,
-    include: { cropPlans: { orderBy: { id: "desc" }, take: 1 } }
-  });
-
+  const county = (org as any)?.county || "Olt";
+  
   const serializedRecentParcels = (recentParcels as any[]).map(p => ({
     ...p,
     areaHa: Number(p.areaHa),
@@ -188,36 +203,15 @@ async function DashboardDynamicContent({ dbUser }: { dbUser: any }) {
     }))
   }));
 
-  // 3. Simple Real Alerts
-  const realAlerts = [];
+  const realAlerts: any[] = [];
   if (parcelCount === 0) {
     realAlerts.push({ type: "info", text: "Nu ai desenat nicio parcelă. Începe acum!", href: "/parcele" });
   }
-  
-  const expiringContracts = await (prisma as any).leaseContract?.findMany({
-    where: { orgId, endDate: { lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) } },
-    take: 2
-  });
   
   expiringContracts?.forEach((c: any) => {
     realAlerts.push({ type: "warning", text: `Contractul cu ${c.landownerName} expiră curând!`, href: `/contracte` });
   });
 
-  const county = (org as any)?.county || "Olt";
-  const baseLat = (org as any)?.baseLat ? Number((org as any).baseLat) : null;
-  const baseLng = (org as any)?.baseLng ? Number((org as any).baseLng) : null;
-  
-  const coords = (baseLat && baseLng) 
-    ? { lat: baseLat, lon: baseLng }
-    : (countyCoords[county] || countyCoords["Bucuresti"]);
-    
-  // Parallel fetch for external APIs
-  const [weather, news, systemAlerts] = await Promise.all([
-    getWeatherData(coords.lat, coords.lon),
-    getAgriNews(),
-    getSystemAlerts()
-  ]);
-  
   const combinedAlerts = [
     ...realAlerts,
     ...(systemAlerts || []).map((sa: any) => ({
@@ -236,25 +230,25 @@ async function DashboardDynamicContent({ dbUser }: { dbUser: any }) {
   return (
     <>
       {/* KPI Section */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700" suppressHydrationWarning>
         {kpis.map((kpi) => (
-          <Card key={kpi.title} className={cn("border-none shadow-lg hover:shadow-xl transition-all duration-300 group overflow-hidden", kpi.bg)}>
-            <CardContent className="p-6 relative">
-              <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform duration-500">
+          <Card key={kpi.title} className={cn("border-none shadow-lg hover:shadow-xl transition-all duration-300 group overflow-hidden", kpi.bg)} suppressHydrationWarning>
+            <CardContent className="p-6 relative" suppressHydrationWarning>
+              <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform duration-500" suppressHydrationWarning>
                 <kpi.icon className={cn("w-16 h-16", kpi.color)} />
               </div>
-              <div className="flex items-start justify-between mb-4">
-                <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center shadow-inner", kpi.bg, kpi.color, "bg-white/50 border", kpi.border)}>
+              <div className="flex items-start justify-between mb-4" suppressHydrationWarning>
+                <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center shadow-inner", kpi.bg, kpi.color, "bg-white/50 border", kpi.border)} suppressHydrationWarning>
                   <kpi.icon className="w-6 h-6" />
                 </div>
               </div>
-              <div className="space-y-1">
-                <div className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground/60">{kpi.title}</div>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-black tracking-tighter text-foreground tabular-nums">{kpi.value}</span>
-                  <span className="text-xs font-bold text-muted-foreground uppercase">{kpi.unit}</span>
+              <div className="space-y-1" suppressHydrationWarning>
+                <div className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground/60" suppressHydrationWarning>{kpi.title}</div>
+                <div className="flex items-baseline gap-1" suppressHydrationWarning>
+                  <span className="text-3xl font-black tracking-tighter text-foreground tabular-nums" suppressHydrationWarning>{kpi.value}</span>
+                  <span className="text-xs font-bold text-muted-foreground uppercase" suppressHydrationWarning>{kpi.unit}</span>
                 </div>
-                <p className="text-[10px] font-bold text-muted-foreground/50 uppercase tracking-tighter">{kpi.desc}</p>
+                <p className="text-[10px] font-bold text-muted-foreground/50 uppercase tracking-tighter" suppressHydrationWarning>{kpi.desc}</p>
               </div>
             </CardContent>
           </Card>

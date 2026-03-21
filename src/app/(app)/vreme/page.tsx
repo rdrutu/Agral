@@ -2,8 +2,24 @@ import { getWeatherData, countyCoords } from "@/lib/weather";
 import { getUserOrganization } from "@/lib/actions/parcels";
 import prisma from "@/lib/prisma";
 import WeatherClient from "@/components/vreme/WeatherClient";
+import { Suspense } from "react";
+import { Loader2 } from "lucide-react";
 
-export default async function WeatherPage() {
+export default function WeatherPage() {
+  return (
+    <div className="p-6 space-y-6">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-3xl font-black tracking-tight">Meteo & Agrometeo</h1>
+        <p className="text-muted-foreground">Prognoza detaliată pentru sediul fermei și parcelele cheie.</p>
+      </div>
+      <Suspense fallback={<div className="flex justify-center p-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>}>
+        <WeatherDynamicContent />
+      </Suspense>
+    </div>
+  );
+}
+
+async function WeatherDynamicContent() {
   const orgId = await getUserOrganization();
   if (!orgId) return <div>Neautorizat</div>;
 
@@ -31,12 +47,10 @@ export default async function WeatherPage() {
   })) || [];
 
   return (
-    <div className="p-6">
-      <WeatherClient 
-        initialWeather={initialWeather} 
-        mainLocation={mainCoords}
-        pois={pois}
-      /> as any
-    </div>
+    <WeatherClient 
+      initialWeather={initialWeather} 
+      mainLocation={mainCoords}
+      pois={pois}
+    />
   );
 }

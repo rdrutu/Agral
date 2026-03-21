@@ -4,14 +4,20 @@ import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getUserOrganization } from "./parcels";
+import { cache } from "react";
 
-export async function getCurrentUser() {
+export const getCurrentUser = cache(async () => {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const dbUser = await prisma.user.findUnique({
+  const dbUser = await prisma.user.upsert({
     where: { id: user.id },
+    update: {}, // Nu actualizăm nimic dacă există deja
+    create: {
+      id: user.id,
+      email: user.email || "",
+    },
     include: { 
       organization: {
         include: {
@@ -24,7 +30,7 @@ export async function getCurrentUser() {
   });
 
   return JSON.parse(JSON.stringify(dbUser));
-}
+});
 
 export async function updateUserProfile(data: {
   firstName: string;

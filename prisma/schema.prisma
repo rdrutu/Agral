@@ -65,8 +65,22 @@ model Organization {
   sales              Sale[]
   leaseContracts     LeaseContract[]
   notifications      Notification[]
+  parcelGroups       ParcelGroup[]
 
   @@map("organizations")
+}
+
+model ParcelGroup {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId     String   @map("org_id") @db.Uuid
+  name      String
+  color     String?  // hex code for visual distinction
+  createdAt DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  parcels      Parcel[]
+
+  @@map("parcel_groups")
 }
 
 model WeatherPOI {
@@ -187,6 +201,14 @@ model Parcel {
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
+  // Date Cadastrale (ANCPI)
+  uat             String?   @map("uat_code")
+  cadastralNumber String?   @map("cadastral_number")
+  cfNumber        String?   @map("cf_number")
+
+  groupId       String?   @map("group_id") @db.Uuid
+  group         ParcelGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  
   organization     Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   cropPlans        CropPlan[]
   operationParcels OperationParcel[]

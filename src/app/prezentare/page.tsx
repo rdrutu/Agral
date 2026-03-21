@@ -212,6 +212,17 @@ export default function Home() {
       {/* Hero Overview */}
       <section className="relative px-4 overflow-hidden min-h-screen pt-32 md:pt-48 pb-20 flex flex-col items-center justify-start text-center">
         {/* Immersive Background Elements */}
+        <div className="absolute inset-0 z-0">
+          <Image
+            src="/background_prezentare.png"
+            alt="Hero Background"
+            fill
+            className="object-cover opacity-25"
+            priority
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-background via-transparent to-background opacity-40" />
+        </div>
+
         <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] [mask-image:radial-gradient(ellipse_50%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-20 -z-20" />
         <div className="absolute top-[-10%] left-[-10%] w-[40%] aspect-square bg-green-400/20 rounded-full blur-[120px] -z-10 animate-pulse duration-[10s]" />
         <div className="absolute top-[20%] right-[-5%] w-[30%] aspect-square bg-emerald-300/15 rounded-full blur-[100px] -z-10 animate-pulse duration-[15s]" />

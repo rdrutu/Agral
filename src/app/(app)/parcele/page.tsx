@@ -1,24 +1,28 @@
-import { getParcels } from "@/lib/actions/parcels";
-import { getCurrentUser } from "@/lib/actions/profile";
+import { getParcels, getParcelGroups, getUserOrganization } from "@/lib/actions/parcels";
 import ParcelListClient from "@/components/parcele/ParcelListClient";
 import { Suspense } from "react";
 import { ParcelSkeleton } from "@/components/parcele/ParcelSkeleton";
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import prisma from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 export default async function ParcelelePage() {
-  const user = await getCurrentUser();
-  const farmBase = user?.organization?.baseLat && user?.organization?.baseLng 
-    ? { lat: Number(user.organization.baseLat), lng: Number(user.organization.baseLng) } 
+  const orgId = await getUserOrganization();
+  
+  // Fetch farmBase coordinates
+  const organization = await prisma.organization.findUnique({
+    where: { id: orgId as string },
+    select: { baseLat: true, baseLng: true }
+  });
+
+  const farmBase = organization?.baseLat && organization?.baseLng 
+    ? { lat: Number(organization.baseLat), lng: Number(organization.baseLng) } 
     : null;
 
   return (
-    <div className="space-y-6 max-w-7xl">
-      {/* Header - Immediate */}
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="space-y-6 max-w-7xl" suppressHydrationWarning>
+      <div className="flex items-center justify-between" suppressHydrationWarning>
+        <div suppressHydrationWarning>
           <h2 className="text-2xl font-extrabold text-foreground">Parcele Agricole</h2>
           <p className="text-muted-foreground mt-1">
             Gestionează suprafețele și culturile fermei tale
@@ -34,6 +38,17 @@ export default async function ParcelelePage() {
 }
 
 async function ParcelDynamicContent({ farmBase }: { farmBase: any }) {
-  const parcels = await getParcels();
-  return <ParcelListClient initialParcels={parcels} farmBase={farmBase} hideHeader />;
+  const [parcels, groups] = await Promise.all([
+    getParcels(),
+    getParcelGroups()
+  ]);
+  
+  return (
+    <ParcelListClient 
+      initialParcels={parcels} 
+      initialGroups={groups}
+      farmBase={farmBase} 
+      hideHeader 
+    />
+  );
 }

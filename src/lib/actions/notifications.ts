@@ -13,14 +13,20 @@ export async function getNotifications() {
   try {
     const notifications = await prisma.$queryRaw<any[]>`
       SELECT 
-        id, title, message, type, "isRead", link, "createdAt", "userId", "orgId", "targetRole"
-      FROM "Notification"
+        id, title, message, type, 
+        is_read as "isRead", 
+        link, 
+        created_at as "createdAt", 
+        user_id as "userId", 
+        org_id as "orgId", 
+        target_role as "targetRole"
+      FROM notifications
       WHERE 
-        "userId" = ${user.id}::uuid
-        OR ("orgId" = ${user.orgId}::uuid AND "targetRole" IS NULL)
-        OR ("orgId" = ${user.orgId}::uuid AND "targetRole" = ${user.role})
-        OR ("targetRole" = ${user.role} AND "orgId" IS NULL)
-      ORDER BY "createdAt" DESC
+        user_id = ${user.id}::uuid
+        OR (org_id = ${user.orgId}::uuid AND target_role IS NULL)
+        OR (org_id = ${user.orgId}::uuid AND target_role = ${user.role})
+        OR (target_role = ${user.role} AND org_id IS NULL)
+      ORDER BY created_at DESC
       LIMIT 50
     `;
     return JSON.parse(JSON.stringify(notifications));
@@ -36,8 +42,8 @@ export async function markNotificationAsRead(id: string) {
 
   try {
     await prisma.$executeRaw`
-      UPDATE "Notification"
-      SET "isRead" = true
+      UPDATE notifications
+      SET is_read = true
       WHERE id = ${id}::uuid
     `;
     revalidatePath("/");
@@ -52,14 +58,14 @@ export async function markAllNotificationsAsRead() {
 
   try {
     await prisma.$executeRaw`
-      UPDATE "Notification"
-      SET "isRead" = true
+      UPDATE notifications
+      SET is_read = true
       WHERE 
-        ("userId" = ${user.id}::uuid
-        OR ("orgId" = ${user.orgId}::uuid AND "targetRole" = ${user.role})
-        OR ("orgId" = ${user.orgId}::uuid AND "targetRole" IS NULL)
-        OR ("targetRole" = ${user.role} AND "orgId" IS NULL))
-        AND "isRead" = false
+        (user_id = ${user.id}::uuid
+        OR (org_id = ${user.orgId}::uuid AND target_role = ${user.role})
+        OR (org_id = ${user.orgId}::uuid AND target_role IS NULL)
+        OR (target_role = ${user.role} AND org_id IS NULL))
+        AND is_read = false
     `;
     revalidatePath("/");
   } catch (err) {
@@ -79,8 +85,8 @@ export async function createNotification(data: {
   try {
     const id = crypto.randomUUID();
     await prisma.$executeRaw`
-      INSERT INTO "Notification" (
-        id, "userId", "orgId", "targetRole", title, message, type, link, "isRead", "createdAt", "updatedAt"
+      INSERT INTO notifications (
+        id, user_id, org_id, target_role, title, message, type, link, is_read, created_at
       ) VALUES (
         ${id}::uuid, 
         ${data.userId || null}::uuid, 
@@ -91,7 +97,6 @@ export async function createNotification(data: {
         ${data.type || "info"}, 
         ${data.link || null}, 
         false, 
-        NOW(), 
         NOW()
       )
     `;
@@ -112,12 +117,41 @@ export async function getSystemAlerts() {
   try {
     const alerts: any[] = [];
 
-    // 1. Abonament Organizație
-    const orgs = await prisma.$queryRaw<any[]>`
-      SELECT id, name, "subscription_expires_at" as "expiryDate"
-      FROM organizations
-      WHERE id = ${orgId}::uuid AND "subscription_expires_at" <= ${thirtyDaysFromNow}
-    `;
+    // Executăm interogările complexe în paralel
+    const [orgs, vehicles, contracts, lots] = await Promise.all([
+      // 1. Abonament Organizație
+      prisma.$queryRaw<any[]>`
+        SELECT id, name, "subscription_expires_at" as "expiryDate"
+        FROM organizations
+        WHERE id = ${orgId}::uuid AND "subscription_expires_at" <= ${thirtyDaysFromNow}
+      `,
+      // 2. Vehicule (RCA, ITP, Casco, Rovinieta)
+      prisma.$queryRaw<any[]>`
+        SELECT id, name, "rca_expiry", "itp_expiry", "casco_expiry", "rovinieta_expiry"
+        FROM vehicles
+        WHERE org_id = ${orgId}::uuid
+        AND (
+          "rca_expiry" <= ${thirtyDaysFromNow} OR 
+          "itp_expiry" <= ${thirtyDaysFromNow} OR 
+          "casco_expiry" <= ${thirtyDaysFromNow} OR 
+          "rovinieta_expiry" <= ${thirtyDaysFromNow}
+        )
+      `,
+      // 3. Contracte Arendă
+      prisma.$queryRaw<any[]>`
+        SELECT id, "landowner_name", "end_date" as "expiryDate"
+        FROM lease_contracts
+        WHERE org_id = ${orgId}::uuid AND "end_date" <= ${thirtyDaysFromNow}
+      `,
+      // 4. Produse (Inventory Lots)
+      prisma.$queryRaw<any[]>`
+        SELECT il.id, i.name, il."expiry_date" as "expiryDate"
+        FROM inventory_lots il
+        JOIN inventory_items i ON il.inventory_item_id = i.id
+        WHERE i.org_id = ${orgId}::uuid AND il."expiry_date" <= ${thirtyDaysFromNow}
+      `
+    ]);
+
     orgs.forEach(o => {
       alerts.push({
         id: `org-sub-${o.id}`,
@@ -129,18 +163,6 @@ export async function getSystemAlerts() {
       });
     });
 
-    // 2. Vehicule (RCA, ITP, Casco, Rovinieta)
-    const vehicles = await prisma.$queryRaw<any[]>`
-      SELECT id, name, "rca_expiry", "itp_expiry", "casco_expiry", "rovinieta_expiry"
-      FROM vehicles
-      WHERE org_id = ${orgId}::uuid
-      AND (
-        "rca_expiry" <= ${thirtyDaysFromNow} OR 
-        "itp_expiry" <= ${thirtyDaysFromNow} OR 
-        "casco_expiry" <= ${thirtyDaysFromNow} OR 
-        "rovinieta_expiry" <= ${thirtyDaysFromNow}
-      )
-    `;
     vehicles.forEach(v => {
       const checks = [
         { key: 'rca_expiry', label: 'RCA' },
@@ -162,12 +184,6 @@ export async function getSystemAlerts() {
       });
     });
 
-    // 3. Contracte Arendă
-    const contracts = await prisma.$queryRaw<any[]>`
-      SELECT id, "landowner_name", "end_date" as "expiryDate"
-      FROM lease_contracts
-      WHERE org_id = ${orgId}::uuid AND "end_date" <= ${thirtyDaysFromNow}
-    `;
     contracts.forEach(c => {
       alerts.push({
         id: `contract-${c.id}`,
@@ -179,13 +195,6 @@ export async function getSystemAlerts() {
       });
     });
 
-    // 4. Produse (Inventory Lots)
-    const lots = await prisma.$queryRaw<any[]>`
-      SELECT il.id, i.name, il."expiry_date" as "expiryDate"
-      FROM inventory_lots il
-      JOIN inventory_items i ON il.inventory_item_id = i.id
-      WHERE i.org_id = ${orgId}::uuid AND il."expiry_date" <= ${thirtyDaysFromNow}
-    `;
     lots.forEach(l => {
       alerts.push({
         id: `lot-expiry-${l.id}`,

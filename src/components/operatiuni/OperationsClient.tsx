@@ -63,6 +63,21 @@ const OP_TEMPLATES = [
 
 const CROPS = ["Grâu", "Porumb", "Floarea Soarelui", "Rapiță", "Orz", "Soia", "Toate"];
 
+const cropIcons: Record<string, string> = {
+  "Grâu": "🌾",
+  "Porumb": "🌽",
+  "Floarea Soarelui": "🌻",
+  "Rapiță": "🟡",
+  "Orz": "🌾",
+  "Soia": "🟢",
+  "Toate": "🚜",
+  "Lucernă": "☘️",
+  "Mazăre": "🫛",
+  "Sfeclă de zahăr": "🥔",
+  "Fâneață": "🌿",
+  "Pârloagă": "🌫️"
+};
+
 export default function OperationsClient({ 
   initialOperations, 
   parcels, 
@@ -82,6 +97,7 @@ export default function OperationsClient({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingRes, setEditingRes] = useState<{ id: string, val: string } | null>(null);
   const [editingOpId, setEditingOpId] = useState<string | null>(null);
+  const [selectedFilterCrop, setSelectedFilterCrop] = useState<string | null>(null);
 
   // Form State
   const [opTemplate, setOpTemplate] = useState("semanat");
@@ -101,7 +117,18 @@ export default function OperationsClient({
     return sum + (totalArea * r.quantityPerHa * r.pricePerUnit);
   }, 0);
 
-  const filteredOps = ops.filter(op => op.name.toLowerCase().includes(search.toLowerCase()));
+  const filteredOps = ops.filter(op => {
+    const matchesSearch = op.name.toLowerCase().includes(search.toLowerCase());
+    if (!selectedFilterCrop || selectedFilterCrop === "Toate") return matchesSearch;
+    
+    // Verificăm dacă lucrarea este asociată cu vreo parcelă care are cultura selectată
+    // Sau dacă numele lucrării conține cultura
+    const matchesCrop = op.name.toLowerCase().includes(selectedFilterCrop.toLowerCase()) ||
+                       (op.parcels && op.parcels.some((p: any) => 
+                         p.parcel?.cropPlans?.[0]?.cropType?.toLowerCase() === selectedFilterCrop.toLowerCase()
+                       ));
+    return matchesSearch && matchesCrop;
+  });
 
   // Filtrare Inteligentă Parcele în funcție de Cultură ȘI Tipul Operațiunii
   const visibleParcels = parcels.filter(p => {
@@ -310,8 +337,84 @@ export default function OperationsClient({
     }
   }
 
+  if (!selectedFilterCrop && !showForm) {
+    return (
+      <div className="space-y-8 py-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="text-center space-y-2">
+          <h2 className="text-3xl font-black text-foreground">Alege cultura pentru vizualizare</h2>
+          <p className="text-muted-foreground">Selectează o cultură pentru a vedea istoricul lucrărilor și devizele asociate.</p>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {CROPS.map((crop) => (
+            <Card 
+              key={crop} 
+              className="group cursor-pointer hover:border-primary/50 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden"
+              onClick={() => setSelectedFilterCrop(crop)}
+            >
+              <div className={cn(
+                "h-2",
+                crop === "Toate" ? "bg-slate-400" : "agral-gradient"
+              )} />
+              <CardContent className="p-8 flex flex-col items-center justify-center gap-4 text-center">
+                <div className="h-16 w-16 rounded-2xl bg-primary/5 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform duration-300 text-foreground">
+                  {cropIcons[crop] || "🌱"}
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-foreground">{crop}</h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {crop === "Toate" ? "Toate lucrările" : `Lucrări ${crop}`}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        <div className="bg-muted/30 rounded-2xl p-8 border border-dashed border-border flex flex-col items-center justify-center gap-4 text-center">
+            <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+              <Plus className="w-6 h-6" />
+            </div>
+            <div>
+              <h4 className="font-bold text-lg">Vrei să adaugi o lucrare nouă?</h4>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto">Poți înregistra o operațiune nouă direct, fără a selecta în prealabil o cultură.</p>
+            </div>
+            <Button 
+               className="agral-gradient text-white font-bold h-11 px-8 rounded-full"
+               onClick={() => {
+                 setOpCrop("Toate");
+                 setShowForm(true);
+               }}
+            >
+              Adaugă Lucrare Nouă
+            </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 max-w-7xl" suppressHydrationWarning>
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-muted/30 p-4 rounded-xl border border-border/50">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-2xl">
+            {cropIcons[selectedFilterCrop || ""] || "🌱"}
+          </div>
+          <div>
+            <h3 className="font-bold text-lg leading-none">{selectedFilterCrop}</h3>
+            <p className="text-xs text-muted-foreground mt-1">Sunt afișate {filteredOps.length} lucrări</p>
+          </div>
+        </div>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="h-9 gap-2 text-xs font-bold"
+          onClick={() => setSelectedFilterCrop(null)}
+        >
+          <Layers className="w-3.5 h-3.5" />
+          Schimbă Cultura
+        </Button>
+      </div>
       {/* Header */}
       {!hideHeader && (
         <div className="flex items-center justify-between">
@@ -390,7 +493,7 @@ export default function OperationsClient({
           <div className="lg:col-span-2 space-y-4">
             <Card className="border-primary/20 shadow-md">
               <CardHeader className="pb-3 border-b bg-muted/20">
-                <CardTitle className="text-lg">{editingOpId ? "Modifică Deviz #"+editingOpId.slice(-4) : "Detalii Operațiune Nouă"}</CardTitle>
+                <CardTitle className="text-lg">{editingOpId ? `Modifică Deviz #${editingOpId.slice(-4)}` : "Detalii Operațiune Nouă"}</CardTitle>
               </CardHeader>
               <CardContent className="p-5 space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
