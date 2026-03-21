@@ -18,6 +18,7 @@ import {
   Shield,
   Star,
 } from "lucide-react";
+import { Footer } from "@/components/layout/Footer";
 
 const features = [
   // ... (rest of the code remains the same but within the client component scope)
@@ -68,7 +69,7 @@ const features = [
 const plans = [
   {
     name: "Starter",
-    price: "49",
+    price: "5",
     desc: "Pentru fermieri independenți",
     features: [
       "Până la 100 ha",
@@ -83,7 +84,7 @@ const plans = [
   },
   {
     name: "Pro",
-    price: "149",
+    price: "10",
     desc: "Pentru ferme cu activitate intensă",
     features: [
       "Până la 500 ha",
@@ -98,7 +99,7 @@ const plans = [
   },
   {
     name: "Enterprise",
-    price: "399",
+    price: "20",
     desc: "Pentru cooperative & ferme mari",
     features: [
       "Suprafață nelimitată",
@@ -569,27 +570,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-white border-t border-green-100 py-12 px-4 relative z-10">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-4 text-muted-foreground font-medium">
-            <Image
-              src="/logo_agral_clar_cropped.png"
-              alt="Agral"
-              width={80}
-              height={32}
-              className="object-contain grayscale opacity-50 hover:grayscale-0 hover:opacity-100 transition-all duration-300"
-            />
-            <span className="h-6 w-px bg-border" />
-            <p>© {new Date().getFullYear()} Agral. Toate drepturile rezervate.</p>
-          </div>
-          <div className="flex items-center gap-8 text-sm font-bold uppercase tracking-wider">
-            <Link href="/termeni-si-conditii" className="text-muted-foreground hover:text-green-700 transition-colors">Termeni & Condiții</Link>
-            <Link href="/confidentialitate" className="text-muted-foreground hover:text-green-700 transition-colors">Confidențialitate</Link>
-            <Link href="/contact" className="text-muted-foreground hover:text-green-700 transition-colors">Contact</Link>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

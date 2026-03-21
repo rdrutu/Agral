@@ -3,12 +3,13 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { AuthWidget } from "@/components/auth/AuthWidget";
 import { CheckCircle2, ArrowRight } from "lucide-react";
+import { Footer } from "@/components/layout/Footer";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center">
+    <div className="min-h-screen bg-background relative flex flex-col">
       {/* Background Image */}
-      <div className="absolute inset-0 z-0">
+      <div className="fixed inset-0 z-0">
         <Image
           src="/background.png"
           alt="Agral Background"
@@ -22,17 +23,29 @@ export default function Home() {
       </div>
       <section className="relative w-full min-h-screen z-10 flex items-center justify-center px-4 py-12">
         <div className="max-w-7xl mx-auto w-full">
+          {/* Logo special pentru mobil - Apare doar pe telefoane deasupra totului */}
+          <div className="lg:hidden flex justify-center mb-8 animate-fade-in-up">
+            <Image
+              src="/logo_agral_clar_cropped.png"
+              alt="Agral"
+              width={160}
+              height={60}
+              className="object-contain mix-blend-multiply"
+              priority
+            />
+          </div>
+
           <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
             
             <div className="order-2 lg:order-1 max-w-2xl relative flex flex-col items-center lg:items-start text-center lg:text-left">
-              {/* Logo moved here to be part of the centered flow */}
-              <div className="mb-8 md:mb-12 animate-fade-in-up">
+              {/* Logo Desktop - Ascuns pe mobil ca avem versiunea de sus */}
+              <div className="hidden lg:block mb-8 md:mb-12 animate-fade-in-up">
                 <Image
                   src="/logo_agral_clar_cropped.png"
                   alt="Agral - Portalul Fermierilor"
                   width={420}
                   height={120}
-                  className="object-contain mix-blend-multiply w-full max-w-[140px] md:max-w-[420px]"
+                  className="object-contain mix-blend-multiply w-full max-w-[420px]"
                   priority
                 />
               </div>
@@ -74,7 +87,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Right - Auth Widget - Order 1 on mobile, 2 on Desktop */}
+            {/* Right - Auth Widget - Order 1 on mobile, 2 on Desktop (pt a fi sub Logo-ul de mobil) */}
             <div className="order-1 lg:order-2 w-full max-w-[520px] mx-auto lg:mr-0 lg:ml-auto animate-in zoom-in-95 duration-500 delay-150 relative">
               <div className="absolute -inset-6 bg-gradient-to-tr from-primary/30 to-emerald-400/20 rounded-full blur-[100px] opacity-70" />
               <div className="relative">
@@ -85,7 +98,10 @@ export default function Home() {
           </div>
         </div>
       </section>
-
+      
+      <div className="mt-auto">
+        <Footer />
+      </div>
     </div>
   );
 }

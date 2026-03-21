@@ -1,46 +1,83 @@
--- Script de securitate pentru Supabase (RLS - Row Level Security)
--- Rulează acest script în Supabase SQL Editor (https://supabase.com/dashboard/project/_/sql)
+-- =============================================================================
+-- SCRIPT SECURITATE COMPLET (RLS) - AGRAL (VERSIUNE OPTIMIZATĂ)
+-- =============================================================================
 
--- 1. Activează RLS pe tabelele principale
-ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE parcels ENABLE ROW LEVEL SECURITY;
-ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+-- 0. INDEXURI PENTRU PERFORMANȚĂ
+CREATE INDEX IF NOT EXISTS idx_users_org_id ON users(org_id);
+CREATE INDEX IF NOT EXISTS idx_parcels_org_id ON parcels(org_id);
 
--- 2. Politici pentru Tabela 'organizations'
--- Permite vizualizarea propriei organizații (dacă ești membru)
-CREATE POLICY "Users can see their own organization"
-ON organizations FOR SELECT
-USING (id IN (
-  SELECT org_id FROM users WHERE id = auth.uid()
-));
+-- 1. FUNCȚIE SECURITY DEFINER PENTRU PERFORMANȚĂ (Evităm subquery-uri repetate)
+-- Această funcție cache-uiește org_id-ul pentru sesiunea curentă.
+CREATE OR REPLACE FUNCTION get_my_org_id()
+RETURNS uuid AS $$
+BEGIN
+  RETURN (SELECT org_id FROM public.users WHERE id = auth.uid());
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '';
 
--- 3. Politici pentru Tabela 'users'
--- Permite vizualizarea propriului profil
-CREATE POLICY "Users can see their own profile"
-ON users FOR SELECT
-USING (id = auth.uid());
+-- 2. ACTIVARE RLS PE TOATE TABELELE
+DO $$ 
+DECLARE 
+    t record;
+BEGIN
+    FOR t IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP
+        EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t.tablename);
+    END LOOP;
+END $$;
 
--- Permite update propriului profil
-CREATE POLICY "Users can update their own profile"
-ON users FOR UPDATE
-USING (id = auth.uid());
+-- 3. POLITICI PENTRU 'users'
+DROP POLICY IF EXISTS "Users see self" ON users;
+CREATE POLICY "Users see self" ON users FOR SELECT USING (users.id = auth.uid());
+CREATE POLICY "Users update self" ON users FOR UPDATE USING (users.id = auth.uid()) WITH CHECK (users.id = auth.uid());
 
--- 4. Politici pentru Tabela 'parcels'
--- Permite vizualizarea parcelelor din propria organizație
-CREATE POLICY "Users can see parcels from their organization"
-ON parcels FOR ALL
-USING (org_id IN (
-  SELECT org_id FROM users WHERE id = auth.uid()
-));
+-- 4. POLITICI PENTRU 'organizations'
+DROP POLICY IF EXISTS "Org members see org" ON organizations;
+CREATE POLICY "Org members see org" ON organizations FOR SELECT 
+USING (organizations.id = get_my_org_id());
 
--- 5. Politici pentru Tabela 'notifications'
--- Permite vizualizarea propriilor notificări
-CREATE POLICY "Users can see their own notifications"
-ON notifications FOR SELECT
-USING (user_id = auth.uid() OR (org_id IN (SELECT org_id FROM users WHERE id = auth.uid())));
+-- 5. TABELE BAZATE PE 'org_id' (Izolare Organizație)
+DO $$ 
+DECLARE 
+    tbl text;
+    tables text[] := ARRAY[
+        'parcels', 'seasons', 'agricultural_operations', 'inventory_items', 
+        'financial_transactions', 'sales', 'lease_contracts', 'parcel_groups', 
+        'weather_pois', 'subscription_payments', 'vehicles', 'notifications'
+    ];
+BEGIN
+    FOREACH tbl IN ARRAY tables LOOP
+        EXECUTE format('DROP POLICY IF EXISTS "Org isolation %I" ON %I', tbl, tbl);
+        EXECUTE format('CREATE POLICY "Org isolation %1$I" ON %1$I FOR ALL USING (%1$I.org_id = get_my_org_id()) WITH CHECK (%1$I.org_id = get_my_org_id())', tbl);
+    END LOOP;
+END $$;
 
--- NOTE: Deoarece aplicația folosește Prisma pe server, Prisma se conectează de obicei cu drepturi de admin (bypass RLS).
--- Aceste politici sunt un strat de siguranță suplimentar în cazul în care Supabase Client este folosit direct în browser.
+-- 6. TABELE COPIL (Legate prin ID de părinte)
+-- Crop Plans (legate de parcelă)
+CREATE POLICY "Crop plans isolation" ON crop_plans FOR ALL 
+USING (crop_plans.parcel_id IN (SELECT p.id FROM parcels p WHERE p.org_id = get_my_org_id()))
+WITH CHECK (crop_plans.parcel_id IN (SELECT p.id FROM parcels p WHERE p.org_id = get_my_org_id()));
 
--- Pentru a permite Prisma să funcționeze corect pe tabele cu RLS, asigură-te că user-ul 'postgres' are drepturi de 'bypassrls' (deja implicit în Supabase).
+-- Mentenanță Vehicule (legate de vehicul)
+CREATE POLICY "Vehicle maintenance isolation" ON vehicle_maintenance FOR ALL 
+USING (vehicle_maintenance.vehicle_id IN (SELECT v.id FROM vehicles v WHERE v.org_id = get_my_org_id()))
+WITH CHECK (vehicle_maintenance.vehicle_id IN (SELECT v.id FROM vehicles v WHERE v.org_id = get_my_org_id()));
+
+-- Loturi Inventar (legate de produs)
+CREATE POLICY "Inventory lots isolation" ON inventory_lots FOR ALL 
+USING (inventory_lots.inventory_item_id IN (SELECT i.id FROM inventory_items i WHERE i.org_id = get_my_org_id()))
+WITH CHECK (inventory_lots.inventory_item_id IN (SELECT i.id FROM inventory_items i WHERE i.org_id = get_my_org_id()));
+
+-- Tranzacții Inventar (legate de lot)
+CREATE POLICY "Inventory trans isolation" ON inventory_transactions FOR ALL 
+USING (inventory_transactions.inventory_lot_id IN (SELECT il.id FROM inventory_lots il JOIN inventory_items i ON il.inventory_item_id = i.id WHERE i.org_id = get_my_org_id()))
+WITH CHECK (inventory_transactions.inventory_lot_id IN (SELECT il.id FROM inventory_lots il JOIN inventory_items i ON il.inventory_item_id = i.id WHERE i.org_id = get_my_org_id()));
+
+-- 7. CHAT & SUPORT
+CREATE POLICY "Chat view" ON chat_conversations FOR SELECT 
+USING (chat_conversations.user_id = auth.uid() OR chat_conversations.moderator_id = auth.uid());
+
+CREATE POLICY "Message view" ON chat_messages FOR ALL 
+USING (chat_messages.conversation_id IN (SELECT c.id FROM chat_conversations c WHERE c.user_id = auth.uid() OR c.moderator_id = auth.uid()))
+WITH CHECK (chat_messages.conversation_id IN (SELECT c.id FROM chat_conversations c WHERE c.user_id = auth.uid() OR c.moderator_id = auth.uid()));
+
+CREATE POLICY "Support config view" ON support_configs FOR SELECT USING (true);

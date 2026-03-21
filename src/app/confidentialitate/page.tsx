@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ShieldCheck, Scale } from "lucide-react";
+import { Footer } from "@/components/layout/Footer";
 
 export default function PrivacyPage() {
   return (
@@ -152,6 +153,7 @@ export default function PrivacyPage() {
           </section>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

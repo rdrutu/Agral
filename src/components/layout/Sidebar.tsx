@@ -17,7 +17,8 @@ import {
   ChevronsLeft,
   ChevronsRight,
   CalendarDays,
-  Headset, // Added Headset for terminal
+  Headset,
+  ShieldCheck,
 } from "lucide-react";
 import { useState } from "react";
 import { cn, formatDate } from "@/lib/utils";
@@ -113,10 +114,10 @@ export function Sidebar({
       )}
       suppressHydrationWarning
     >
-      {/* Toggle Button */}
+      {/* Toggle Button - Hidden on mobile, only desktop */}
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="absolute -right-3 top-6 bg-sidebar border border-sidebar-border text-muted-foreground hover:text-foreground transition-colors p-1.5 rounded-full hover:bg-accent z-50 flex items-center justify-center shadow-sm"
+        className="absolute -right-3 top-6 bg-sidebar border border-sidebar-border text-muted-foreground hover:text-foreground transition-colors p-1.5 rounded-full hover:bg-accent z-50 lg:flex hidden items-center justify-center shadow-sm"
       >
         {collapsed ? <ChevronsRight className="w-4 h-4" /> : <ChevronsLeft className="w-4 h-4" />}
       </button>
@@ -190,9 +191,9 @@ export function Sidebar({
         ))}
       </nav>
 
-      {/* Bottom settings */}
-      {userRole !== 'superadmin' && (
-        <div className="p-2 border-t border-sidebar-border">
+      {/* Bottom settings & Legal */}
+      <div className="p-2 border-t border-sidebar-border space-y-1">
+        {userRole !== 'superadmin' && (
           <Link
             href="/setari"
             className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all"
@@ -200,8 +201,16 @@ export function Sidebar({
             <Settings className="w-5 h-5 shrink-0" />
             {!collapsed && <span className="text-sm font-medium">Setări</span>}
           </Link>
-        </div>
-      )}
+        )}
+        <Link
+          href="/termeni-si-conditii"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all"
+          title={collapsed ? "Informații Legale" : undefined}
+        >
+          <ShieldCheck className="w-5 h-5 shrink-0" />
+          {!collapsed && <span className="text-sm font-medium">Informații Legale</span>}
+        </Link>
+      </div>
     </aside>
   );
 }
