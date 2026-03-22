@@ -183,7 +183,8 @@ export function MapPolygonPicker({ onPolygonComplete, initialPolygon, baseLat, b
       setAncpiStatus({ status: 'testing' });
       try {
         const testUrl = `https://geoportal.ancpi.ro/maps/rest/services/eterra3_publish/MapServer?f=json`;
-        const res = await fetch(testUrl);
+        // Folosim proxy-ul și pentru test că altfel dă CORS în browser
+        const res = await fetch(`/api/ancpi/proxy?url=${encodeURIComponent(testUrl)}`);
         const data = await res.json();
         if (data.error) {
           setAncpiStatus({ status: 'fail', message: 'Indisponibil' });
@@ -297,14 +298,28 @@ export function MapPolygonPicker({ onPolygonComplete, initialPolygon, baseLat, b
         <TileLayer
           url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
           attribution="Tiles &copy; Esri"
+          maxZoom={19}
         />
         
-        {/* Stratul Cadastral ANCPI - Folosim serviciul Tiled CP_Yellow_vt (cel mai stabil și rapid) */}
+        {/* Stratul Cadastral ANCPI WMS - Mult mai precis decât cel Tiled */}
+        <WMSTileLayer
+          url={`/api/ancpi/proxy?url=${encodeURIComponent('https://geoportal.ancpi.ro/arcgis/services/eterra3_publish/MapServer/WMSServer')}`}
+          layers="1"
+          format="image/png"
+          transparent={true}
+          attribution="&copy; ANCPI Romania"
+          opacity={1}
+          minZoom={14}
+          maxZoom={20}
+        />
+        
+        {/* Stratul Cadastral ANCPI Tiled - Backup pentru viteză la zoom mic */}
         <TileLayer
           url={`/api/ancpi/proxy?url=${encodeURIComponent('https://geoportal.ancpi.ro/maps/rest/services/ANCPI/CP_Yellow_vt/MapServer/tile/{z}/{y}/{x}')}`}
           attribution="&copy; ANCPI Romania"
-          opacity={0.8}
+          opacity={0.6}
           minZoom={12}
+          maxZoom={15}
         />
 
         <AncpiclickHandler onParcelFound={(geoJson, meta) => {

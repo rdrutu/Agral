@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MapContainer, TileLayer, Polygon, Popup, Tooltip, useMap, Marker } from "react-leaflet";
+import { MapContainer, TileLayer, Polygon, Popup, Tooltip, useMap, Marker, WMSTileLayer } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useRouter } from "next/navigation";
@@ -114,6 +114,18 @@ export default function AllParcelsMapClient({
         <TileLayer
           url="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
           maxZoom={19}
+        />
+        
+        {/* Stratul Cadastral ANCPI WMS */}
+        <WMSTileLayer
+          url={`/api/ancpi/proxy?url=${encodeURIComponent('https://geoportal.ancpi.ro/arcgis/services/eterra3_publish/MapServer/WMSServer')}`}
+          layers="1"
+          format="image/png"
+          transparent={true}
+          attribution="&copy; ANCPI Romania"
+          opacity={0.8}
+          minZoom={14}
+          maxZoom={20}
         />
         
         <MapBoundsFitter parcels={parcels} farmBase={farmBase} />
