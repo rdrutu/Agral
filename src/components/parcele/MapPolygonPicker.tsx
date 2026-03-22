@@ -50,7 +50,7 @@ function SearchOverlay({ onSelect }: { onSelect: (lat: number, lng: number) => v
           .then(r => r.json());
 
         // 2. Căutare Cadastrală (ANCPI ArcGIS REST GeoJSON)
-        const ancpiUrl = `https://geoportal.ancpi.ro/maps/rest/services/eterra3_publish/MapServer/1/query?f=geojson&where=nr_cadastral%20LIKE%20%27%25${encodeURIComponent(query)}%25%27&outFields=*&resultRecordCount=5&outSR=4326`;
+        const ancpiUrl = `https://geoportal.ancpi.ro/arcgis/rest/services/eterra3_publish/MapServer/1/query?f=geojson&where=nr_cadastral%20LIKE%20%27%25${encodeURIComponent(query)}%25%27&outFields=*&resultRecordCount=5&outSR=4326`;
         const ancpiPromise = fetch(`/api/ancpi/proxy?url=${encodeURIComponent(ancpiUrl)}`)
           .then(r => r.json());
 
@@ -141,7 +141,7 @@ function AncpiclickHandler({ onParcelFound }: { onParcelFound: (geoJson: any, me
         const d = 0.00005;
         const envelope = `${lng-d},${lat-d},${lng+d},${lat+d}`;
         
-        const ancpiUrl = `https://geoportal.ancpi.ro/maps/rest/services/eterra3_publish/MapServer/1/query`
+        const ancpiUrl = `https://geoportal.ancpi.ro/arcgis/rest/services/eterra3_publish/MapServer/1/query`
           + `?f=geojson&geometry=${encodeURIComponent(envelope)}&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&outSR=4326`;
         
         const response = await fetch(`/api/ancpi/proxy?url=${encodeURIComponent(ancpiUrl)}`);
@@ -182,7 +182,7 @@ export function MapPolygonPicker({ onPolygonComplete, initialPolygon, baseLat, b
     const checkConnection = async () => {
       setAncpiStatus({ status: 'testing' });
       try {
-        const testUrl = `https://geoportal.ancpi.ro/maps/rest/services/eterra3_publish/MapServer?f=json`;
+        const testUrl = `https://geoportal.ancpi.ro/arcgis/rest/services/eterra3_publish/MapServer?f=json`;
         const res = await fetch(`/api/ancpi/proxy?url=${encodeURIComponent(testUrl)}`);
         
         if (!res.ok) {
@@ -326,7 +326,7 @@ export function MapPolygonPicker({ onPolygonComplete, initialPolygon, baseLat, b
         
         {/* Stratul Cadastral ANCPI Tiled - Backup pentru viteză la zoom mic */}
         <TileLayer
-          url={`/api/ancpi/proxy?url=${encodeURIComponent('https://geoportal.ancpi.ro/maps/rest/services/ANCPI/CP_Yellow_vt/MapServer/tile/{z}/{y}/{x}')}`}
+          url={`/api/ancpi/proxy?url=${encodeURIComponent('https://geoportal.ancpi.ro/arcgis/rest/services/ANCPI/CP_Yellow_vt/MapServer/tile/{z}/{y}/{x}')}`}
           attribution="&copy; ANCPI Romania"
           opacity={0.6}
           minZoom={12}
