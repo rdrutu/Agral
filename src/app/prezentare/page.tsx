@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { AuthWidget } from "@/components/auth/AuthWidget";
+import { TemporaryGate } from "@/components/auth/TemporaryGate";
 import {
   MapPin,
   FileText,
@@ -19,6 +20,7 @@ import {
   Star,
 } from "lucide-react";
 import { Footer } from "@/components/layout/Footer";
+
 
 const features = [
   // ... (rest of the code remains the same but within the client component scope)
@@ -149,38 +151,39 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background relative selection:bg-green-100 selection:text-green-900">
-      {/* Zoom Modal / Lightbox */}
-      {selectedImage && (
-        <div
-          className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 md:p-12 cursor-zoom-out animate-in fade-in duration-300"
-          onClick={() => setSelectedImage(null)}
-        >
-          <div className="relative w-full h-full max-w-7xl">
-            <Image
-              src={selectedImage}
-              alt="Zoomed View"
-              fill
-              className="object-contain rounded-xl"
-              priority
-            />
-            <button
-              className="absolute top-4 right-4 w-12 h-12 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors"
-              onClick={(e) => { e.stopPropagation(); setSelectedImage(null); }}
-            >
-              <span className="text-2xl">×</span>
-            </button>
+    <TemporaryGate>
+      <div className="min-h-screen bg-background relative selection:bg-green-100 selection:text-green-900">
+        {/* Zoom Modal / Lightbox */}
+        {selectedImage && (
+          <div
+            className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 md:p-12 cursor-zoom-out animate-in fade-in duration-300"
+            onClick={() => setSelectedImage(null)}
+          >
+            <div className="relative w-full h-full max-w-7xl">
+              <Image
+                src={selectedImage}
+                alt="Zoomed View"
+                fill
+                className="object-contain rounded-xl"
+                priority
+              />
+              <button
+                className="absolute top-4 right-4 w-12 h-12 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors"
+                onClick={(e) => { e.stopPropagation(); setSelectedImage(null); }}
+              >
+                <span className="text-2xl">×</span>
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Nav */}
-      <nav
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 border-b border-border ${isScrolled
-          ? "bg-background/95 backdrop-blur-lg h-14"
-          : "bg-background/80 backdrop-blur-md h-16 md:h-20"
-          }`}
-      >
+        {/* Nav */}
+        <nav
+          className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 border-b border-border ${isScrolled
+            ? "bg-background/95 backdrop-blur-lg h-14"
+            : "bg-background/80 backdrop-blur-md h-16 md:h-20"
+            }`}
+        >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full">
           <div className="flex items-center justify-between h-full">
             <Link href="/" className="flex items-center transition-transform hover:scale-105">
@@ -571,6 +574,7 @@ export default function Home() {
       </section>
 
       <Footer />
-    </div>
+      </div>
+    </TemporaryGate>
   );
 }
