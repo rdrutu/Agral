@@ -315,7 +315,7 @@ export function MapPolygonPicker({ onPolygonComplete, initialPolygon, baseLat, b
         
         {/* Stratul Cadastral ANCPI Tiled - Mult mai rapid și stabil decât WMS (Layer 0) */}
         <TileLayer
-          url={`/api/ancpi/proxy?url=${encodeURIComponent('https://geoportal.ancpi.ro/arcgis/rest/services/AnalizaParcele/MapServer/tile/{z}/{y}/{x}')}`}
+          url="/api/ancpi/proxy?url=https://geoportal.ancpi.ro/arcgis/rest/services/AnalizaParcele/MapServer/tile/{z}/{y}/{x}"
           attribution="&copy; ANCPI Romania"
           opacity={0.7}
           minZoom={12}
