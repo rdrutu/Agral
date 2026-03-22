@@ -63,7 +63,7 @@ async function fetchWithRetry(options: https.RequestOptions, targetUrl: URL, ret
         // Nu facem retry la timeout total pentru a nu bloca request-ul prea mult
         resolve(NextResponse.json({ 
           error: 'ANCPI Timeout', 
-          message: 'Serverul ANCPI nu a răspuns în timp util.' 
+          message: 'Serverul ANCPI nu a răspuns în 15 secunde.' 
         }, { status: 504 }));
       });
 
@@ -112,7 +112,7 @@ export async function GET(request: Request) {
       hostname: targetUrl.hostname,
       path: targetUrl.pathname + targetUrl.search,
       method: 'GET',
-      timeout: 45000,
+      timeout: 15000,
       agent: insecureAgent,
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',

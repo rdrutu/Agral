@@ -313,26 +313,15 @@ export function MapPolygonPicker({ onPolygonComplete, initialPolygon, baseLat, b
           maxZoom={19}
         />
         
-        {/* Stratul Cadastral ANCPI WMS - Serviciul AnalizaParcele (Layer 0 = Parcele) */}
-        <WMSTileLayer
-          url={`/api/ancpi/proxy?url=${encodeURIComponent('https://geoportal.ancpi.ro/arcgis/services/AnalizaParcele/MapServer/WMSServer')}`}
-          layers="0"
-          format="image/png"
-          transparent={true}
+        {/* Stratul Cadastral ANCPI Tiled - Mult mai rapid și stabil decât WMS (Layer 0) */}
+        <TileLayer
+          url={`/api/ancpi/proxy?url=${encodeURIComponent('https://geoportal.ancpi.ro/arcgis/rest/services/AnalizaParcele/MapServer/tile/{z}/{y}/{x}')}`}
           attribution="&copy; ANCPI Romania"
-          opacity={0.8}
-          minZoom={14}
+          opacity={0.7}
+          minZoom={12}
           maxZoom={20}
         />
         
-        {/* Stratul Cadastral ANCPI Tiled - Backup pentru viteză la zoom mic */}
-        <TileLayer
-          url={`/api/ancpi/proxy?url=${encodeURIComponent('https://geoportal.ancpi.ro/arcgis/rest/services/ANCPI/CP_Yellow_vt/MapServer/tile/{z}/{y}/{x}')}`}
-          attribution="&copy; ANCPI Romania"
-          opacity={0.6}
-          minZoom={12}
-          maxZoom={15}
-        />
 
         <AncpiclickHandler onParcelFound={(geoJson, meta) => {
           onPolygonComplete(geoJson, meta.areaHa, {

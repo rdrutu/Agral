@@ -46,15 +46,12 @@ export function ParcelMapView({ geoJson }: ParcelMapViewProps) {
           url="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
         />
 
-        {/* Stratul Cadastral ANCPI WMS - Serviciul AnalizaParcele (Layer 0 = Parcele) */}
-        <WMSTileLayer
-          url={`/api/ancpi/proxy?url=${encodeURIComponent('https://geoportal.ancpi.ro/arcgis/services/AnalizaParcele/MapServer/WMSServer')}`}
-          layers="0"
-          format="image/png"
-          transparent={true}
+        {/* Stratul Cadastral ANCPI Tiled - Mult mai rapid și stabil decât WMS (Layer 0) */}
+        <TileLayer
+          url={`/api/ancpi/proxy?url=${encodeURIComponent('https://geoportal.ancpi.ro/arcgis/rest/services/AnalizaParcele/MapServer/tile/{z}/{y}/{x}')}`}
           attribution="&copy; ANCPI Romania"
-          opacity={0.8}
-          minZoom={14}
+          opacity={0.7}
+          minZoom={12}
           maxZoom={20}
         />
         <GeoJSON 

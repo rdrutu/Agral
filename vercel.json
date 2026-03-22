@@ -1,0 +1,8 @@
+{
+  "functions": {
+    "src/app/api/ancpi/proxy/route.ts": {
+      "regions": ["fra1"],
+      "maxDuration": 60
+    }
+  }
+}
