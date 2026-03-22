@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 
-// ANCPI Geoportal often has SSL certificate issues that Node.js fetch doesn't trust by default
 // Force bypass SSL checks for ANCPI interactions as they use internal govt certificates
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+// Increase global fetch connect timeout for undici (used by Next.js fetch)
+process.env.UNDICI_CONNECT_TIMEOUT = '60000'; 
 
 export async function GET(request: Request) {
   try {
@@ -31,16 +32,33 @@ export async function GET(request: Request) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout - ANCPI servers are slow
 
-    const response = await fetch(targetUrl, {
-      method: 'GET',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-        'Referer': 'https://geoportal.ancpi.ro/imobile.html',
-        'Accept': '*/*',
-      },
-      cache: 'no-store',
-      signal: controller.signal,
-    }).finally(() => clearTimeout(timeout));
+    let response: Response;
+    let attempts = 0;
+    const maxAttempts = 2;
+
+    while (true) {
+      try {
+        attempts++;
+        response = await fetch(targetUrl, {
+          method: 'GET',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            'Referer': 'https://geoportal.ancpi.ro/imobile.html',
+            'Accept': '*/*',
+          },
+          cache: 'no-store',
+          signal: controller.signal,
+        });
+        break; // Success
+      } catch (err: any) {
+        if (attempts >= maxAttempts) throw err;
+        console.log(`[ANCPI Proxy] Attempt ${attempts} failed, retrying...`);
+        // Wait 1s before retry
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+    
+    clearTimeout(timeout);
 
     if (!response.ok) {
       console.error(`[ANCPI Proxy] ANCPI Error: ${response.status} ${response.statusText}`);
