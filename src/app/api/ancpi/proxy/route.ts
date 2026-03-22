@@ -29,7 +29,7 @@ export async function GET(request: Request) {
 
     console.log(`[ANCPI Proxy] Fetching: ${targetUrl}`);
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
+    const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout - ANCPI servers are slow
 
     const response = await fetch(targetUrl, {
       method: 'GET',
@@ -69,7 +69,13 @@ export async function GET(request: Request) {
         'Cache-Control': 'public, max-age=3600',
       },
     });
-  } catch (error: any) {
+    } catch (error: any) {
+    if (error.name === 'AbortError') {
+      return NextResponse.json({ 
+        error: 'ANCPI Timeout', 
+        message: 'Serverul ANCPI nu a răspuns în 30 de secunde. Încearcă din nou peste câteva momente.'
+      }, { status: 504 });
+    }
     console.error('ANCPI Proxy Error:', error);
     return NextResponse.json({ 
       error: 'Proxy Internal Error', 
