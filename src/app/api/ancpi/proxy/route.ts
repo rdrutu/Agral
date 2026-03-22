@@ -1,25 +1,19 @@
 import { NextResponse } from 'next/server';
 import https from 'https';
-import http from 'http';
 
 // Force bypass SSL checks for ANCPI interactions as they use internal govt certificates
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
-// Agent HTTPS refolosibil
+// Agent HTTPS refolosibil - Întotdeauna HTTPS, chiar dacă URL-ul de bază e HTTP
 const httpsAgent = new https.Agent({
   rejectUnauthorized: false,
   keepAlive: true,
 });
 
-// Agent HTTP refolosibil
-const httpAgent = new http.Agent({
-  keepAlive: true,
-});
-
-async function fetchWithRetry(options: any, transport: any, targetUrl: URL, retries = 2): Promise<Response> {
+async function fetchWithRetry(options: any, targetUrl: URL, retries = 2): Promise<Response> {
   return new Promise<Response>((resolve) => {
     const attempt = (remaining: number) => {
-      const req = transport.request(options, (res: any) => {
+      const req = https.request(options, (res: any) => {
         const chunks: any[] = [];
         res.on('data', (chunk: any) => chunks.push(chunk));
         res.on('end', () => {
@@ -89,7 +83,7 @@ async function fetchWithRetry(options: any, transport: any, targetUrl: URL, retr
   });
 }
 
-export async function GET(request: Request) {
+export async function GET(request: Request): Promise<Response> {
   try {
     const { searchParams } = new URL(request.url);
     const baseUrl = searchParams.get('url');
@@ -98,7 +92,10 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Missing URL parameter' }, { status: 400 });
     }
 
+    // Convertim URL-ul în obiect și forțăm HTTPS (ANCPI acceptă HTTPS pe toate endpoint-urile)
     const targetUrl = new URL(baseUrl);
+    targetUrl.protocol = 'https:';
+
     searchParams.forEach((value, key) => {
       if (key !== 'url') {
         targetUrl.searchParams.set(key, value);
@@ -109,17 +106,13 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Invalid target domain' }, { status: 400 });
     }
 
-    const isHttps = targetUrl.protocol === 'https:';
-    const transport = isHttps ? https : http;
-    const agent = isHttps ? httpsAgent : httpAgent;
-
     const options = {
       hostname: targetUrl.hostname,
-      port: targetUrl.port || (isHttps ? 443 : 80),
+      port: 443,
       path: targetUrl.pathname + targetUrl.search,
       method: 'GET',
       timeout: 15000,
-      agent: agent,
+      agent: httpsAgent,
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
         'Referer': 'https://geoportal.ancpi.ro/imobile.html',
@@ -127,7 +120,7 @@ export async function GET(request: Request) {
       }
     };
 
-    return await fetchWithRetry(options, transport, targetUrl);
+    return await fetchWithRetry(options, targetUrl);
 
   } catch (error: any) {
     return NextResponse.json({ 
