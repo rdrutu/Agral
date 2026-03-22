@@ -9,6 +9,7 @@ import L from "leaflet";
 import * as turf from "@turf/turf";
 import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
+import 'leaflet.vectorgrid';
 
 // Repararea iconițelor de marker default pentru packagerele moderne
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -18,21 +19,27 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
-// Componentă specială pentru stratul ANCPI care gestionează corect cererile WMS prin proxy
+// Componentă specială pentru stratul ANCPI care gestionează raster/vector tiles
 function ANCPITileLayer() {
   const map = useMap();
 
   useEffect(() => {
-    // Folosim WMS prin proxy. Parametrii (bbox, etc) vor fi adăugați automat de Leaflet.
-    const layer = L.tileLayer.wms(
-      '/api/ancpi/proxy?url=' + encodeURIComponent('http://geoportal.ancpi.ro/inspireview/rest/services/CP/CP_View/MapServer/exts/InspireView/service'),
+    // @ts-ignore - L.vectorGrid este adăugat de plugin-ul leaflet.vectorgrid
+    const layer = L.vectorGrid.protobuf(
+      'https://geoportal.ancpi.ro/hosted_services/rest/services/Hosted/Grile_VT_2025/VectorTileServer/tile/{z}/{y}/{x}.pbf',
       {
-        layers: 'CP.CadastralParcel',
-        format: 'image/png',
-        transparent: true,
-        version: '1.3.0',
-        opacity: 0.7,
-        minZoom: 13,
+        vectorTileLayerStyles: {
+          '*': {
+            fill: true,
+            fillColor: '#ffff00',
+            fillOpacity: 0.1,
+            color: '#ff7800',
+            weight: 1,
+            opacity: 0.8,
+          }
+        },
+        minZoom: 11,
+        maxZoom: 20,
         attribution: '&copy; ANCPI Romania',
       }
     );
