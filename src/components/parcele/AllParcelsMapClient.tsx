@@ -21,6 +21,30 @@ const cropIcons: Record<string, string> = {
   "Pârloagă": "🌫️"
 };
 
+// Componentă specială pentru stratul ANCPI care gestionează corect URL-urile de tile prin proxy
+function ANCPITileLayer() {
+  const map = useMap();
+
+  useEffect(() => {
+    const layer = new L.TileLayer('', { 
+      opacity: 0.7, 
+      maxZoom: 20, 
+      minZoom: 12,
+      attribution: '&copy; ANCPI Romania' 
+    });
+
+    layer.getTileUrl = (coords) => {
+      const tileUrl = `https://geoportal.ancpi.ro/arcgis/rest/services/AnalizaParcele/MapServer/tile/${coords.z}/${coords.y}/${coords.x}`;
+      return `/api/ancpi/proxy?url=${encodeURIComponent(tileUrl)}`;
+    };
+
+    layer.addTo(map);
+    return () => { layer.remove(); };
+  }, [map]);
+
+  return null;
+}
+
 const colors = [
   "#3b82f6", // blue-500
   "#10b981", // emerald-500
@@ -117,13 +141,7 @@ export default function AllParcelsMapClient({
         />
         
         {/* Stratul Cadastral ANCPI Tiled - Mult mai rapid și stabil decât WMS (Layer 0) */}
-        <TileLayer
-          url="/api/ancpi/proxy?url=https://geoportal.ancpi.ro/arcgis/rest/services/AnalizaParcele/MapServer/tile/{z}/{y}/{x}"
-          attribution="&copy; ANCPI Romania"
-          opacity={0.7}
-          minZoom={12}
-          maxZoom={20}
-        />
+        <ANCPITileLayer />
         
         <MapBoundsFitter parcels={parcels} farmBase={farmBase} />
 
