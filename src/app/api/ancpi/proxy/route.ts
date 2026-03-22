@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
 
 // ANCPI Geoportal often has SSL certificate issues that Node.js fetch doesn't trust by default
-if (process.env.NODE_ENV === 'development') {
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-}
+// Force bypass SSL checks for ANCPI interactions as they use internal govt certificates
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 export async function GET(request: Request) {
   try {

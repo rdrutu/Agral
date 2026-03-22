@@ -183,16 +183,22 @@ export function MapPolygonPicker({ onPolygonComplete, initialPolygon, baseLat, b
       setAncpiStatus({ status: 'testing' });
       try {
         const testUrl = `https://geoportal.ancpi.ro/maps/rest/services/eterra3_publish/MapServer?f=json`;
-        // Folosim proxy-ul și pentru test că altfel dă CORS în browser
         const res = await fetch(`/api/ancpi/proxy?url=${encodeURIComponent(testUrl)}`);
+        
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({ error: 'Eroare necunoscută' }));
+          setAncpiStatus({ status: 'fail', message: errorData.error || `Serverul a răspuns cu ${res.status}` });
+          return;
+        }
+
         const data = await res.json();
         if (data.error) {
-          setAncpiStatus({ status: 'fail', message: 'Indisponibil' });
+          setAncpiStatus({ status: 'fail', message: data.error.message || 'Eroare ANCPI' });
         } else {
           setAncpiStatus({ status: 'ok' });
         }
       } catch (e: any) {
-        setAncpiStatus({ status: 'fail' });
+        setAncpiStatus({ status: 'fail', message: 'Eroare conexiune' });
       }
     };
     checkConnection();
@@ -278,7 +284,12 @@ export function MapPolygonPicker({ onPolygonComplete, initialPolygon, baseLat, b
           <div className="flex items-center gap-2">
             {ancpiStatus.status === 'testing' && <Loader2 className="w-3 h-3 animate-spin" />}
             {ancpiStatus.status === 'ok' && <div className="flex items-center gap-1 text-green-600 text-[10px] bg-green-50 px-2 py-0.5 rounded-full border border-green-200"><div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> Server Online</div>}
-            {ancpiStatus.status === 'fail' && <div className="text-red-600 text-[10px] bg-red-50 px-2 py-0.5 rounded-full border border-red-200">Server Offline</div>}
+            {ancpiStatus.status === 'fail' && (
+              <div className="flex flex-col items-end">
+                <div className="text-red-600 text-[10px] bg-red-50 px-2 py-0.5 rounded-full border border-red-200">Server Offline</div>
+                {ancpiStatus.message && <span className="text-[9px] text-red-400 mt-0.5">{ancpiStatus.message}</span>}
+              </div>
+            )}
           </div>
         </div>
         <div className="text-[11px] opacity-80" suppressHydrationWarning>

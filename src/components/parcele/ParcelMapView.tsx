@@ -1,6 +1,6 @@
 "use client";
 
-import { MapContainer, TileLayer, GeoJSON } from "react-leaflet";
+import { MapContainer, TileLayer, GeoJSON, WMSTileLayer } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -44,6 +44,18 @@ export function ParcelMapView({ geoJson }: ParcelMapViewProps) {
         />
         <TileLayer
           url="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
+        />
+
+        {/* Stratul Cadastral ANCPI WMS */}
+        <WMSTileLayer
+          url={`/api/ancpi/proxy?url=${encodeURIComponent('https://geoportal.ancpi.ro/arcgis/services/eterra3_publish/MapServer/WMSServer')}`}
+          layers="1"
+          format="image/png"
+          transparent={true}
+          attribution="&copy; ANCPI Romania"
+          opacity={0.8}
+          minZoom={14}
+          maxZoom={20}
         />
         <GeoJSON 
           data={geoJson} 
