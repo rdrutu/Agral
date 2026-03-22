@@ -25,12 +25,12 @@ function ANCPITileLayer() {
   useEffect(() => {
     // Folosim WMS prin proxy. Parametrii (bbox, etc) vor fi adăugați automat de Leaflet.
     const layer = L.tileLayer.wms(
-      '/api/ancpi/proxy?url=' + encodeURIComponent('https://geoportal.ancpi.ro/arcgis/services/eterra3_publish/MapServer/WMSServer'),
+      '/api/ancpi/proxy?url=' + encodeURIComponent('http://geoportal.ancpi.ro/inspireview/rest/services/CP/CP_View/MapServer/exts/InspireView/service'),
       {
-        layers: '1',
+        layers: 'CP.CadastralParcel',
         format: 'image/png',
         transparent: true,
-        version: '1.1.1',
+        version: '1.3.0',
         opacity: 0.7,
         minZoom: 13,
         attribution: '&copy; ANCPI Romania',
