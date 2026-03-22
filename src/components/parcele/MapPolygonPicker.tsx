@@ -24,6 +24,7 @@ function ANCPITileLayer() {
 
   useEffect(() => {
     // Import dinamic doar în browser pentru a evita erorile de SSR
+    // @ts-expect-error - leaflet.vectorgrid has no official types
     import('leaflet.vectorgrid').then(() => {
       // @ts-ignore - L.vectorGrid este adăugat de plugin
       const layer = (L as any).vectorGrid.protobuf(
