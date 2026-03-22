@@ -313,10 +313,10 @@ export function MapPolygonPicker({ onPolygonComplete, initialPolygon, baseLat, b
           maxZoom={19}
         />
         
-        {/* Stratul Cadastral ANCPI WMS - Mult mai precis decât cel Tiled, dar uneori instabil */}
+        {/* Stratul Cadastral ANCPI WMS - Serviciul AnalizaParcele (Layer 0 = Parcele) */}
         <WMSTileLayer
-          url={`/api/ancpi/proxy?url=${encodeURIComponent('https://geoportal.ancpi.ro/arcgis/services/eterra3_publish/MapServer/WMSServer')}`}
-          layers="1"
+          url={`/api/ancpi/proxy?url=${encodeURIComponent('https://geoportal.ancpi.ro/arcgis/services/AnalizaParcele/MapServer/WMSServer')}`}
+          layers="0"
           format="image/png"
           transparent={true}
           attribution="&copy; ANCPI Romania"

@@ -24,8 +24,6 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Invalid target domain' }, { status: 400 });
     }
 
-    // console.log(`[ANCPI Proxy] Fetching via HTTPS module: ${targetUrl.toString()}`);
-
     return new Promise<Response>((resolve) => {
       const options = {
         hostname: targetUrl.hostname,
@@ -49,7 +47,6 @@ export async function GET(request: Request) {
           const buffer = Buffer.concat(chunks);
           
           if (res.statusCode && res.statusCode >= 400) {
-            // console.error(`[ANCPI Proxy] ANCPI Error: ${res.statusCode}`);
             resolve(NextResponse.json({ 
                 error: `ANCPI responded with ${res.statusCode}`,
                 details: buffer.toString('utf-8').substring(0, 200),
@@ -63,7 +60,6 @@ export async function GET(request: Request) {
               const data = JSON.parse(buffer.toString('utf-8'));
               resolve(NextResponse.json(data));
             } catch (e) {
-              // Not actual JSON, return as is
               resolve(new NextResponse(buffer, {
                 headers: { 'Content-Type': contentType || 'application/octet-stream' }
               }));
@@ -88,7 +84,6 @@ export async function GET(request: Request) {
       });
 
       req.on('error', (e) => {
-        // console.error('ANCPI Proxy HTTPS Error:', e);
         resolve(NextResponse.json({ 
           error: 'Proxy Connection Error', 
           message: e.message 
@@ -99,7 +94,6 @@ export async function GET(request: Request) {
     });
 
   } catch (error: any) {
-    // console.error('ANCPI Proxy Fatal Error:', error);
     return NextResponse.json({ 
       error: 'Proxy Internal Error', 
       message: error.message 
