@@ -182,7 +182,8 @@ export function MapPolygonPicker({ onPolygonComplete, initialPolygon, baseLat, b
     const checkConnection = async () => {
       setAncpiStatus({ status: 'testing' });
       try {
-        const testUrl = `https://geoportal.ancpi.ro/arcgis/rest/services/eterra3_publish/MapServer?f=json`;
+        // Folosim de lista de servicii ca test de "Online" fiindcă e mult mai stabilă decât serviciul eterra3_publish
+        const testUrl = `https://geoportal.ancpi.ro/arcgis/rest/services?f=json`;
         const res = await fetch(`/api/ancpi/proxy?url=${encodeURIComponent(testUrl)}`);
         
         if (!res.ok) {
@@ -312,14 +313,14 @@ export function MapPolygonPicker({ onPolygonComplete, initialPolygon, baseLat, b
           maxZoom={19}
         />
         
-        {/* Stratul Cadastral ANCPI WMS - Mult mai precis decât cel Tiled */}
+        {/* Stratul Cadastral ANCPI WMS - Mult mai precis decât cel Tiled, dar uneori instabil */}
         <WMSTileLayer
           url={`/api/ancpi/proxy?url=${encodeURIComponent('https://geoportal.ancpi.ro/arcgis/services/eterra3_publish/MapServer/WMSServer')}`}
           layers="1"
           format="image/png"
           transparent={true}
           attribution="&copy; ANCPI Romania"
-          opacity={1}
+          opacity={0.8}
           minZoom={14}
           maxZoom={20}
         />
