@@ -18,23 +18,24 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
-// Componentă specială pentru stratul ANCPI care gestionează corect URL-urile de tile prin proxy
+// Componentă specială pentru stratul ANCPI care gestionează corect cererile WMS prin proxy
 function ANCPITileLayer() {
   const map = useMap();
 
   useEffect(() => {
-    // Creăm un layer de tile custom care suprascrie getTileUrl pentru a encoda corect parametrii
-    const layer = new L.TileLayer('', { 
-      opacity: 0.7, 
-      maxZoom: 20, 
-      minZoom: 12,
-      attribution: '&copy; ANCPI Romania' 
-    });
-
-    layer.getTileUrl = (coords) => {
-      const tileUrl = `https://geoportal.ancpi.ro/arcgis/rest/services/AnalizaParcele/MapServer/tile/${coords.z}/${coords.y}/${coords.x}`;
-      return `/api/ancpi/proxy?url=${encodeURIComponent(tileUrl)}`;
-    };
+    // Folosim WMS prin proxy. Parametrii (bbox, etc) vor fi adăugați automat de Leaflet.
+    const layer = L.tileLayer.wms(
+      '/api/ancpi/proxy?url=' + encodeURIComponent('https://geoportal.ancpi.ro/arcgis/services/eterra3_publish/MapServer/WMSServer'),
+      {
+        layers: '1',
+        format: 'image/png',
+        transparent: true,
+        version: '1.1.1',
+        opacity: 0.7,
+        minZoom: 13,
+        attribution: '&copy; ANCPI Romania',
+      }
+    );
 
     layer.addTo(map);
     return () => { layer.remove(); };
@@ -338,7 +339,7 @@ export function MapPolygonPicker({ onPolygonComplete, initialPolygon, baseLat, b
           maxZoom={19}
         />
         
-        {/* Stratul Cadastral ANCPI Tiled - Mult mai rapid și stabil decât WMS (Layer 0) */}
+        {/* Stratul Cadastral ANCPI WMS - Serviciul eterra3_publish (Layer 1) */}
         <ANCPITileLayer />
         
 
