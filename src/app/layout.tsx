@@ -24,16 +24,16 @@ const nunito = Nunito({
 
 export const metadata: Metadata = {
   title: "Agral — Portalul Fermierilor",
-  description: "Gestionează-ți ferma inteligent: parcele, contracte de arendă, vreme, finanțe — totul într-un singur loc.",
+  description: "Gestionează-ți ferma inteligent — totul într-un singur loc.",
   keywords: ["agricultura", "fermier", "parcele", "arenda", "management ferma", "Romania"],
   openGraph: {
     title: "Agral — Portalul Fermierilor",
     description: "Gestionează-ți ferma inteligent.",
-    url: "https://agral.ro",
+    url: "https://www.agral.ro",
     siteName: "Agral",
     images: [
       {
-        url: "https://agral.ro/imagine_distribuita.png",
+        url: "https://www.agral.ro/imagine_distribuita.png",
         width: 1200,
         height: 630,
         alt: "Agral Preview",
@@ -44,9 +44,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Agral - Portalul Fermierilor",
+    title: "Agral — Portalul Fermierilor",
     description: "Gestionează-ți ferma inteligent.",
-    images: ["https://agral.ro/imagine_distribuita.png"],
+    images: ["https://www.agral.ro/imagine_distribuita.png"],
   },
 };
 
