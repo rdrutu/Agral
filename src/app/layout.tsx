@@ -1,10 +1,11 @@
-import type { Metadata } from "next";
+import { Metadata } from "next";
 import { Nunito, Raleway } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import { CookieBanner } from "@/components/common/CookieBanner";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import Script from "next/script";
 
 // Raleway — matching logo-ul Agral (geometric, bold caps)
 const raleway = Raleway({
@@ -23,12 +24,12 @@ const nunito = Nunito({
 });
 
 export const metadata: Metadata = {
-  title: "Agral — Portalul Fermierilor",
-  description: "Gestionează-ți ferma inteligent — totul într-un singur loc.",
-  keywords: ["agricultura", "fermier", "parcele", "arenda", "management ferma", "Romania"],
+  title: "Agral — Portalul Fermierilor din România",
+  description: "Gestionează-ți ferma inteligent. Platforma digitală completă pentru managementul parcelelor, contractelor de arendă și finanțelor agricole din România.",
+  keywords: ["agricultura", "fermier", "parcele", "arenda", "management ferma", "Romania", "agronom", "cadastru", "lucrari agricole"],
   openGraph: {
     title: "Agral — Portalul Fermierilor",
-    description: "Gestionează-ți ferma inteligent.",
+    description: "Gestionează-ți ferma inteligent — totul într-un singur loc.",
     url: "https://www.agral.ro",
     siteName: "Agral",
     images: [
@@ -50,6 +51,20 @@ export const metadata: Metadata = {
   },
 };
 
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Agral",
+  "operatingSystem": "Web",
+  "applicationCategory": "BusinessApplication",
+  "description": "Portalul Fermierilor din România pentru managementul inteligent al fermelor: parcele, contracte, finanțe.",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "RON"
+  }
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -58,6 +73,11 @@ export default function RootLayout({
   return (
     <html lang="ro" suppressHydrationWarning>
       <body className={`${raleway.variable} ${nunito.variable} antialiased`} suppressHydrationWarning>
+        <Script
+          id="json-ld"
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
         <Toaster position="top-center" reverseOrder={false} />
         {/* Mitigation for browser extensions injecting attributes that break hydration (e.g. Bitdefender) */}
         <script
