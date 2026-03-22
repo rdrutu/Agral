@@ -26,7 +26,7 @@ export async function GET(request: Request) {
 
     // console.log(`[ANCPI Proxy] Fetching via HTTPS module: ${targetUrl.toString()}`);
 
-    return new Promise((resolve) => {
+    return new Promise<Response>((resolve) => {
       const options = {
         hostname: targetUrl.hostname,
         path: targetUrl.pathname + targetUrl.search,
