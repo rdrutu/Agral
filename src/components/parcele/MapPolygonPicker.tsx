@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { MapContainer, TileLayer, FeatureGroup, GeoJSON, useMap, Marker, Tooltip, WMSTileLayer, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, FeatureGroup, GeoJSON, useMap, Marker, Tooltip, WMSTileLayer, useMapEvents, Popup } from "react-leaflet";
 import { EditControl } from "react-leaflet-draw";
-import { Search, Loader2, Globe } from "lucide-react";
+import { Search, Loader2, Globe, MousePointer2, Plus, X } from "lucide-react";
+import { toast } from "react-hot-toast";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import L from "leaflet";
 import * as turf from "@turf/turf";
@@ -18,44 +20,52 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
-// Componentă specială pentru stratul ANCPI care gestionează raster/vector tiles
-function ANCPITileLayer() {
-  const map = useMap();
 
-  useEffect(() => {
-    // Import dinamic doar în browser pentru a evita erorile de SSR
-    // @ts-expect-error - leaflet.vectorgrid has no official types
-    import('leaflet.vectorgrid').then(() => {
-      // @ts-ignore - L.vectorGrid este adăugat de plugin
-      const layer = (L as any).vectorGrid.protobuf(
-        'https://geoportal.ancpi.ro/hosted_services/rest/services/Hosted/Grile_VT_2025/VectorTileServer/tile/{z}/{y}/{x}.pbf',
-        {
-          vectorTileLayerStyles: {
-            '*': {
-              fill: true,
-              fillColor: '#ffff00',
-              fillOpacity: 0.1,
-              color: '#ff7800',
-              weight: 1,
-              opacity: 0.8,
-            }
-          },
-          minZoom: 11,
-          maxZoom: 20,
-          attribution: '&copy; ANCPI Romania',
+function AncpiclickHandler({ 
+  onParcelFound, 
+  loading, 
+  setLoading, 
+  setSelectedParcel 
+}: { 
+  onParcelFound: (feature: any) => void, 
+  loading: boolean, 
+  setLoading: (l: boolean) => void,
+  setSelectedParcel: (p: any) => void
+}) {
+  useMapEvents({
+    click: async (e) => {
+      if (loading) return;
+      
+      const { lat, lng } = e.latlng;
+      setLoading(true);
+      setSelectedParcel(null);
+
+      try {
+        // Query ANCPI la punct (Imobile MapServer)
+        const ancpiUrl = `https://geoportal.ancpi.ro/maps/rest/services/imobile/Imobile/MapServer/1/query`
+          + `?f=geojson&geometry=${lng},${lat}&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&outSR=4326`;
+        
+        const response = await fetch(`/api/ancpi/proxy?url=${encodeURIComponent(ancpiUrl)}`);
+        
+        if (!response.ok) throw new Error("Eroare server ANCPI");
+        
+        const data = await response.json();
+
+        if (data.features && data.features.length > 0) {
+          const feature = data.features[0];
+          onParcelFound(feature);
+          toast.success("Parcelă identificată!");
+        } else {
+          toast.error("Nu s-a găsit nicio parcelă la această locație.");
         }
-      );
-
-      layer.addTo(map);
-    });
-
-    return () => { 
-      // Curățare sigură pentru vector tiles
-      map.eachLayer((l: any) => { 
-        if (l._url?.includes('pbf') || l._vectorTiles) map.removeLayer(l); 
-      }); 
-    };
-  }, [map]);
+      } catch (err) {
+        console.error("Eroare interogare ANCPI", err);
+        toast.error("Eroare la interogarea serviciului ANCPI.");
+      } finally {
+        setLoading(false);
+      }
+    }
+  });
 
   return null;
 }
@@ -171,53 +181,13 @@ function SearchOverlay({ onSelect }: { onSelect: (lat: number, lng: number) => v
   );
 }
 
-function AncpiclickHandler({ onParcelFound }: { onParcelFound: (geoJson: any, metadata: any) => void }) {
-  const [loading, setLoading] = useState(false);
-  
-  useMapEvents({
-    click: async (e) => {
-      setLoading(true);
-      const { lat, lng } = e.latlng;
-      try {
-        // Bounding box mic in jurul click-ului (envelope conform recomandării utilizatorului)
-        const d = 0.00005;
-        const envelope = `${lng-d},${lat-d},${lng+d},${lat+d}`;
-        
-        const ancpiUrl = `https://geoportal.ancpi.ro/arcgis/rest/services/eterra3_publish/MapServer/1/query`
-          + `?f=geojson&geometry=${encodeURIComponent(envelope)}&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&outSR=4326`;
-        
-        const response = await fetch(`/api/ancpi/proxy?url=${encodeURIComponent(ancpiUrl)}`);
-        const data = await response.json();
-
-        if (data.features && data.features.length > 0) {
-          const feature = data.features[0];
-          
-          // Calculăm aria cu Turf.js (f=geojson ne dă direct feature-ul valid)
-          const areaSqMeters = turf.area(feature);
-          const areaHa = areaSqMeters / 10000;
-
-          onParcelFound(feature, {
-             cadastralNumber: feature.properties.nr_cadastral,
-             cfNumber: feature.properties.nr_cf,
-             uat: feature.properties.uats,
-             areaHa: Number(areaHa.toFixed(2))
-          });
-        }
-      } catch (err) {
-        console.error("Eroare interogare ANCPI", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-  });
-
-  return null;
-}
 
 export function MapPolygonPicker({ onPolygonComplete, initialPolygon, baseLat, baseLng, onParcelFound }: MapPolygonPickerProps) {
   const featureGroupRef = useRef<L.FeatureGroup>(null);
   const mapRef = useRef<any>(null);
   const [ancpiStatus, setAncpiStatus] = useState<{ status: 'testing' | 'ok' | 'fail' | 'idle', message?: string }>({ status: 'idle' });
+  const [selectedParcel, setSelectedParcel] = useState<any>(null);
+  const [loadingParcel, setLoadingParcel] = useState(false);
 
   // Verificare conectivitate ANCPI
   useEffect(() => {
@@ -336,7 +306,7 @@ export function MapPolygonPicker({ onPolygonComplete, initialPolygon, baseLat, b
           </div>
         </div>
         <div className="text-[11px] opacity-80" suppressHydrationWarning>
-          Când este activ, poți căuta după Număr Cadastral sau poți da click direct pe hartă pentru a asocia geometria și datele ANCPI automat.
+          Modul de selecție este activ. Dă click pe hartă pentru a identifica automat o parcelă din baza de date națională.
         </div>
       </div>
       
@@ -346,7 +316,7 @@ export function MapPolygonPicker({ onPolygonComplete, initialPolygon, baseLat, b
         <MapContainer
         center={initialCenter}
         zoom={initialZoom}
-        className="h-full w-full z-0"
+        className={`h-full w-full z-0 ${loadingParcel ? 'cursor-wait' : 'cursor-crosshair'}`}
         ref={mapRef}
       >
         <TileLayer
@@ -355,30 +325,83 @@ export function MapPolygonPicker({ onPolygonComplete, initialPolygon, baseLat, b
           maxZoom={19}
         />
         
-        {/* Stratul Cadastral ANCPI WMS - Serviciul eterra3_publish (Layer 1) */}
-        <ANCPITileLayer />
-        
+        <AncpiclickHandler 
+          loading={loadingParcel}
+          setLoading={setLoadingParcel}
+          setSelectedParcel={setSelectedParcel}
+          onParcelFound={(feature) => {
+            setSelectedParcel(feature);
+          }} 
+        />
 
-        <AncpiclickHandler onParcelFound={(geoJson, meta) => {
-          onPolygonComplete(geoJson, meta.areaHa, {
-            cadastralNumber: meta.cadastralNumber,
-            cfNumber: meta.cfNumber,
-            uat: meta.uat
-          });
-          
-          // Afișăm poligonul pe hartă (simulăm un eveniment de creare)
-          if (featureGroupRef.current) {
-            featureGroupRef.current.clearLayers();
-            const layer = L.geoJSON(geoJson as any, {
-              style: {
-                color: "#16a34a",
-                fillOpacity: 0.4,
-                weight: 3,
-              }
-            });
-            layer.addTo(featureGroupRef.current);
-          }
-        }} />
+        {selectedParcel && (
+          <>
+            <GeoJSON
+              key={`highlight-${selectedParcel.properties.INSPIRE_ID}`}
+              data={selectedParcel}
+              style={{
+                color: "#f97316", // portocaliu
+                fillOpacity: 0.3,
+                weight: 4,
+                dashArray: "5, 5"
+              }}
+            />
+            <Popup position={L.geoJSON(selectedParcel).getBounds().getCenter()}>
+              <div className="p-2 space-y-2 min-w-[200px]">
+                <div className="border-b pb-2">
+                  <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Parcelă Identificată</div>
+                  <div className="font-bold text-sm">{selectedParcel.properties.NATIONAL_CADASTRAL_REFERENCE || 'Fără număr'}</div>
+                  <div className="text-[10px] opacity-70">INSPIRE: {selectedParcel.properties.INSPIRE_ID}</div>
+                </div>
+                
+                <div className="flex gap-2 pt-1">
+                  <Button 
+                    size="sm" 
+                    className="flex-1 h-8 text-[11px] bg-orange-600 hover:bg-orange-700"
+                    onClick={() => {
+                      // Calculăm aria cu Turf.js
+                      const areaSqMeters = turf.area(selectedParcel);
+                      const areaHa = areaSqMeters / 10000;
+                      
+                      onPolygonComplete(selectedParcel, Number(areaHa.toFixed(2)), {
+                        cadastralNumber: selectedParcel.properties.NATIONAL_CADASTRAL_REFERENCE,
+                        uat: selectedParcel.properties.UATS // Verifică dacă acest câmp există în imobile/Imobile
+                      });
+
+                      // Adăugăm la FeatureGroup pentru vizualizare permanentă
+                      if (featureGroupRef.current) {
+                        featureGroupRef.current.clearLayers();
+                        L.geoJSON(selectedParcel, {
+                          style: { color: "#16a34a", fillOpacity: 0.4, weight: 3 }
+                        }).addTo(featureGroupRef.current);
+                      }
+                      setSelectedParcel(null);
+                    }}
+                  >
+                    <Plus className="w-3 h-3 mr-1" /> Adaugă
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="flex-1 h-8 text-[11px]"
+                    onClick={() => setSelectedParcel(null)}
+                  >
+                    <X className="w-3 h-3 mr-1" /> Anulează
+                  </Button>
+                </div>
+              </div>
+            </Popup>
+          </>
+        )}
+
+        {loadingParcel && (
+          <div className="absolute inset-0 z-[1000] flex items-center justify-center bg-white/20 backdrop-blur-[1px]">
+             <div className="bg-white p-4 rounded-full shadow-2xl border border-orange-100 flex items-center gap-3 animate-bounce">
+                <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
+                <span className="text-sm font-bold text-orange-700">Se caută în cadastru...</span>
+             </div>
+          </div>
+        )}
 
         <FeatureGroup ref={featureGroupRef}>
           <EditControl

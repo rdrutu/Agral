@@ -1,48 +1,8 @@
 import { useEffect } from "react";
-import { MapContainer, TileLayer, GeoJSON, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, GeoJSON } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-// Componentă specială pentru stratul ANCPI care gestionează raster/vector tiles
-function ANCPITileLayer() {
-  const map = useMap();
-
-  useEffect(() => {
-    // Import dinamic doar în browser pentru a evita erorile de SSR
-    // @ts-expect-error - leaflet.vectorgrid has no official types
-    import('leaflet.vectorgrid').then(() => {
-      // @ts-ignore - L.vectorGrid este adăugat de plugin
-      const layer = (L as any).vectorGrid.protobuf(
-        'https://geoportal.ancpi.ro/hosted_services/rest/services/Hosted/Grile_VT_2025/VectorTileServer/tile/{z}/{y}/{x}.pbf',
-        {
-          vectorTileLayerStyles: {
-            '*': {
-              fill: true,
-              fillColor: '#ffff00',
-              fillOpacity: 0.1,
-              color: '#ff7800',
-              weight: 1,
-              opacity: 0.8,
-            }
-          },
-          minZoom: 11,
-          maxZoom: 20,
-          attribution: '&copy; ANCPI Romania',
-        }
-      );
-
-      layer.addTo(map);
-    });
-
-    return () => { 
-      map.eachLayer((l: any) => { 
-        if (l._url?.includes('pbf') || l._vectorTiles) map.removeLayer(l); 
-      }); 
-    };
-  }, [map]);
-
-  return null;
-}
 
 // Repararea iconițelor de marker default
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -87,7 +47,6 @@ export function ParcelMapView({ geoJson }: ParcelMapViewProps) {
           attribution="&copy; Esri"
         />
         {/* Stratul Cadastral ANCPI WMS - Serviciul eterra3_publish (Layer 1) */}
-        <ANCPITileLayer />
         <GeoJSON 
           data={geoJson} 
           style={() => ({
