@@ -2,35 +2,42 @@ import { useEffect } from "react";
 import { MapContainer, TileLayer, GeoJSON, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import 'leaflet.vectorgrid';
 
 // Componentă specială pentru stratul ANCPI care gestionează raster/vector tiles
 function ANCPITileLayer() {
   const map = useMap();
 
   useEffect(() => {
-    // @ts-ignore - L.vectorGrid este adăugat de plugin-ul leaflet.vectorgrid
-    const layer = L.vectorGrid.protobuf(
-      'https://geoportal.ancpi.ro/hosted_services/rest/services/Hosted/Grile_VT_2025/VectorTileServer/tile/{z}/{y}/{x}.pbf',
-      {
-        vectorTileLayerStyles: {
-          '*': {
-            fill: true,
-            fillColor: '#ffff00',
-            fillOpacity: 0.1,
-            color: '#ff7800',
-            weight: 1,
-            opacity: 0.8,
-          }
-        },
-        minZoom: 11,
-        maxZoom: 20,
-        attribution: '&copy; ANCPI Romania',
-      }
-    );
+    // Import dinamic doar în browser pentru a evita erorile de SSR
+    import('leaflet.vectorgrid').then(() => {
+      // @ts-ignore - L.vectorGrid este adăugat de plugin
+      const layer = (L as any).vectorGrid.protobuf(
+        'https://geoportal.ancpi.ro/hosted_services/rest/services/Hosted/Grile_VT_2025/VectorTileServer/tile/{z}/{y}/{x}.pbf',
+        {
+          vectorTileLayerStyles: {
+            '*': {
+              fill: true,
+              fillColor: '#ffff00',
+              fillOpacity: 0.1,
+              color: '#ff7800',
+              weight: 1,
+              opacity: 0.8,
+            }
+          },
+          minZoom: 11,
+          maxZoom: 20,
+          attribution: '&copy; ANCPI Romania',
+        }
+      );
 
-    layer.addTo(map);
-    return () => { layer.remove(); };
+      layer.addTo(map);
+    });
+
+    return () => { 
+      map.eachLayer((l: any) => { 
+        if (l._url?.includes('pbf') || l._vectorTiles) map.removeLayer(l); 
+      }); 
+    };
   }, [map]);
 
   return null;
