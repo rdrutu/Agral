@@ -28,7 +28,7 @@ export const metadata: Metadata = {
   keywords: ["agricultura", "fermier", "parcele", "arenda", "management ferma", "Romania"],
   openGraph: {
     title: "Agral — Portalul Fermierilor",
-    description: "Gestionează-ți ferma inteligent: parcele, contracte de arendă, vreme, finanțe.",
+    description: "Gestionează-ți ferma inteligent.",
     url: "https://agral.ro",
     siteName: "Agral",
     images: [
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Agral — Portalul Fermierilor",
+    title: "Agral - Portalul Fermierilor",
     description: "Gestionează-ți ferma inteligent.",
     images: ["https://agral.ro/imagine_distribuita.png"],
   },
