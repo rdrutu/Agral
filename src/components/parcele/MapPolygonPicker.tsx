@@ -364,7 +364,7 @@ export function MapPolygonPicker({
   const featureGroupRef = useRef<L.FeatureGroup | null>(null);
   const [selectedFeatures, setSelectedFeatures] = useState<any[]>([]);
   const [loadingParcel, setLoadingParcel] = useState(false);
-  const [selectionMode, setSelectionMode] = useState<'auto' | 'manual' | 'apia'>('auto'); // Default 'auto' (ANCPI) înapoi
+  const [selectionMode, setSelectionMode] = useState<'auto' | 'manual' | 'apia' | 'manual_auto'>('auto'); // Default 'auto'
   const [ancpiStatus, setAncpiStatus] = useState<{status: 'testing' | 'ok' | 'fail'}>({status: 'testing'});
 
   // Verificare conectivitate ANCPI via Tile direct
@@ -418,10 +418,48 @@ export function MapPolygonPicker({
     }, 50);
   };
 
-  const onCreated = (e: any) => {
+  const onCreated = async (e: any) => {
     const { layerType, layer } = e;
     if (layerType === "polygon") {
       const geoJson = layer.toGeoJSON();
+      
+      if (selectionMode === 'manual_auto') {
+        setLoadingParcel(true);
+        try {
+          // Convert GeoJSON to Esri Polygon
+          const rings = geoJson.geometry.coordinates;
+          const esriGeometry = { rings };
+          
+          const ancpiUrl = `https://geoportal.ancpi.ro/maps/rest/services/imobile/Imobile/MapServer/1/query`
+            + `?f=json&geometry=${JSON.stringify(esriGeometry)}&geometryType=esriGeometryPolygon&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&outSR=4326`;
+          
+          const response = await fetch(`/api/ancpi/proxy?url=${encodeURIComponent(ancpiUrl)}`);
+          if (!response.ok) throw new Error("Eroare server ANCPI");
+          
+          const data = await response.json();
+          if (data.features && data.features.length > 0) {
+            const newFeatures = data.features.map((f: any) => ({
+              type: 'Feature',
+              geometry: { type: 'Polygon', coordinates: f.geometry.rings },
+              properties: f.attributes
+            }));
+            
+            setSelectedFeatures([...selectedFeatures, ...newFeatures]);
+            toast.success(`Am găsit ${newFeatures.length} parcele cadastrate!`);
+          } else {
+            toast.error("Nu s-a găsit nicio parcelă în zona desenată.");
+          }
+        } catch (err) {
+          console.error("Eroare magic mode", err);
+          toast.error("Eroare la interogarea automată.");
+        } finally {
+          setLoadingParcel(false);
+          // Eliminăm layer-ul desenat manual
+          if (featureGroupRef.current) featureGroupRef.current.removeLayer(layer);
+        }
+        return;
+      }
+
       // Calculăm aria cu Turf.js (întoarce metri pătrați) -> convertim în Hectare
       const areaSqMeters = turf.area(geoJson);
       const areaHa = areaSqMeters / 10000;
@@ -485,6 +523,7 @@ export function MapPolygonPicker({
             {selectionMode === 'apia' && "Modul APIA (LPIS): Identificare blocuri fizice 2024 (Recomandat)."}
             {selectionMode === 'auto' && "Modul Automat (ANCPI): Identificare direct din serverele naționale."}
             {selectionMode === 'manual' && "Modul Manual: Desenează parcela punct cu punct pe hartă."}
+            {selectionMode === 'manual_auto' && "Mod Magic 🪄: Desenează un contur în jurul zonei lucrate și găsim automat restul."}
           </div>
           <div className="flex bg-white/20 p-1 rounded-lg self-start">
             <Button
@@ -518,6 +557,22 @@ export function MapPolygonPicker({
             <Button
               type="button"
               size="sm"
+              variant={selectionMode === 'manual_auto' ? 'secondary' : 'ghost'}
+              className={`h-7 text-[10px] px-3 font-bold ${selectionMode === 'manual_auto' ? 'bg-white text-blue-800' : 'text-white hover:bg-white/10'}`}
+              onClick={() => {
+                setSelectionMode('manual_auto');
+                setSelectedFeatures([]);
+                setTimeout(() => {
+                  const btn = document.querySelector('.leaflet-draw-draw-polygon') as HTMLElement;
+                  if (btn) btn.click();
+                }, 50);
+              }}
+            >
+              <Search className="w-3 h-3 mr-1" /> Magic
+            </Button>
+            <Button
+              type="button"
+              size="sm"
               variant={selectionMode === 'manual' ? 'secondary' : 'ghost'}
               className={`h-7 text-[10px] px-3 font-bold ${selectionMode === 'manual' ? 'bg-white text-blue-800' : 'text-white hover:bg-white/10'}`}
               onClick={handleManualDrawActivate}
@@ -542,8 +597,11 @@ export function MapPolygonPicker({
           attribution="Tiles &copy; Esri"
           maxZoom={19}
         />
-        <ANCPITileLayer />
-        {selectionMode === 'apia' && <APIATileLayer />}
+        {/* 
+          Temporar dezactivate conform cererii user-ului deoarece nu merg corect 
+          <ANCPITileLayer />
+          {selectionMode === 'apia' && <APIATileLayer />}
+        */}
         
         <ApiaclickHandler 
           loading={loadingParcel}
