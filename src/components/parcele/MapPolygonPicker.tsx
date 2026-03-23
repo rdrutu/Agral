@@ -8,6 +8,9 @@ import { toast } from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import L from "leaflet";
+if (typeof window !== 'undefined') {
+  require('leaflet.vectorgrid');
+}
 import * as turf from "@turf/turf";
 import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
@@ -83,36 +86,37 @@ function ANCPITileLayer() {
   const map = useMap();
 
   useEffect(() => {
-    // Încărcare dinamică pentru a evita probleme SSR și global L
-    // @ts-ignore - modulul nu are exporturi de tipuri valide pentru bundler
-    import('leaflet.vectorgrid').then(() => {
-      // @ts-ignore - plugin-ul extinde obiectul L
-      const layer = L.vectorGrid.protobuf(
-        'https://geoportal.ancpi.ro/hosted_services/rest/services/Hosted/Grile_VT_2025/VectorTileServer/tile/{z}/{y}/{x}.pbf',
-        {
-          vectorTileLayerStyles: {
-            '*': {
-              fill: true,
-              fillColor: '#ffff00',
-              fillOpacity: 0.1,
-              color: '#ff7800',
-              weight: 1,
-              opacity: 0.8,
-            }
-          },
-          minZoom: 9,
-          maxZoom: 20,
-          attribution: '© ANCPI',
-          // Override getTileUrl să limiteze zoom-ul la 11
-          getTileUrl: (coords: any) => {
-            const z = Math.min(coords.z, 11); // ← max zoom 11
-            return `https://geoportal.ancpi.ro/hosted_services/rest/services/Hosted/Grile_VT_2025/VectorTileServer/tile/${z}/${coords.y}/${coords.x}.pbf`;
-          }
-        }
-      );
+    if (!(L as any).vectorGrid) {
+      console.error('leaflet.vectorgrid nu e disponibil');
+      return;
+    }
 
-      layer.addTo(map);
-    });
+    // @ts-ignore - plugin-ul extinde obiectul L
+    const layer = (L as any).vectorGrid.protobuf(
+      'https://geoportal.ancpi.ro/hosted_services/rest/services/Hosted/Grile_VT_2025/VectorTileServer/tile/{z}/{y}/{x}.pbf',
+      {
+        vectorTileLayerStyles: {
+          '*': {
+            fill: true,
+            fillColor: '#ffff00',
+            fillOpacity: 0.1,
+            color: '#ff7800',
+            weight: 1,
+            opacity: 0.8,
+          }
+        },
+        minZoom: 9,
+        maxZoom: 20,
+        attribution: '© ANCPI',
+        // Override getTileUrl să limiteze zoom-ul la 11
+        getTileUrl: (coords: any) => {
+          const z = Math.min(coords.z, 11); // ← max zoom 11
+          return `https://geoportal.ancpi.ro/hosted_services/rest/services/Hosted/Grile_VT_2025/VectorTileServer/tile/${z}/${coords.y}/${coords.x}.pbf`;
+        }
+      }
+    );
+
+    layer.addTo(map);
 
     return () => {
       // Curățare straturi vectoriale la demontare
