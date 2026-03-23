@@ -195,7 +195,7 @@ export function MapPolygonPicker({ onPolygonComplete, initialPolygon, baseLat, b
       setAncpiStatus({ status: 'testing' });
       try {
         // Folosim de lista de servicii ca test de "Online" fiindcă e mult mai stabilă decât serviciul eterra3_publish
-        const testUrl = `https://geoportal.ancpi.ro/arcgis/rest/services?f=json`;
+        const testUrl = `https://geoportal.ancpi.ro/maps/rest/services/imobile/Imobile/MapServer/1/query?f=json&where=1%3D0&outFields=INSPIRE_ID&returnGeometry=false`;
         const res = await fetch(`/api/ancpi/proxy?url=${encodeURIComponent(testUrl)}`);
         
         if (!res.ok) {
