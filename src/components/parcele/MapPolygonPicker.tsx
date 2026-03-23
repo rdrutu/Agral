@@ -290,9 +290,13 @@ export function MapPolygonPicker({
 
   // Activare "Punct / Desen" manuală
   const handleManualDrawActivate = () => {
+    setSelectedParcel(null);
     setSelectionMode('manual');
-    const btn = document.querySelector('.leaflet-draw-draw-polygon') as HTMLElement;
-    if (btn) btn.click();
+    // Mic delay pentru a ne asigura că re-render-ul s-a produs (optional, dar mai sigur)
+    setTimeout(() => {
+      const btn = document.querySelector('.leaflet-draw-draw-polygon') as HTMLElement;
+      if (btn) btn.click();
+    }, 50);
   };
 
   const onCreated = (e: any) => {
