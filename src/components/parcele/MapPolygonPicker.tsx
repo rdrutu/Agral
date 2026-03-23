@@ -42,13 +42,15 @@ function ApiaclickHandler({
   onParcelFound, 
   loading, 
   setLoading, 
-  setSelectedParcel,
+  selectedFeatures,
+  setSelectedFeatures,
   enabled
 }: { 
   onParcelFound: (feature: any) => void, 
   loading: boolean, 
   setLoading: (l: boolean) => void,
-  setSelectedParcel: (p: any) => void,
+  selectedFeatures: any[],
+  setSelectedFeatures: (p: any[]) => void,
   enabled: boolean
 }) {
   useMapEvents({
@@ -57,7 +59,6 @@ function ApiaclickHandler({
       
       const { lat, lng } = e.latlng;
       setLoading(true);
-      setSelectedParcel(null);
 
       try {
         // Query APIA MapServer (Layer 0: referinta_2024)
@@ -89,8 +90,21 @@ function ApiaclickHandler({
               area_ha: feature.attributes.aria_neta
             }
           };
-          onParcelFound(geoJsonFeature);
-          toast.success("Bloc fizic APIA identificat!");
+          
+          // Verificăm dacă e deja selectat (pentru toggle)
+          const isAlreadySelected = selectedFeatures.some(f => 
+            f.properties?.NATIONAL_CADASTRAL_REFERENCE === geoJsonFeature.properties.NATIONAL_CADASTRAL_REFERENCE
+          );
+
+          if (isAlreadySelected) {
+            setSelectedFeatures(selectedFeatures.filter(f => 
+              f.properties?.NATIONAL_CADASTRAL_REFERENCE !== geoJsonFeature.properties.NATIONAL_CADASTRAL_REFERENCE
+            ));
+            toast.success("Parcelă eliminată din selecție");
+          } else {
+            setSelectedFeatures([...selectedFeatures, geoJsonFeature]);
+            toast.success("Bloc fizic APIA adăugat la selecție!");
+          }
         } else {
           toast.error("Nu s-a găsit niciun bloc fizic la această locație.");
         }
@@ -111,13 +125,15 @@ function AncpiclickHandler({
   onParcelFound, 
   loading, 
   setLoading, 
-  setSelectedParcel,
+  selectedFeatures,
+  setSelectedFeatures,
   enabled
 }: { 
   onParcelFound: (feature: any) => void, 
   loading: boolean, 
   setLoading: (l: boolean) => void,
-  setSelectedParcel: (p: any) => void,
+  selectedFeatures: any[],
+  setSelectedFeatures: (p: any[]) => void,
   enabled: boolean
 }) {
   useMapEvents({
@@ -126,7 +142,6 @@ function AncpiclickHandler({
       
       const { lat, lng } = e.latlng;
       setLoading(true);
-      setSelectedParcel(null);
 
       try {
         // Query ANCPI la punct (Imobile MapServer)
@@ -150,8 +165,23 @@ function AncpiclickHandler({
             },
             properties: feature.attributes
           };
-          onParcelFound(geoJsonFeature);
-          toast.success("Parcelă identificată!");
+
+          // Verificăm dacă e deja selectat (pentru toggle)
+          const isAlreadySelected = selectedFeatures.some(f => 
+            (f.properties?.NATIONAL_CADASTRAL_REFERENCE || f.properties?.nr_cadastral) === 
+            (geoJsonFeature.properties?.NATIONAL_CADASTRAL_REFERENCE || geoJsonFeature.properties?.nr_cadastral)
+          );
+
+          if (isAlreadySelected) {
+            setSelectedFeatures(selectedFeatures.filter(f => 
+              (f.properties?.NATIONAL_CADASTRAL_REFERENCE || f.properties?.nr_cadastral) !== 
+              (geoJsonFeature.properties?.NATIONAL_CADASTRAL_REFERENCE || geoJsonFeature.properties?.nr_cadastral)
+            ));
+            toast.success("Parcelă eliminată din selecție");
+          } else {
+            setSelectedFeatures([...selectedFeatures, geoJsonFeature]);
+            toast.success("Parcelă ANCPI adăugată la selecție!");
+          }
         } else {
           toast.error("Nu s-a găsit nicio parcelă la această locație.");
         }
@@ -167,51 +197,20 @@ function AncpiclickHandler({
   return null;
 }
 
+// --- Componentă pentru stratul ANCPI Imobile (WMS) ---
 function ANCPITileLayer() {
-  const map = useMap();
-
-  useEffect(() => {
-    if (!(L as any).vectorGrid) {
-      console.error('leaflet.vectorgrid nu e disponibil');
-      return;
-    }
-
-    // @ts-ignore - plugin-ul extinde obiectul L
-    const layer = (L as any).vectorGrid.protobuf(
-      'https://geoportal.ancpi.ro/hosted_services/rest/services/Hosted/Grile_VT_2025/VectorTileServer/tile/{z}/{y}/{x}.pbf',
-      {
-        vectorTileLayerStyles: {
-          '*': {
-            fill: true,
-            fillColor: '#ffff00',
-            fillOpacity: 0.1,
-            color: '#ff7800',
-            weight: 1,
-            opacity: 0.8,
-          }
-        },
-        minZoom: 9,
-        maxZoom: 20,
-        attribution: '© ANCPI',
-        // Override getTileUrl să limiteze zoom-ul la 11
-        getTileUrl: (coords: any) => {
-          const z = Math.min(coords.z, 11); // ← max zoom 11
-          return `https://geoportal.ancpi.ro/hosted_services/rest/services/Hosted/Grile_VT_2025/VectorTileServer/tile/${z}/${coords.y}/${coords.x}.pbf`;
-        }
-      }
-    );
-
-    layer.addTo(map);
-
-    return () => {
-      // Curățare straturi vectoriale la demontare
-      map.eachLayer((l: any) => {
-        if (l._vectorTiles) map.removeLayer(l);
-      });
-    };
-  }, [map]);
-
-  return null;
+  return (
+    <WMSTileLayer
+      url="https://geoportal.ancpi.ro/maps/rest/services/imobile/Imobile/MapServer/WMSServer"
+      layers="1" // Stratul de imobile/parcele
+      format="image/png"
+      transparent={true}
+      version="1.3.0"
+      attribution="© ANCPI"
+      opacity={0.7}
+      minZoom={14}
+    />
+  );
 }
 
 interface MapPolygonPickerProps {
@@ -363,9 +362,9 @@ export function MapPolygonPicker({
 }: MapPolygonPickerProps) {
   const mapRef = useRef<L.Map | null>(null);
   const featureGroupRef = useRef<L.FeatureGroup | null>(null);
-  const [selectedParcel, setSelectedParcel] = useState<any>(null);
+  const [selectedFeatures, setSelectedFeatures] = useState<any[]>([]);
   const [loadingParcel, setLoadingParcel] = useState(false);
-  const [selectionMode, setSelectionMode] = useState<'auto' | 'manual' | 'apia'>('apia'); // Default 'apia' acum
+  const [selectionMode, setSelectionMode] = useState<'auto' | 'manual' | 'apia'>('auto'); // Default 'auto' (ANCPI) înapoi
   const [ancpiStatus, setAncpiStatus] = useState<{status: 'testing' | 'ok' | 'fail'}>({status: 'testing'});
 
   // Verificare conectivitate ANCPI via Tile direct
@@ -398,7 +397,7 @@ export function MapPolygonPicker({
       }
     };
 
-    setSelectedParcel(normalizedFeature);
+    setSelectedFeatures([normalizedFeature]);
     
     // Zoom la parcelă
     if (mapRef.current) {
@@ -410,7 +409,7 @@ export function MapPolygonPicker({
 
   // Activare "Punct / Desen" manuală
   const handleManualDrawActivate = () => {
-    setSelectedParcel(null);
+    setSelectedFeatures([]);
     setSelectionMode('manual');
     // Mic delay pentru a ne asigura că re-render-ul s-a produs (optional, dar mai sigur)
     setTimeout(() => {
@@ -495,6 +494,7 @@ export function MapPolygonPicker({
               className={`h-7 text-[10px] px-3 font-bold ${selectionMode === 'apia' ? 'bg-white text-blue-800' : 'text-white hover:bg-white/10'}`}
               onClick={() => {
                 setSelectionMode('apia');
+                setSelectedFeatures([]);
                 const cancelBtn = document.querySelector('.leaflet-draw-actions a[title="Cancel drawing"]') as HTMLElement;
                 if (cancelBtn) cancelBtn.click();
               }}
@@ -508,6 +508,7 @@ export function MapPolygonPicker({
               className={`h-7 text-[10px] px-3 font-bold ${selectionMode === 'auto' ? 'bg-white text-blue-800' : 'text-white hover:bg-white/10'}`}
               onClick={() => {
                 setSelectionMode('auto');
+                setSelectedFeatures([]);
                 const cancelBtn = document.querySelector('.leaflet-draw-actions a[title="Cancel drawing"]') as HTMLElement;
                 if (cancelBtn) cancelBtn.click();
               }}
@@ -547,41 +548,52 @@ export function MapPolygonPicker({
         <ApiaclickHandler 
           loading={loadingParcel}
           setLoading={setLoadingParcel}
-          setSelectedParcel={setSelectedParcel}
+          selectedFeatures={selectedFeatures}
+          setSelectedFeatures={setSelectedFeatures}
           enabled={selectionMode === 'apia'}
-          onParcelFound={(feature) => {
-            setSelectedParcel(feature);
-          }} 
+          onParcelFound={() => {}} 
         />
         
         <AncpiclickHandler 
           loading={loadingParcel}
           setLoading={setLoadingParcel}
-          setSelectedParcel={setSelectedParcel}
+          selectedFeatures={selectedFeatures}
+          setSelectedFeatures={setSelectedFeatures}
           enabled={selectionMode === 'auto'}
-          onParcelFound={(feature) => {
-            setSelectedParcel(feature);
-          }} 
+          onParcelFound={() => {}} 
         />
 
-        {selectedParcel && (
+        {selectedFeatures.length > 0 && (
           <>
-            <GeoJSON
-              key={`highlight-${selectedParcel.properties.INSPIRE_ID}`}
-              data={selectedParcel}
-              style={{
-                color: "#f97316", // portocaliu
-                fillOpacity: 0.3,
-                weight: 4,
-                dashArray: "5, 5"
-              }}
-            />
-            <Popup position={L.geoJSON(selectedParcel).getBounds().getCenter()}>
-              <div className="p-2 space-y-2 min-w-[200px]">
+            {selectedFeatures.map((feature, idx) => (
+              <GeoJSON
+                key={`highlight-${feature.properties.INSPIRE_ID || feature.properties.fbid || idx}`}
+                data={feature}
+                style={{
+                  color: "#f97316", // portocaliu
+                  fillOpacity: 0.3,
+                  weight: 4,
+                  dashArray: "5, 5"
+                }}
+              />
+            ))}
+            <Popup position={L.geoJSON(selectedFeatures[selectedFeatures.length - 1]).getBounds().getCenter()}>
+              <div className="p-2 space-y-2 min-w-[220px]">
                 <div className="border-b pb-2">
-                  <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Parcelă Identificată</div>
-                  <div className="font-bold text-sm">{selectedParcel.properties.NATIONAL_CADASTRAL_REFERENCE || 'Fără număr'}</div>
-                  <div className="text-[10px] opacity-70">INSPIRE: {selectedParcel.properties.INSPIRE_ID}</div>
+                  <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+                    {selectedFeatures.length > 1 ? `${selectedFeatures.length} Parcele Selectate` : 'Parcelă Identificată'}
+                  </div>
+                  <div className="font-bold text-sm">
+                    {selectedFeatures.length > 1 
+                      ? `${selectedFeatures.length} bucăți selectate`
+                      : (selectedFeatures[0].properties.NATIONAL_CADASTRAL_REFERENCE || 'Fără număr')}
+                  </div>
+                  <div className="text-[10px] opacity-70">
+                    Total: {(selectedFeatures.reduce((acc, f) => {
+                      const area = turf.area(f) / 10000;
+                      return acc + area;
+                    }, 0)).toFixed(2)} ha
+                  </div>
                 </div>
                 
                 <div className="flex gap-2 pt-1">
@@ -589,32 +601,44 @@ export function MapPolygonPicker({
                     size="sm" 
                     className="flex-1 h-8 text-[11px] bg-orange-600 hover:bg-orange-700"
                     onClick={() => {
-                      // Calculăm aria cu Turf.js
-                      const areaSqMeters = turf.area(selectedParcel);
-                      const areaHa = areaSqMeters / 10000;
+                      // Combinăm toate geometriile într-un FeatureCollection sau MultiPolygon
+                      const totalAreaHa = selectedFeatures.reduce((acc, f) => acc + (turf.area(f) / 10000), 0);
                       
-                      onPolygonComplete(selectedParcel, Number(areaHa.toFixed(2)), {
-                        cadastralNumber: selectedParcel.properties.NATIONAL_CADASTRAL_REFERENCE,
-                        uat: selectedParcel.properties.UATS // Verifică dacă acest câmp există în imobile/Imobile
-                      });
+                      // Luăm primul UAT/Localitate disponibilă
+                      const firstFeature = selectedFeatures[0];
+                      const cadastralNumbers = selectedFeatures
+                        .map(f => f.properties.NATIONAL_CADASTRAL_REFERENCE || f.properties.nr_cadastral)
+                        .filter(Boolean)
+                        .join(", ");
+
+                      onPolygonComplete(
+                        selectedFeatures.length === 1 ? selectedFeatures[0] : turf.featureCollection(selectedFeatures), 
+                        Number(totalAreaHa.toFixed(2)), 
+                        {
+                          cadastralNumber: cadastralNumbers,
+                          uat: firstFeature.properties.UATS || firstFeature.properties.nume_com || firstFeature.properties.uats
+                        }
+                      );
 
                       // Adăugăm la FeatureGroup pentru vizualizare permanentă
                       if (featureGroupRef.current) {
                         featureGroupRef.current.clearLayers();
-                        L.geoJSON(selectedParcel, {
-                          style: { color: "#16a34a", fillOpacity: 0.4, weight: 3 }
-                        }).addTo(featureGroupRef.current);
+                        selectedFeatures.forEach(f => {
+                          L.geoJSON(f, {
+                            style: { color: "#16a34a", fillOpacity: 0.4, weight: 3 }
+                          }).addTo(featureGroupRef.current!);
+                        });
                       }
-                      setSelectedParcel(null);
+                      setSelectedFeatures([]);
                     }}
                   >
-                    <Plus className="w-3 h-3 mr-1" /> Adaugă
+                    <Plus className="w-3 h-3 mr-1" /> {selectedFeatures.length > 1 ? "Adaugă Tot" : "Adaugă"}
                   </Button>
                   <Button 
                     size="sm" 
                     variant="outline" 
                     className="flex-1 h-8 text-[11px]"
-                    onClick={() => setSelectedParcel(null)}
+                    onClick={() => setSelectedFeatures([])}
                   >
                     <X className="w-3 h-3 mr-1" /> Anulează
                   </Button>
