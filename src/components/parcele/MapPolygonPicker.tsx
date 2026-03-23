@@ -84,6 +84,7 @@ function ANCPITileLayer() {
 
   useEffect(() => {
     // Încărcare dinamică pentru a evita probleme SSR și global L
+    // @ts-ignore - modulul nu are exporturi de tipuri valide pentru bundler
     import('leaflet.vectorgrid').then(() => {
       // @ts-ignore - plugin-ul extinde obiectul L
       const layer = L.vectorGrid.protobuf(
