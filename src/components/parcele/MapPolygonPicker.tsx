@@ -3,21 +3,14 @@
 import { useEffect, useState, useRef } from "react";
 import { MapContainer, TileLayer, FeatureGroup, GeoJSON, useMap, Marker, Tooltip, WMSTileLayer, useMapEvents, Popup, Polygon } from "react-leaflet";
 import { EditControl } from "react-leaflet-draw";
-import { Globe, Loader2, MousePointer2, Plus, Search, Layers, X } from "lucide-react";
+import { Globe, Loader2, MousePointer2, Plus, Search, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import L from "leaflet";
-
-// Leaflet plugins need to be imported only on the client
-if (typeof window !== 'undefined') {
-  require('leaflet.vectorgrid');
-}
-
 import * as turf from "@turf/turf";
 import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
-import { getPhysicalBlockAt } from "@/lib/actions/lpis";
 
 // Aranjăm iconițele de marker default pentru packagerele moderne
 if (typeof L !== 'undefined' && L.Icon && L.Icon.Default) {
@@ -29,72 +22,7 @@ if (typeof L !== 'undefined' && L.Icon && L.Icon.Default) {
   });
 }
 
-// --- Componentă pentru stratul local LPIS (Vector Tiles) ---
-function LPISTileLayer() {
-  const map = useMap();
-  useEffect(() => {
-    if (!(L as any).vectorGrid) {
-        console.warn("Leaflet VectorGrid not loaded");
-        return;
-    }
-    const layer = (L as any).vectorGrid.protobuf('/api/tiles/{z}/{x}/{y}', {
-      rendererFactory: (L as any).canvas.tile,
-      vectorTileLayerName: 'lpis_blocks',
-      interactive: true,
-      maxZoom: 19,
-      style: {
-        lpis_blocks: {
-          weight: 1.5,
-          color: '#f59e0b', // Amber 500
-          opacity: 0.8,
-          fill: true,
-          fillColor: '#f59e0b',
-          fillOpacity: 0.1
-        }
-      }
-    });
-
-    layer.addTo(map);
-    return () => {
-      if (map.hasLayer(layer)) map.removeLayer(layer);
-    };
-  }, [map]);
-  return null;
-}
-
-// --- Componentă pentru click în baza locală ---
-function LocalClickHandler({ enabled, onParcelFound, loading, setLoading }: { 
-  enabled: boolean, 
-  onParcelFound: (f: any) => void,
-  loading: boolean,
-  setLoading: (l: boolean) => void
-}) {
-  useMapEvents({
-    click: async (e) => {
-      if (!enabled || loading) return;
-      
-      const { lat, lng } = e.latlng;
-      setLoading(true);
-
-      try {
-        const feature = await getPhysicalBlockAt(lat, lng);
-        if (feature) {
-          onParcelFound(feature);
-          toast.success("Bloc fizic LPIS identificat!");
-        } else {
-          toast.error("Nu s-a găsit niciun bloc fizic în baza locală.");
-        }
-      } catch (err) {
-        console.error("Eroare local DB:", err);
-        toast.error("Eroare la interogarea bazei de date locale.");
-      } finally {
-        setLoading(false);
-      }
-    }
-  });
-  return null;
-}
-
+// --- Componentă pentru interogare ANCPI la click ---
 function AncpiclickHandler({ 
   onParcelFound, 
   loading, 
@@ -353,7 +281,7 @@ export function MapPolygonPicker({
   const featureGroupRef = useRef<L.FeatureGroup | null>(null);
   const [selectedParcel, setSelectedParcel] = useState<any>(null);
   const [loadingParcel, setLoadingParcel] = useState(false);
-  const [selectionMode, setSelectionMode] = useState<'auto' | 'manual' | 'local'>('local'); // Default local acum că avem date
+  const [selectionMode, setSelectionMode] = useState<'auto' | 'manual'>('auto'); // Default 'auto'
   const [ancpiStatus, setAncpiStatus] = useState<{status: 'testing' | 'ok' | 'fail'}>({status: 'testing'});
 
   // Verificare conectivitate ANCPI via Tile direct
@@ -472,23 +400,9 @@ export function MapPolygonPicker({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="text-[11px] opacity-80" suppressHydrationWarning>
             {selectionMode === 'auto' && "Modul Automat (ANCPI): Identificare direct din serverele naționale."}
-            {selectionMode === 'local' && "Modul Bază Locală (LPIS): Identificare instantanee din datele noastre 2025."}
             {selectionMode === 'manual' && "Modul Manual: Desenează parcela punct cu punct pe hartă."}
           </div>
           <div className="flex bg-white/20 p-1 rounded-lg self-start">
-            <Button
-              type="button"
-              size="sm"
-              variant={selectionMode === 'local' ? 'secondary' : 'ghost'}
-              className={`h-7 text-[10px] px-3 font-bold ${selectionMode === 'local' ? 'bg-white text-blue-800' : 'text-white hover:bg-white/10'}`}
-              onClick={() => {
-                setSelectionMode('local');
-                const cancelBtn = document.querySelector('.leaflet-draw-actions a[title="Cancel drawing"]') as HTMLElement;
-                if (cancelBtn) cancelBtn.click();
-              }}
-            >
-              <Layers className="w-3 h-3 mr-1" /> Bază Locală
-            </Button>
             <Button
               type="button"
               size="sm"
@@ -531,17 +445,6 @@ export function MapPolygonPicker({
         />
         <ANCPITileLayer />
         
-        {selectionMode === 'local' && (
-          <>
-            <LPISTileLayer />
-            <LocalClickHandler 
-              enabled={selectionMode === 'local'} 
-              onParcelFound={handleParcelSelect}
-              loading={loadingParcel}
-              setLoading={setLoadingParcel}
-            />
-          </>
-        )}
         
         <AncpiclickHandler 
           loading={loadingParcel}
