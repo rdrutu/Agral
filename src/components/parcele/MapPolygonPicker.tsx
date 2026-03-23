@@ -46,20 +46,12 @@ function AncpiclickHandler({
       setLoading(true);
       setSelectedParcel(null);
 
-      // Controller pentru timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 secunde timeout client
-
       try {
         // Query ANCPI la punct (Imobile MapServer)
         const ancpiUrl = `https://geoportal.ancpi.ro/maps/rest/services/imobile/Imobile/MapServer/1/query`
           + `?f=json&geometry=${lng},${lat}&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&outSR=4326`;
         
-        const response = await fetch(`/api/ancpi/proxy?url=${encodeURIComponent(ancpiUrl)}`, {
-           signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
+        const response = await fetch(`/api/ancpi/proxy?url=${encodeURIComponent(ancpiUrl)}`);
         
         if (!response.ok) throw new Error("Eroare server ANCPI");
         
@@ -82,13 +74,8 @@ function AncpiclickHandler({
           toast.error("Nu s-a găsit nicio parcelă la această locație.");
         }
       } catch (err: any) {
-        clearTimeout(timeoutId);
-        if (err.name === 'AbortError') {
-          toast.error("Timpul de răspuns ANCPI a expirat. Încearcă din nou.");
-        } else {
-          console.error("Eroare interogare ANCPI", err);
-          toast.error("Eroare la interogarea serviciului ANCPI.");
-        }
+        console.error("Eroare interogare ANCPI", err);
+        toast.error("Eroare la interogarea serviciului ANCPI.");
       } finally {
         setLoading(false);
       }
