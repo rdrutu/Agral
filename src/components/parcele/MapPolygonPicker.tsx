@@ -45,7 +45,7 @@ function AncpiclickHandler({
         const ancpiUrl = `https://geoportal.ancpi.ro/maps/rest/services/imobile/Imobile/MapServer/1/query`
           + `?f=json&geometry=${lng},${lat}&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&outSR=4326`;
         
-        const response = await fetch(ancpiUrl); // direct, fără proxy
+        const response = await fetch(`/api/ancpi/proxy?url=${encodeURIComponent(ancpiUrl)}`);
         
         if (!response.ok) throw new Error("Eroare server ANCPI");
         
@@ -81,8 +81,11 @@ function AncpiclickHandler({
 
 function ANCPITileLayer() {
   const map = useMap();
+  console.log('ANCPITileLayer render, map:', !!map);
 
   useEffect(() => {
+    console.log('ANCPITileLayer useEffect, map:', !!map);
+    
     const layer = L.tileLayer(
       'https://geoportal.ancpi.ro/maps/rest/services/ANCPI/CP_Yellow_vt/MapServer/tile/{z}/{y}/{x}?blankTile=false',
       {
@@ -94,8 +97,14 @@ function ANCPITileLayer() {
       }
     );
 
+    console.log('layer creat:', !!layer);
     layer.addTo(map);
-    return () => { layer.remove(); };
+    console.log('layer adăugat la map');
+    
+    return () => { 
+      console.log('ANCPITileLayer demontat, layer eliminat');
+      layer.remove(); 
+    };
   }, [map]);
 
   return null;
@@ -133,9 +142,9 @@ function SearchOverlay({ onSelect }: { onSelect: (lat: number, lng: number) => v
         const geoPromise = fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=ro&addressdetails=1&limit=3`)
           .then(r => r.json());
 
-        // 2. Căutare Cadastrală (ANCPI ArcGIS REST GeoJSON) directă
+        // 2. Căutare Cadastrală (ANCPI ArcGIS REST GeoJSON) prin PROXY
         const ancpiUrl = `https://geoportal.ancpi.ro/arcgis/rest/services/eterra3_publish/MapServer/1/query?f=geojson&where=nr_cadastral%20LIKE%20%27%25${encodeURIComponent(query)}%25%27&outFields=*&resultRecordCount=5&outSR=4326`;
-        const ancpiPromise = fetch(ancpiUrl)
+        const ancpiPromise = fetch(`/api/ancpi/proxy?url=${encodeURIComponent(ancpiUrl)}`)
           .then(r => r.json());
 
         const [geoData, ancpiData] = await Promise.all([geoPromise, ancpiPromise]);
