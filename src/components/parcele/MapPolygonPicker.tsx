@@ -103,6 +103,11 @@ function ANCPITileLayer() {
           minZoom: 9,
           maxZoom: 20,
           attribution: '© ANCPI',
+          // Override getTileUrl să limiteze zoom-ul la 11
+          getTileUrl: (coords: any) => {
+            const z = Math.min(coords.z, 11); // ← max zoom 11
+            return `https://geoportal.ancpi.ro/hosted_services/rest/services/Hosted/Grile_VT_2025/VectorTileServer/tile/${z}/${coords.y}/${coords.x}.pbf`;
+          }
         }
       );
 
