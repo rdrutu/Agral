@@ -24,9 +24,12 @@ if (typeof L !== 'undefined' && L.Icon && L.Icon.Default) {
 
 // --- Componentă pentru stratul APIA LPIS (WMS) ---
 function APIATileLayer() {
+  const baseUrl = "https://inspire.apia.org.ro/network/rest/services/INSPIRE/LPIS_referinta_2024/MapServer/exts/InspireView/service";
+  const proxyUrl = `/api/ancpi/proxy?url=${encodeURIComponent(baseUrl)}`;
+  
   return (
     <WMSTileLayer
-      url="https://inspire.apia.org.ro/network/rest/services/INSPIRE/LPIS_referinta_2024/MapServer/exts/InspireView/service"
+      url={proxyUrl}
       layers="referinta_2024"
       format="image/png"
       transparent={true}
@@ -199,9 +202,12 @@ function AncpiclickHandler({
 
 // --- Componentă pentru stratul ANCPI Imobile (WMS) ---
 function ANCPITileLayer() {
+  const baseUrl = "https://geoportal.ancpi.ro/maps/rest/services/imobile/Imobile/MapServer/WMSServer";
+  const proxyUrl = `/api/ancpi/proxy?url=${encodeURIComponent(baseUrl)}`;
+
   return (
     <WMSTileLayer
-      url="https://geoportal.ancpi.ro/maps/rest/services/imobile/Imobile/MapServer/WMSServer"
+      url={proxyUrl}
       layers="1" // Stratul de imobile/parcele
       format="image/png"
       transparent={true}
@@ -635,11 +641,8 @@ export function MapPolygonPicker({
           attribution="Tiles &copy; Esri"
           maxZoom={19}
         />
-        {/* 
-          Temporar dezactivate conform cererii user-ului deoarece nu merg corect 
-          <ANCPITileLayer />
-          {selectionMode === 'apia' && <APIATileLayer />}
-        */}
+        <ANCPITileLayer />
+        {selectionMode === 'apia' && <APIATileLayer />}
         
         <ApiaclickHandler 
           loading={loadingParcel}

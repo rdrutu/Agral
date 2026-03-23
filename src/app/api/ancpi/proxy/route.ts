@@ -16,9 +16,17 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Invalid target domain' }, { status: 400 });
     }
 
-    // Convertim URL-ul și forțăm HTTPS
+    // Identificăm Referer-ul potrivit
+    const isApia = baseUrl.includes('apia.org.ro');
+    const referer = isApia 
+      ? 'https://inspire.apia.org.ro/' 
+      : 'https://geoportal.ancpi.ro/imobile.html';
+
     const targetUrl = new URL(baseUrl);
-    targetUrl.protocol = 'https:';
+    // Forțăm HTTPS pentru ANCPI/APIA dacă e cazul, dar respectăm protocolul dacă e deja HTTPS
+    if (targetUrl.protocol !== 'https:') {
+      targetUrl.protocol = 'https:';
+    }
 
     searchParams.forEach((value, key) => {
       if (key !== 'url') {
@@ -31,21 +39,22 @@ export async function GET(request: Request) {
     const response = await fetch(targetUrl.toString(), {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-        'Referer': 'https://geoportal.ancpi.ro/imobile.html',
+        'Referer': referer,
         'Accept': '*/*',
       },
+      cache: 'no-store',
       signal: AbortSignal.timeout(60000),
     });
 
     const buffer = await response.arrayBuffer();
-    const contentType = response.headers.get('content-type') || 'image/png';
+    const contentType = response.headers.get('content-type') || 'application/json';
 
     return new NextResponse(buffer, {
       status: response.status,
       headers: {
         'Content-Type': contentType,
         'Cache-Control': 'public, max-age=3600',
-        'X-ANCPI-Status': response.status.toString(),
+        'X-Proxy-Target': targetUrl.origin,
       },
     });
 
@@ -72,8 +81,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid target domain' }, { status: 400 });
     }
 
+    const isApia = baseUrl.includes('apia.org.ro');
+    const referer = isApia 
+      ? 'https://inspire.apia.org.ro/' 
+      : 'https://geoportal.ancpi.ro/imobile.html';
+
     const targetUrl = new URL(baseUrl);
-    targetUrl.protocol = 'https:';
+    if (targetUrl.protocol !== 'https:') {
+      targetUrl.protocol = 'https:';
+    }
 
     console.log(`[ANCPI Proxy POST] Fetching: ${targetUrl.toString()}`);
 
@@ -81,15 +97,24 @@ export async function POST(request: Request) {
       method: 'POST',
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-        'Referer': 'https://geoportal.ancpi.ro/imobile.html',
+        'Referer': referer,
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: new URLSearchParams(body).toString(),
       signal: AbortSignal.timeout(60000),
     });
 
-    const data = await response.json();
-    return NextResponse.json(data);
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      const data = await response.json();
+      return NextResponse.json(data);
+    } else {
+      const text = await response.text();
+      return new NextResponse(text, {
+        status: response.status,
+        headers: { 'Content-Type': contentType || 'text/plain' }
+      });
+    }
 
   } catch (error: any) {
     console.error(`[ANCPI Proxy POST] Error: ${error.message}`);
