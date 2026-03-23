@@ -81,35 +81,38 @@ function AncpiclickHandler({
 
 function ANCPITileLayer() {
   const map = useMap();
-  console.log('ANCPITileLayer render, map:', !!map);
 
   useEffect(() => {
-    console.log('map zoom:', map.getZoom());
-    console.log('map center:', map.getCenter());
-    
-    const layer = L.tileLayer(
-      'https://geoportal.ancpi.ro/maps/rest/services/ANCPI/CP_Yellow_vt/MapServer/tile/{z}/{y}/{x}?blankTile=false',
-      {
-        opacity: 1, // ← 100% opacitate pentru vizibilitate maximă
-        minZoom: 1,
-        maxZoom: 20,
-        maxNativeZoom: 11,
-        attribution: '© ANCPI',
-      }
-    );
+    // Încărcare dinamică pentru a evita probleme SSR și global L
+    import('leaflet.vectorgrid').then(() => {
+      // @ts-ignore - plugin-ul extinde obiectul L
+      const layer = L.vectorGrid.protobuf(
+        'https://geoportal.ancpi.ro/hosted_services/rest/services/Hosted/Grile_VT_2025/VectorTileServer/tile/{z}/{y}/{x}.pbf',
+        {
+          vectorTileLayerStyles: {
+            '*': {
+              fill: true,
+              fillColor: '#ffff00',
+              fillOpacity: 0.1,
+              color: '#ff7800',
+              weight: 1,
+              opacity: 0.8,
+            }
+          },
+          minZoom: 9,
+          maxZoom: 20,
+          attribution: '© ANCPI',
+        }
+      );
 
-    console.log('layer creat:', !!layer);
-    layer.addTo(map);
-    console.log('layer adăugat la map');
-
-    // Verifică straturile din hartă (debug intern Leaflet)
-    (map as any).eachLayer((l: any) => {
-       if (l === layer) console.log('Confirmare: Layer-ul ANCPI se află în lista de straturi a hărții.');
+      layer.addTo(map);
     });
-    
-    return () => { 
-      console.log('ANCPITileLayer demontat, layer eliminat');
-      layer.remove(); 
+
+    return () => {
+      // Curățare straturi vectoriale la demontare
+      map.eachLayer((l: any) => {
+        if (l._vectorTiles) map.removeLayer(l);
+      });
     };
   }, [map]);
 
