@@ -15,40 +15,51 @@ import * as turf from "@turf/turf";
 import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
 
-// Repararea iconițelor de marker default pentru packagerele moderne
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-});
-
+// Aranjăm iconițele de marker default pentru packagerele moderne
+if (typeof L !== 'undefined' && L.Icon && L.Icon.Default) {
+  delete (L.Icon.Default.prototype as any)._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+    iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+    shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+  });
+}
 
 function AncpiclickHandler({ 
   onParcelFound, 
   loading, 
   setLoading, 
-  setSelectedParcel 
+  setSelectedParcel,
+  enabled
 }: { 
   onParcelFound: (feature: any) => void, 
   loading: boolean, 
   setLoading: (l: boolean) => void,
-  setSelectedParcel: (p: any) => void
+  setSelectedParcel: (p: any) => void,
+  enabled: boolean
 }) {
   useMapEvents({
     click: async (e) => {
-      if (loading) return;
+      if (!enabled || loading) return;
       
       const { lat, lng } = e.latlng;
       setLoading(true);
       setSelectedParcel(null);
+
+      // Controller pentru timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 secunde timeout client
 
       try {
         // Query ANCPI la punct (Imobile MapServer)
         const ancpiUrl = `https://geoportal.ancpi.ro/maps/rest/services/imobile/Imobile/MapServer/1/query`
           + `?f=json&geometry=${lng},${lat}&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&outSR=4326`;
         
-        const response = await fetch(`/api/ancpi/proxy?url=${encodeURIComponent(ancpiUrl)}`);
+        const response = await fetch(`/api/ancpi/proxy?url=${encodeURIComponent(ancpiUrl)}`, {
+           signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
         
         if (!response.ok) throw new Error("Eroare server ANCPI");
         
@@ -70,9 +81,14 @@ function AncpiclickHandler({
         } else {
           toast.error("Nu s-a găsit nicio parcelă la această locație.");
         }
-      } catch (err) {
-        console.error("Eroare interogare ANCPI", err);
-        toast.error("Eroare la interogarea serviciului ANCPI.");
+      } catch (err: any) {
+        clearTimeout(timeoutId);
+        if (err.name === 'AbortError') {
+          toast.error("Timpul de răspuns ANCPI a expirat. Încearcă din nou.");
+        } else {
+          console.error("Eroare interogare ANCPI", err);
+          toast.error("Eroare la interogarea serviciului ANCPI.");
+        }
       } finally {
         setLoading(false);
       }
@@ -255,6 +271,7 @@ export function MapPolygonPicker({
   const [ancpiStatus, setAncpiStatus] = useState<{ status: 'testing' | 'ok' | 'fail' | 'idle', message?: string }>({ status: 'idle' });
   const [selectedParcel, setSelectedParcel] = useState<any>(null);
   const [loadingParcel, setLoadingParcel] = useState(false);
+  const [selectionMode, setSelectionMode] = useState<'auto' | 'manual'>('auto');
 
   // Verificare conectivitate ANCPI via Tile direct
   useEffect(() => {
@@ -271,21 +288,12 @@ export function MapPolygonPicker({
     }
   };
 
-  // Activare "Punct / Desen" auto-magică pentru fermier
-  useEffect(() => {
-    if (initialPolygon) return; 
-    
-    let isMounted = true;
-    const timer = setTimeout(() => {
-      if (!isMounted) return;
-      const btn = document.querySelector('.leaflet-draw-draw-polygon') as HTMLElement;
-      if (btn) btn.click();
-    }, 500);
-    return () => {
-      isMounted = false;
-      clearTimeout(timer);
-    };
-  }, [initialPolygon]);
+  // Activare "Punct / Desen" manuală
+  const handleManualDrawActivate = () => {
+    setSelectionMode('manual');
+    const btn = document.querySelector('.leaflet-draw-draw-polygon') as HTMLElement;
+    if (btn) btn.click();
+  };
 
   const onCreated = (e: any) => {
     const { layerType, layer } = e;
@@ -349,8 +357,37 @@ export function MapPolygonPicker({
             )}
           </div>
         </div>
-        <div className="text-[11px] opacity-80" suppressHydrationWarning>
-          Modul de selecție este activ. Dă click pe hartă pentru a identifica automat o parcelă din baza de date națională.
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="text-[11px] opacity-80" suppressHydrationWarning>
+            {selectionMode === 'auto' 
+              ? "Modul Automat activ: Dă click pe hartă pentru a identifica o parcelă din baza de date națională."
+              : "Modul Manual activ: Folosește instrumentul de desen din dreapta sus pentru a delimita parcela."}
+          </div>
+          <div className="flex bg-white/20 p-1 rounded-lg self-start">
+            <Button
+              type="button"
+              size="sm"
+              variant={selectionMode === 'auto' ? 'secondary' : 'ghost'}
+              className={`h-7 text-[10px] px-3 font-bold ${selectionMode === 'auto' ? 'bg-white text-blue-800' : 'text-white hover:bg-white/10'}`}
+              onClick={() => {
+                setSelectionMode('auto');
+                // Deactivăm modul de desen dacă e activ
+                const cancelBtn = document.querySelector('.leaflet-draw-actions a[title="Cancel drawing"]') as HTMLElement;
+                if (cancelBtn) cancelBtn.click();
+              }}
+            >
+              <MousePointer2 className="w-3 h-3 mr-1" /> Automat
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={selectionMode === 'manual' ? 'secondary' : 'ghost'}
+              className={`h-7 text-[10px] px-3 font-bold ${selectionMode === 'manual' ? 'bg-white text-blue-800' : 'text-white hover:bg-white/10'}`}
+              onClick={handleManualDrawActivate}
+            >
+              <Plus className="w-3 h-3 mr-1" /> Manual
+            </Button>
+          </div>
         </div>
       </div>
       
@@ -374,6 +411,7 @@ export function MapPolygonPicker({
           loading={loadingParcel}
           setLoading={setLoadingParcel}
           setSelectedParcel={setSelectedParcel}
+          enabled={selectionMode === 'auto'}
           onParcelFound={(feature) => {
             setSelectedParcel(feature);
           }} 
