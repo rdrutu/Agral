@@ -22,6 +22,90 @@ if (typeof L !== 'undefined' && L.Icon && L.Icon.Default) {
   });
 }
 
+// --- Componentă pentru stratul APIA LPIS (WMS) ---
+function APIATileLayer() {
+  return (
+    <WMSTileLayer
+      url="https://inspire.apia.org.ro/network/rest/services/INSPIRE/LPIS_referinta_2024/MapServer/exts/InspireView/service"
+      layers="referinta_2024"
+      format="image/png"
+      transparent={true}
+      version="1.3.0"
+      attribution="© APIA"
+      opacity={0.6}
+    />
+  );
+}
+
+// --- Componentă pentru interogare APIA LPIS la click ---
+function ApiaclickHandler({ 
+  onParcelFound, 
+  loading, 
+  setLoading, 
+  setSelectedParcel,
+  enabled
+}: { 
+  onParcelFound: (feature: any) => void, 
+  loading: boolean, 
+  setLoading: (l: boolean) => void,
+  setSelectedParcel: (p: any) => void,
+  enabled: boolean
+}) {
+  useMapEvents({
+    click: async (e) => {
+      if (!enabled || loading) return;
+      
+      const { lat, lng } = e.latlng;
+      setLoading(true);
+      setSelectedParcel(null);
+
+      try {
+        // Query APIA MapServer (Layer 0: referinta_2024)
+        // Folosim proxy-ul care acum acceptă și apia.org.ro
+        const apiaUrl = `https://inspire.apia.org.ro/network/rest/services/INSPIRE/LPIS_referinta_2024/MapServer/0/query`
+          + `?f=json&geometry=${lng},${lat}&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&outSR=4326`;
+        
+        const response = await fetch(`/api/ancpi/proxy?url=${encodeURIComponent(apiaUrl)}`);
+        
+        if (!response.ok) throw new Error("Eroare server APIA");
+        
+        const data = await response.json();
+
+        if (data.features && data.features.length > 0) {
+          const feature = data.features[0];
+          // Conversie ArcGIS JSON → GeoJSON standard
+          const geoJsonFeature = {
+            type: 'Feature',
+            geometry: {
+              type: 'Polygon',
+              coordinates: feature.geometry.rings
+            },
+            properties: {
+              ...feature.attributes,
+              // Mapăm câmpurile APIA la formatul nostru intern
+              NATIONAL_CADASTRAL_REFERENCE: feature.attributes.fbid,
+              UATS: feature.attributes.nume_com,
+              judet: feature.attributes.judet,
+              area_ha: feature.attributes.aria_neta
+            }
+          };
+          onParcelFound(geoJsonFeature);
+          toast.success("Bloc fizic APIA identificat!");
+        } else {
+          toast.error("Nu s-a găsit niciun bloc fizic la această locație.");
+        }
+      } catch (err: any) {
+        console.error("Eroare interogare APIA", err);
+        toast.error("Eroare la interogarea serviciului APIA.");
+      } finally {
+        setLoading(false);
+      }
+    }
+  });
+
+  return null;
+}
+
 // --- Componentă pentru interogare ANCPI la click ---
 function AncpiclickHandler({ 
   onParcelFound, 
@@ -281,7 +365,7 @@ export function MapPolygonPicker({
   const featureGroupRef = useRef<L.FeatureGroup | null>(null);
   const [selectedParcel, setSelectedParcel] = useState<any>(null);
   const [loadingParcel, setLoadingParcel] = useState(false);
-  const [selectionMode, setSelectionMode] = useState<'auto' | 'manual'>('auto'); // Default 'auto'
+  const [selectionMode, setSelectionMode] = useState<'auto' | 'manual' | 'apia'>('apia'); // Default 'apia' acum
   const [ancpiStatus, setAncpiStatus] = useState<{status: 'testing' | 'ok' | 'fail'}>({status: 'testing'});
 
   // Verificare conectivitate ANCPI via Tile direct
@@ -399,10 +483,24 @@ export function MapPolygonPicker({
         </div>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="text-[11px] opacity-80" suppressHydrationWarning>
+            {selectionMode === 'apia' && "Modul APIA (LPIS): Identificare blocuri fizice 2024 (Recomandat)."}
             {selectionMode === 'auto' && "Modul Automat (ANCPI): Identificare direct din serverele naționale."}
             {selectionMode === 'manual' && "Modul Manual: Desenează parcela punct cu punct pe hartă."}
           </div>
           <div className="flex bg-white/20 p-1 rounded-lg self-start">
+            <Button
+              type="button"
+              size="sm"
+              variant={selectionMode === 'apia' ? 'secondary' : 'ghost'}
+              className={`h-7 text-[10px] px-3 font-bold ${selectionMode === 'apia' ? 'bg-white text-blue-800' : 'text-white hover:bg-white/10'}`}
+              onClick={() => {
+                setSelectionMode('apia');
+                const cancelBtn = document.querySelector('.leaflet-draw-actions a[title="Cancel drawing"]') as HTMLElement;
+                if (cancelBtn) cancelBtn.click();
+              }}
+            >
+              <Globe className="w-3 h-3 mr-1" /> APIA (LPIS)
+            </Button>
             <Button
               type="button"
               size="sm"
@@ -444,7 +542,17 @@ export function MapPolygonPicker({
           maxZoom={19}
         />
         <ANCPITileLayer />
+        {selectionMode === 'apia' && <APIATileLayer />}
         
+        <ApiaclickHandler 
+          loading={loadingParcel}
+          setLoading={setLoadingParcel}
+          setSelectedParcel={setSelectedParcel}
+          enabled={selectionMode === 'apia'}
+          onParcelFound={(feature) => {
+            setSelectedParcel(feature);
+          }} 
+        />
         
         <AncpiclickHandler 
           loading={loadingParcel}

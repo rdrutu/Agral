@@ -12,7 +12,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Missing URL parameter' }, { status: 400 });
     }
 
-    if (!baseUrl.includes('ancpi.ro')) {
+    if (!baseUrl.includes('ancpi.ro') && !baseUrl.includes('apia.org.ro')) {
       return NextResponse.json({ error: 'Invalid target domain' }, { status: 400 });
     }
 
