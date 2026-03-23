@@ -79,6 +79,27 @@ function AncpiclickHandler({
   return null;
 }
 
+function ANCPITileLayer() {
+  const map = useMap();
+
+  useEffect(() => {
+    const layer = L.tileLayer(
+      'https://geoportal.ancpi.ro/maps/rest/services/ANCPI/CP_Yellow_vt/MapServer/tile/{z}/{y}/{x}?blankTile=false',
+      {
+        opacity: 0.6,
+        minZoom: 10,
+        maxZoom: 20,
+        attribution: '© ANCPI',
+      }
+    );
+
+    layer.addTo(map);
+    return () => { layer.remove(); };
+  }, [map]);
+
+  return null;
+}
+
 interface MapPolygonPickerProps {
   onPolygonComplete: (geoJson: any, areaHa: number, metadata?: {
     cadastralNumber?: string;
@@ -333,6 +354,7 @@ export function MapPolygonPicker({ onPolygonComplete, initialPolygon, baseLat, b
           attribution="Tiles &copy; Esri"
           maxZoom={19}
         />
+        <ANCPITileLayer />
         
         <AncpiclickHandler 
           loading={loadingParcel}

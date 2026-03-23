@@ -65,6 +65,27 @@ function MapBoundsFitter({ parcels, farmBase }: { parcels: any[], farmBase?: {la
   return null;
 }
 
+function ANCPITileLayer() {
+  const map = useMap();
+
+  useEffect(() => {
+    const layer = L.tileLayer(
+      'https://geoportal.ancpi.ro/maps/rest/services/ANCPI/CP_Yellow_vt/MapServer/tile/{z}/{y}/{x}?blankTile=false',
+      {
+        opacity: 0.6,
+        minZoom: 10,
+        maxZoom: 20,
+        attribution: '© ANCPI',
+      }
+    );
+
+    layer.addTo(map);
+    return () => { layer.remove(); };
+  }, [map]);
+
+  return null;
+}
+
 export default function AllParcelsMapClient({ 
   parcels, 
   groups = [],
@@ -115,6 +136,7 @@ export default function AllParcelsMapClient({
           url="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
           maxZoom={19}
         />
+        <ANCPITileLayer />
         {/* Stratul Cadastral ANCPI WMS - Serviciul eterra3_publish (Layer 1) */}
         
         <MapBoundsFitter parcels={parcels} farmBase={farmBase} />

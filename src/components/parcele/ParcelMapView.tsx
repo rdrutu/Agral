@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { MapContainer, TileLayer, GeoJSON } from "react-leaflet";
+import { MapContainer, TileLayer, GeoJSON, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -14,6 +14,27 @@ L.Icon.Default.mergeOptions({
 
 interface ParcelMapViewProps {
   geoJson: any;
+}
+
+function ANCPITileLayer() {
+  const map = useMap();
+
+  useEffect(() => {
+    const layer = L.tileLayer(
+      'https://geoportal.ancpi.ro/maps/rest/services/ANCPI/CP_Yellow_vt/MapServer/tile/{z}/{y}/{x}?blankTile=false',
+      {
+        opacity: 0.6,
+        minZoom: 10,
+        maxZoom: 20,
+        attribution: '© ANCPI',
+      }
+    );
+
+    layer.addTo(map);
+    return () => { layer.remove(); };
+  }, [map]);
+
+  return null;
 }
 
 export function ParcelMapView({ geoJson }: ParcelMapViewProps) {
@@ -46,6 +67,7 @@ export function ParcelMapView({ geoJson }: ParcelMapViewProps) {
           url="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
           attribution="&copy; Esri"
         />
+        <ANCPITileLayer />
         {/* Stratul Cadastral ANCPI WMS - Serviciul eterra3_publish (Layer 1) */}
         <GeoJSON 
           data={geoJson} 
