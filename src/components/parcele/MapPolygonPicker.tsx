@@ -145,7 +145,7 @@ function AncpiclickHandler({
 
       try {
         // Query ANCPI la punct (Imobile MapServer)
-        const ancpiUrl = `https://geoportal.ancpi.ro/maps/rest/services/imobile/Imobile/MapServer/1/query`
+        const ancpiUrl = `https://geoportal.ancpi.ro/maps/rest/services/imobile/Imobile/MapServer/0/query`
           + `?f=json&geometry=${lng},${lat}&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&outSR=4326`;
         
         const response = await fetch(`/api/ancpi/proxy?url=${encodeURIComponent(ancpiUrl)}`);
@@ -426,9 +426,8 @@ export function MapPolygonPicker({
       if (selectionMode === 'manual_auto') {
         setLoadingParcel(true);
         try {
-          // Simplificăm geometria pentru a reduce dimensiunea request-ului
-          // Toleranță 0.00001 (~1 metru)
-          const simplified = turf.simplify(geoJson, { tolerance: 0.00001, highQuality: true });
+          // Simplificăm geometria foarte puțin (sub 10cm)
+          const simplified = turf.simplify(geoJson, { tolerance: 0.000001, highQuality: true });
           
           // Convert GeoJSON to Esri Polygon
           const rings = (simplified.geometry as any).coordinates;
@@ -437,37 +436,49 @@ export function MapPolygonPicker({
             spatialReference: { wkid: 4326 }
           };
           
-          // Parametrii pentru query
-          const queryParams = {
-            f: 'json',
-            where: '1=1',
-            geometry: JSON.stringify(esriGeometry),
-            geometryType: 'esriGeometryPolygon',
-            inSR: '4326',
-            spatialRel: 'esriSpatialRelIntersects',
-            outFields: '*',
-            returnGeometry: 'true',
-            outSR: '4326',
-            resultRecordCount: 1000,
-            returnZ: false
+          const getParcels = async (geom: any, type: string) => {
+            const queryParams = {
+              f: 'json',
+              where: '1=1',
+              geometry: JSON.stringify(geom),
+              geometryType: type,
+              inSR: '4326',
+              spatialRel: type === 'esriGeometryEnvelope' ? 'esriSpatialRelEnvelopeIntersects' : 'esriSpatialRelIntersects',
+              outFields: '*',
+              returnGeometry: 'true',
+              outSR: '4326',
+              resultRecordCount: 1000,
+              returnZ: false
+            };
+            
+            const ancpiUrl = `https://geoportal.ancpi.ro/maps/rest/services/imobile/Imobile/MapServer/0/query`;
+            const response = await fetch(`/api/ancpi/proxy?url=${encodeURIComponent(ancpiUrl)}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(queryParams)
+            });
+            if (!response.ok) return [];
+            const data = await response.json();
+            return data.features || [];
           };
-          
-          // Serviciul identificat ca fiind activ și cu 1000 record limit
-          const ancpiUrl = `https://geoportal.ancpi.ro/maps/rest/services/Imobile/Imobile_3844/MapServer/1/query`;
-          
-          const response = await fetch(`/api/ancpi/proxy?url=${encodeURIComponent(ancpiUrl)}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(queryParams)
-          });
 
-          if (!response.ok) throw new Error("Eroare server ANCPI");
+          // Prima încercare: Poligon exact
+          let features = await getParcels(esriGeometry, 'esriGeometryPolygon');
           
-          const data = await response.json();
-          if (data.features && data.features.length > 0) {
-            const newFeatures = data.features.map((f: any) => ({
+          // Fallback: Envelope (bounding box)
+          if (features.length === 0) {
+            const bbox = turf.bbox(geoJson);
+            const envelope = { xmin: bbox[0], ymin: bbox[1], xmax: bbox[2], ymax: bbox[3], spatialReference: { wkid: 4326 } };
+            features = await getParcels(envelope, 'esriGeometryEnvelope');
+          }
+
+          if (features.length > 0) {
+            const newFeatures = features.map((f: any) => ({
               type: 'Feature',
-              geometry: { type: 'Polygon', coordinates: f.geometry.rings },
+              geometry: { 
+                type: 'Polygon', 
+                coordinates: f.geometry.rings 
+              },
               properties: f.attributes
             }));
             
