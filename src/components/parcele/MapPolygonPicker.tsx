@@ -43,7 +43,7 @@ function AncpiclickHandler({
       try {
         // Query ANCPI la punct (Imobile MapServer)
         const ancpiUrl = `https://geoportal.ancpi.ro/maps/rest/services/imobile/Imobile/MapServer/1/query`
-          + `?f=geojson&geometry=${lng},${lat}&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&outSR=4326`;
+          + `?f=json&geometry=${lng},${lat}&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&outSR=4326`;
         
         const response = await fetch(`/api/ancpi/proxy?url=${encodeURIComponent(ancpiUrl)}`);
         
@@ -53,7 +53,16 @@ function AncpiclickHandler({
 
         if (data.features && data.features.length > 0) {
           const feature = data.features[0];
-          onParcelFound(feature);
+          // Conversie ArcGIS JSON → GeoJSON standard
+          const geoJsonFeature = {
+            type: 'Feature',
+            geometry: {
+              type: 'Polygon',
+              coordinates: feature.geometry.rings
+            },
+            properties: feature.attributes
+          };
+          onParcelFound(geoJsonFeature);
           toast.success("Parcelă identificată!");
         } else {
           toast.error("Nu s-a găsit nicio parcelă la această locație.");

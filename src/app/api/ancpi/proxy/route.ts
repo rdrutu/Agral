@@ -35,7 +35,7 @@ export async function GET(request: Request) {
         'Accept': '*/*',
       },
       // Timeout de 15 secunde folosind standardul web
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(60000),
     });
 
     const buffer = await response.arrayBuffer();
