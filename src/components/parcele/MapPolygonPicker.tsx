@@ -84,15 +84,16 @@ function ANCPITileLayer() {
   console.log('ANCPITileLayer render, map:', !!map);
 
   useEffect(() => {
-    console.log('ANCPITileLayer useEffect, map:', !!map);
+    console.log('map zoom:', map.getZoom());
+    console.log('map center:', map.getCenter());
     
     const layer = L.tileLayer(
       'https://geoportal.ancpi.ro/maps/rest/services/ANCPI/CP_Yellow_vt/MapServer/tile/{z}/{y}/{x}?blankTile=false',
       {
-        opacity: 0.6,
-        minZoom: 8,
+        opacity: 1, // ← 100% opacitate pentru vizibilitate maximă
+        minZoom: 1,
         maxZoom: 20,
-        maxNativeZoom: 11, // ← ESENȚIAL
+        maxNativeZoom: 11,
         attribution: '© ANCPI',
       }
     );
@@ -100,6 +101,11 @@ function ANCPITileLayer() {
     console.log('layer creat:', !!layer);
     layer.addTo(map);
     console.log('layer adăugat la map');
+
+    // Verifică straturile din hartă (debug intern Leaflet)
+    (map as any).eachLayer((l: any) => {
+       if (l === layer) console.log('Confirmare: Layer-ul ANCPI se află în lista de straturi a hărții.');
+    });
     
     return () => { 
       console.log('ANCPITileLayer demontat, layer eliminat');
