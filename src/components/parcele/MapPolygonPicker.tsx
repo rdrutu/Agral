@@ -219,32 +219,14 @@ export function MapPolygonPicker({ onPolygonComplete, initialPolygon, baseLat, b
   const [selectedParcel, setSelectedParcel] = useState<any>(null);
   const [loadingParcel, setLoadingParcel] = useState(false);
 
-  // Verificare conectivitate ANCPI
+  // Verificare rapidă disponibilitate ANCPI via Tile direct
   useEffect(() => {
-    const checkConnection = async () => {
-      setAncpiStatus({ status: 'testing' });
-      try {
-        // Folosim de lista de servicii ca test de "Online" fiindcă e mult mai stabilă decât serviciul eterra3_publish
-        const testUrl = `https://geoportal.ancpi.ro/maps/rest/services/imobile/Imobile/MapServer/1/query?f=json&where=1%3D0&outFields=INSPIRE_ID&returnGeometry=false`;
-        const res = await fetch(`/api/ancpi/proxy?url=${encodeURIComponent(testUrl)}`);
-        
-        if (!res.ok) {
-          const errorData = await res.json().catch(() => ({ error: 'Eroare necunoscută' }));
-          setAncpiStatus({ status: 'fail', message: errorData.error || `Serverul a răspuns cu ${res.status}` });
-          return;
-        }
-
-        const data = await res.json();
-        if (data.error) {
-          setAncpiStatus({ status: 'fail', message: data.error.message || 'Eroare ANCPI' });
-        } else {
-          setAncpiStatus({ status: 'ok' });
-        }
-      } catch (e: any) {
-        setAncpiStatus({ status: 'fail', message: 'Eroare conexiune' });
-      }
-    };
-    checkConnection();
+    setAncpiStatus({ status: 'testing' });
+    
+    const img = new Image();
+    img.onload = () => setAncpiStatus({ status: 'ok' });
+    img.onerror = () => setAncpiStatus({ status: 'fail', message: 'Layer cadastral indisponibil' });
+    img.src = 'https://geoportal.ancpi.ro/maps/rest/services/ANCPI/CP_Yellow_vt/MapServer/tile/10/14217/14226?blankTile=false';
   }, []);
 
   const handleSelectLocation = (lat: number, lng: number) => {
@@ -326,12 +308,8 @@ export function MapPolygonPicker({ onPolygonComplete, initialPolygon, baseLat, b
           </div>
           <div className="flex items-center gap-2">
             {ancpiStatus.status === 'testing' && <Loader2 className="w-3 h-3 animate-spin" />}
-            {ancpiStatus.status === 'ok' && <div className="flex items-center gap-1 text-green-600 text-[10px] bg-green-50 px-2 py-0.5 rounded-full border border-green-200"><div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> Server Online</div>}
             {ancpiStatus.status === 'fail' && (
-              <div className="flex flex-col items-end">
-                <div className="text-red-600 text-[10px] bg-red-50 px-2 py-0.5 rounded-full border border-red-200">Server Offline</div>
-                {ancpiStatus.message && <span className="text-[9px] text-red-400 mt-0.5">{ancpiStatus.message}</span>}
-              </div>
+              <span className="text-[10px] text-red-400 font-normal">Indisponibil</span>
             )}
           </div>
         </div>
