@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { MapContainer, TileLayer, FeatureGroup, GeoJSON, useMap, Marker, Tooltip, WMSTileLayer, useMapEvents, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, FeatureGroup, GeoJSON, useMap, Marker, Tooltip, WMSTileLayer, useMapEvents, Popup, Polygon } from "react-leaflet";
 import { EditControl } from "react-leaflet-draw";
 import { Search, Loader2, Globe, MousePointer2, Plus, X } from "lucide-react";
 import { toast } from "react-hot-toast";
@@ -110,6 +110,7 @@ interface MapPolygonPickerProps {
   baseLat?: number | null;
   baseLng?: number | null;
   onParcelFound?: (geoJson: any, metadata: any) => void;
+  parcels?: any[];
 }
 
 function SearchOverlay({ onSelect }: { onSelect: (lat: number, lng: number) => void }) {
@@ -212,21 +213,38 @@ function SearchOverlay({ onSelect }: { onSelect: (lat: number, lng: number) => v
 }
 
 
-export function MapPolygonPicker({ onPolygonComplete, initialPolygon, baseLat, baseLng, onParcelFound }: MapPolygonPickerProps) {
+export function MapPolygonPicker({ 
+  onPolygonComplete, 
+  initialPolygon, 
+  baseLat, 
+  baseLng, 
+  onParcelFound,
+  parcels = []
+}: MapPolygonPickerProps) {
   const featureGroupRef = useRef<L.FeatureGroup>(null);
   const mapRef = useRef<any>(null);
   const [ancpiStatus, setAncpiStatus] = useState<{ status: 'testing' | 'ok' | 'fail' | 'idle', message?: string }>({ status: 'idle' });
   const [selectedParcel, setSelectedParcel] = useState<any>(null);
   const [loadingParcel, setLoadingParcel] = useState(false);
 
-  // Verificare rapidă disponibilitate ANCPI via Tile direct
+  // Verificare conectivitate ANCPI via Proxy (ca să apară în logs)
   useEffect(() => {
-    setAncpiStatus({ status: 'testing' });
-    
-    const img = new Image();
-    img.onload = () => setAncpiStatus({ status: 'ok' });
-    img.onerror = () => setAncpiStatus({ status: 'fail', message: 'Layer cadastral indisponibil' });
-    img.src = 'https://geoportal.ancpi.ro/maps/rest/services/ANCPI/CP_Yellow_vt/MapServer/tile/10/14217/14226?blankTile=false';
+    const checkConnection = async () => {
+      setAncpiStatus({ status: 'testing' });
+      try {
+        const testUrl = `https://geoportal.ancpi.ro/maps/rest/services/imobile/Imobile/MapServer/1/query?f=json&where=1%3D0&outFields=INSPIRE_ID&returnGeometry=false`;
+        const res = await fetch(`/api/ancpi/proxy?url=${encodeURIComponent(testUrl)}`);
+        
+        if (res.ok) {
+          setAncpiStatus({ status: 'ok' });
+        } else {
+          setAncpiStatus({ status: 'fail', message: 'Eroare proxy' });
+        }
+      } catch (e) {
+        setAncpiStatus({ status: 'fail', message: 'Eroare conexiune' });
+      }
+    };
+    checkConnection();
   }, []);
 
   const handleSelectLocation = (lat: number, lng: number) => {
@@ -439,6 +457,31 @@ export function MapPolygonPicker({ onPolygonComplete, initialPolygon, baseLat, b
             }}
           />
         </FeatureGroup>
+        
+        {/* Vizualizare Parcele Existente */}
+        {parcels.map((p: any) => {
+          if (!p.coordinates?.geometry?.coordinates) return null;
+          const ring = p.coordinates.geometry.coordinates[0];
+          const positions: [number, number][] = ring.map((coord: [number, number]) => [coord[1], coord[0]]);
+          
+          return (
+            <Polygon
+              key={`existing-${p.id}`}
+              positions={positions}
+              pathOptions={{
+                color: "#94a3b8", // slate-400
+                fillColor: "#94a3b8",
+                fillOpacity: 0.2,
+                weight: 1,
+                dashArray: "3, 3"
+              }}
+            >
+              <Tooltip sticky>
+                <div className="text-[10px] font-bold">{p.name} (Existentă)</div>
+              </Tooltip>
+            </Polygon>
+          );
+        })}
 
         {baseLat && baseLng && (
           <Marker 

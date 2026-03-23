@@ -504,6 +504,7 @@ export default function ParcelListClient({
                     }}
                     baseLat={farmBase?.lat ?? null}
                     baseLng={farmBase?.lng ?? null}
+                    parcels={parcels}
                   />
                 </div>
               </div>
