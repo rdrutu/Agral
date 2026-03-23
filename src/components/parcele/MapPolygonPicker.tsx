@@ -426,14 +426,37 @@ export function MapPolygonPicker({
       if (selectionMode === 'manual_auto') {
         setLoadingParcel(true);
         try {
+          // Simplificăm geometria pentru a reduce dimensiunea request-ului
+          // Toleranță 0.00001 (~1 metru)
+          const simplified = turf.simplify(geoJson, { tolerance: 0.00001, highQuality: true });
+          
           // Convert GeoJSON to Esri Polygon
-          const rings = geoJson.geometry.coordinates;
-          const esriGeometry = { rings };
+          const rings = (simplified.geometry as any).coordinates;
+          const esriGeometry = { 
+            rings,
+            spatialReference: { wkid: 4326 }
+          };
           
-          const ancpiUrl = `https://geoportal.ancpi.ro/maps/rest/services/imobile/Imobile/MapServer/1/query`
-            + `?f=json&geometry=${JSON.stringify(esriGeometry)}&geometryType=esriGeometryPolygon&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&outSR=4326`;
+          // Parametrii pentru query
+          const queryParams = {
+            f: 'json',
+            geometry: JSON.stringify(esriGeometry),
+            geometryType: 'esriGeometryPolygon',
+            inSR: '4326',
+            spatialRel: 'esriSpatialRelIntersects',
+            outFields: '*',
+            returnGeometry: 'true',
+            outSR: '4326'
+          };
           
-          const response = await fetch(`/api/ancpi/proxy?url=${encodeURIComponent(ancpiUrl)}`);
+          const ancpiUrl = `https://geoportal.ancpi.ro/maps/rest/services/imobile/Imobile/MapServer/1/query`;
+          
+          const response = await fetch(`/api/ancpi/proxy?url=${encodeURIComponent(ancpiUrl)}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(queryParams)
+          });
+
           if (!response.ok) throw new Error("Eroare server ANCPI");
           
           const data = await response.json();

@@ -26,7 +26,7 @@ export async function GET(request: Request) {
       }
     });
 
-    console.log(`[ANCPI Proxy] Fetching: ${targetUrl.toString()}`);
+    console.log(`[ANCPI Proxy GET] Fetching: ${targetUrl.toString()}`);
 
     const response = await fetch(targetUrl.toString(), {
       headers: {
@@ -34,14 +34,12 @@ export async function GET(request: Request) {
         'Referer': 'https://geoportal.ancpi.ro/imobile.html',
         'Accept': '*/*',
       },
-      // Timeout de 15 secunde folosind standardul web
       signal: AbortSignal.timeout(60000),
     });
 
     const buffer = await response.arrayBuffer();
     const contentType = response.headers.get('content-type') || 'image/png';
 
-    // Returnăm răspunsul exact așa cum vine de la ANCPI (cu datele binare)
     return new NextResponse(buffer, {
       status: response.status,
       headers: {
@@ -52,11 +50,52 @@ export async function GET(request: Request) {
     });
 
   } catch (error: any) {
-    console.error(`[ANCPI Proxy] Error: ${error.message}`);
+    console.error(`[ANCPI Proxy GET] Error: ${error.message}`);
     return NextResponse.json({
       error: 'Proxy Error',
       message: error.message,
-      code: error.code || 'UNKNOWN',
+    }, { status: 502 });
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const baseUrl = searchParams.get('url');
+    const body = await request.json();
+
+    if (!baseUrl) {
+      return NextResponse.json({ error: 'Missing URL parameter' }, { status: 400 });
+    }
+
+    if (!baseUrl.includes('ancpi.ro') && !baseUrl.includes('apia.org.ro')) {
+      return NextResponse.json({ error: 'Invalid target domain' }, { status: 400 });
+    }
+
+    const targetUrl = new URL(baseUrl);
+    targetUrl.protocol = 'https:';
+
+    console.log(`[ANCPI Proxy POST] Fetching: ${targetUrl.toString()}`);
+
+    const response = await fetch(targetUrl.toString(), {
+      method: 'POST',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Referer': 'https://geoportal.ancpi.ro/imobile.html',
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams(body).toString(),
+      signal: AbortSignal.timeout(60000),
+    });
+
+    const data = await response.json();
+    return NextResponse.json(data);
+
+  } catch (error: any) {
+    console.error(`[ANCPI Proxy POST] Error: ${error.message}`);
+    return NextResponse.json({
+      error: 'Proxy Error',
+      message: error.message,
     }, { status: 502 });
   }
 }
