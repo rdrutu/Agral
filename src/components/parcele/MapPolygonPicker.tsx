@@ -440,16 +440,20 @@ export function MapPolygonPicker({
           // Parametrii pentru query
           const queryParams = {
             f: 'json',
+            where: '1=1',
             geometry: JSON.stringify(esriGeometry),
             geometryType: 'esriGeometryPolygon',
             inSR: '4326',
             spatialRel: 'esriSpatialRelIntersects',
             outFields: '*',
             returnGeometry: 'true',
-            outSR: '4326'
+            outSR: '4326',
+            resultRecordCount: 1000,
+            returnZ: false
           };
           
-          const ancpiUrl = `https://geoportal.ancpi.ro/maps/rest/services/imobile/Imobile/MapServer/1/query`;
+          // Serviciul identificat ca fiind activ și cu 1000 record limit
+          const ancpiUrl = `https://geoportal.ancpi.ro/maps/rest/services/Imobile/Imobile_3844/MapServer/1/query`;
           
           const response = await fetch(`/api/ancpi/proxy?url=${encodeURIComponent(ancpiUrl)}`, {
             method: 'POST',
