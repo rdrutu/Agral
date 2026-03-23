@@ -145,7 +145,13 @@ interface MapPolygonPickerProps {
   parcels?: any[];
 }
 
-function SearchOverlay({ onSelect }: { onSelect: (lat: number, lng: number) => void }) {
+function SearchOverlay({ 
+  onSelect, 
+  onParcelSelect 
+}: { 
+  onSelect: (lat: number, lng: number) => void,
+  onParcelSelect?: (feature: any) => void
+}) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<any[]>([]);
   const [cadastralResults, setCadastralResults] = useState<any[]>([]);
@@ -165,7 +171,20 @@ function SearchOverlay({ onSelect }: { onSelect: (lat: number, lng: number) => v
           .then(r => r.json());
 
         // 2. Căutare Cadastrală (ANCPI ArcGIS REST GeoJSON) prin PROXY
-        const ancpiUrl = `https://geoportal.ancpi.ro/arcgis/rest/services/eterra3_publish/MapServer/1/query?f=geojson&where=nr_cadastral%20LIKE%20%27%25${encodeURIComponent(query)}%25%27&outFields=*&resultRecordCount=5&outSR=4326`;
+        // Îmbunătățire logică: căutăm după număr și localitate dacă există spațiu
+        const cleanQuery = query.trim();
+        const parts = cleanQuery.split(/\s+/);
+        let whereClause = "";
+        
+        if (parts.length > 1) {
+          // Ex: "12345 Oradea" -> căutăm număr și UAT
+          // Încercăm ambele variante (nr-uat și uat-nr) pentru flexibilitate
+          whereClause = `(nr_cadastral LIKE '%${parts[0]}%' AND uats LIKE '%${parts[1]}%') OR (nr_cadastral LIKE '%${parts[1]}%' AND uats LIKE '%${parts[0]}%')`;
+        } else {
+          whereClause = `nr_cadastral LIKE '%${cleanQuery}%' OR uats LIKE '%${cleanQuery}%'`;
+        }
+
+        const ancpiUrl = `https://geoportal.ancpi.ro/arcgis/rest/services/eterra3_publish/MapServer/1/query?f=geojson&where=${encodeURIComponent(whereClause)}&outFields=*&resultRecordCount=5&outSR=4326`;
         const ancpiPromise = fetch(`/api/ancpi/proxy?url=${encodeURIComponent(ancpiUrl)}`)
           .then(r => r.json());
 
@@ -192,7 +211,7 @@ function SearchOverlay({ onSelect }: { onSelect: (lat: number, lng: number) => v
         <Input 
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Caută loc sau Nr. Cadastral..."
+          placeholder="Ex: 12345 Oradea..."
           className="pl-9 h-11 bg-background shadow-sm border-input"
         />
         {loading && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />}
@@ -206,9 +225,16 @@ function SearchOverlay({ onSelect }: { onSelect: (lat: number, lng: number) => v
               key={`cad-${idx}`} 
               className="p-3 hover:bg-blue-50 cursor-pointer text-sm border-b border-blue-100 transition-colors flex items-center gap-2"
               onClick={() => {
-                const ring = r.geometry.rings[0];
-                if (ring && ring.length > 0) {
-                   onSelect(ring[0][1], ring[0][0]); // Folosim primul punct pentru a zbura acolo
+                if (onParcelSelect) {
+                  onParcelSelect(r);
+                } else {
+                  const ring = r.geometry.rings?.[0] || r.geometry.coordinates?.[0];
+                  if (ring && ring.length > 0) {
+                     // Nominatim/GeoJSON format varies
+                     const lat = Array.isArray(ring[0]) ? ring[0][1] : ring[1];
+                     const lng = Array.isArray(ring[0]) ? ring[0][0] : ring[0];
+                     onSelect(lat, lng);
+                  }
                 }
                 setQuery("");
                 setResults([]);
@@ -217,8 +243,8 @@ function SearchOverlay({ onSelect }: { onSelect: (lat: number, lng: number) => v
             >
               <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-[10px] font-bold">CAD</span>
               <div className="flex-1 overflow-hidden" suppressHydrationWarning>
-                <div className="font-bold" suppressHydrationWarning>NR: {r.attributes.nr_cadastral}</div>
-                <div className="text-[10px] text-muted-foreground" suppressHydrationWarning>{r.attributes.uats}</div>
+                <div className="font-bold" suppressHydrationWarning>NR: {r.properties?.nr_cadastral || r.attributes?.nr_cadastral}</div>
+                <div className="text-[10px] text-muted-foreground" suppressHydrationWarning>{r.properties?.uats || r.attributes?.uats}</div>
               </div>
             </div>
           ))}
@@ -272,6 +298,31 @@ export function MapPolygonPicker({
   const handleSelectLocation = (lat: number, lng: number) => {
     if (mapRef.current) {
       mapRef.current.flyTo([lat, lng], 15);
+    }
+  };
+
+  const handleParcelSelect = (feature: any) => {
+    // Dacă e format GeoJSON (din căutare f=geojson) trebuie să normalizăm proprietățile
+    // pentru a se potrivi cu ce așteaptă restul aplicației (care primește ArcGIS JSON convertit)
+    const normalizedFeature = {
+      ...feature,
+      properties: {
+        ...feature.properties,
+        NATIONAL_CADASTRAL_REFERENCE: feature.properties?.nr_cadastral || feature.properties?.NATIONAL_CADASTRAL_REFERENCE,
+        UATS: feature.properties?.uats || feature.properties?.UATS,
+        // Aliniem câmpurile pentru componenta de adăugare
+        uat: feature.properties?.uats || feature.properties?.UATS,
+        cadastralNumber: feature.properties?.nr_cadastral || feature.properties?.NATIONAL_CADASTRAL_REFERENCE
+      }
+    };
+
+    setSelectedParcel(normalizedFeature);
+    
+    // Zoom la parcelă
+    if (mapRef.current) {
+      const leafletGeoJson = L.geoJSON(feature);
+      const bounds = leafletGeoJson.getBounds();
+      mapRef.current.flyToBounds(bounds, { padding: [50, 50] });
     }
   };
 
@@ -382,7 +433,7 @@ export function MapPolygonPicker({
         </div>
       </div>
       
-      <SearchOverlay onSelect={handleSelectLocation} />
+      <SearchOverlay onSelect={handleSelectLocation} onParcelSelect={handleParcelSelect} />
       
       <div className="h-[450px] w-full rounded-xl overflow-hidden border-2 border-primary/20 relative z-0">
         <MapContainer
