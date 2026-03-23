@@ -44,3 +44,7 @@ next-env.d.ts
 *.log
 tmp/
 .vercel/
+peek*.txt
+
+# Massive data files
+blocuri_fizice_2025/
