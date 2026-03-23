@@ -45,7 +45,7 @@ function AncpiclickHandler({
         const ancpiUrl = `https://geoportal.ancpi.ro/maps/rest/services/imobile/Imobile/MapServer/1/query`
           + `?f=json&geometry=${lng},${lat}&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&outSR=4326`;
         
-        const response = await fetch(`/api/ancpi/proxy?url=${encodeURIComponent(ancpiUrl)}`);
+        const response = await fetch(ancpiUrl); // direct, fără proxy
         
         if (!response.ok) throw new Error("Eroare server ANCPI");
         
@@ -87,8 +87,9 @@ function ANCPITileLayer() {
       'https://geoportal.ancpi.ro/maps/rest/services/ANCPI/CP_Yellow_vt/MapServer/tile/{z}/{y}/{x}?blankTile=false',
       {
         opacity: 0.6,
-        minZoom: 10,
+        minZoom: 8,
         maxZoom: 20,
+        maxNativeZoom: 11, // ← ESENȚIAL
         attribution: '© ANCPI',
       }
     );
@@ -132,9 +133,9 @@ function SearchOverlay({ onSelect }: { onSelect: (lat: number, lng: number) => v
         const geoPromise = fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=ro&addressdetails=1&limit=3`)
           .then(r => r.json());
 
-        // 2. Căutare Cadastrală (ANCPI ArcGIS REST GeoJSON)
+        // 2. Căutare Cadastrală (ANCPI ArcGIS REST GeoJSON) directă
         const ancpiUrl = `https://geoportal.ancpi.ro/arcgis/rest/services/eterra3_publish/MapServer/1/query?f=geojson&where=nr_cadastral%20LIKE%20%27%25${encodeURIComponent(query)}%25%27&outFields=*&resultRecordCount=5&outSR=4326`;
-        const ancpiPromise = fetch(`/api/ancpi/proxy?url=${encodeURIComponent(ancpiUrl)}`)
+        const ancpiPromise = fetch(ancpiUrl)
           .then(r => r.json());
 
         const [geoData, ancpiData] = await Promise.all([geoPromise, ancpiPromise]);
@@ -227,24 +228,13 @@ export function MapPolygonPicker({
   const [selectedParcel, setSelectedParcel] = useState<any>(null);
   const [loadingParcel, setLoadingParcel] = useState(false);
 
-  // Verificare conectivitate ANCPI via Proxy (ca să apară în logs)
+  // Verificare conectivitate ANCPI via Tile direct
   useEffect(() => {
-    const checkConnection = async () => {
-      setAncpiStatus({ status: 'testing' });
-      try {
-        const testUrl = `https://geoportal.ancpi.ro/maps/rest/services/imobile/Imobile/MapServer/1/query?f=json&where=1%3D0&outFields=INSPIRE_ID&returnGeometry=false`;
-        const res = await fetch(`/api/ancpi/proxy?url=${encodeURIComponent(testUrl)}`);
-        
-        if (res.ok) {
-          setAncpiStatus({ status: 'ok' });
-        } else {
-          setAncpiStatus({ status: 'fail', message: 'Eroare proxy' });
-        }
-      } catch (e) {
-        setAncpiStatus({ status: 'fail', message: 'Eroare conexiune' });
-      }
-    };
-    checkConnection();
+    setAncpiStatus({ status: 'testing' });
+    const img = new Image();
+    img.onload = () => setAncpiStatus({ status: 'ok' });
+    img.onerror = () => setAncpiStatus({ status: 'fail' });
+    img.src = 'https://geoportal.ancpi.ro/maps/rest/services/ANCPI/CP_Yellow_vt/MapServer/tile/10/14218/14227?blankTile=false';
   }, []);
 
   const handleSelectLocation = (lat: number, lng: number) => {
