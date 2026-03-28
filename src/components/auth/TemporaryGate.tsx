@@ -23,7 +23,7 @@ export function TemporaryGate({ children }: TemporaryGateProps) {
 
   const handleUnlock = (e: React.FormEvent) => {
     e.preventDefault();
-    if (username === "test" && password === "test123") {
+    if (username === "agral" && password === "agral123") {
       localStorage.setItem("agral_temp_access", "true");
       setIsAuthorized(true);
     } else {

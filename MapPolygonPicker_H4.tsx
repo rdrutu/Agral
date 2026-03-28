@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useRef } from "react";
 import { MapContainer, TileLayer, FeatureGroup, GeoJSON, useMap, Marker, Tooltip, WMSTileLayer, useMapEvents, Popup, Polygon } from "react-leaflet";
@@ -12,7 +12,7 @@ import * as turf from "@turf/turf";
 import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
 
-// Aranjăm iconițele de marker default pentru packagerele moderne
+// Aranj─âm iconi╚¢ele de marker default pentru packagerele moderne
 if (typeof L !== 'undefined' && L.Icon && L.Icon.Default) {
   delete (L.Icon.Default.prototype as any)._getIconUrl;
   L.Icon.Default.mergeOptions({
@@ -22,25 +22,22 @@ if (typeof L !== 'undefined' && L.Icon && L.Icon.Default) {
   });
 }
 
-// --- Componentă pentru stratul APIA LPIS (WMS) ---
+// --- Component─â pentru stratul APIA LPIS (WMS) ---
 function APIATileLayer() {
-  const baseUrl = "https://inspire.apia.org.ro/network/rest/services/INSPIRE/LPIS_referinta_2024/MapServer/exts/InspireView/service";
-  const proxyUrl = `/api/ancpi/proxy?url=${encodeURIComponent(baseUrl)}`;
-  
   return (
     <WMSTileLayer
-      url={proxyUrl}
+      url="https://inspire.apia.org.ro/network/rest/services/INSPIRE/LPIS_referinta_2024/MapServer/exts/InspireView/service"
       layers="referinta_2024"
       format="image/png"
       transparent={true}
       version="1.3.0"
-      attribution="© APIA"
+      attribution="┬⌐ APIA"
       opacity={0.6}
     />
   );
 }
 
-// --- Componentă pentru interogare APIA LPIS la click ---
+// --- Component─â pentru interogare APIA LPIS la click ---
 function ApiaclickHandler({ 
   onParcelFound, 
   loading, 
@@ -65,7 +62,7 @@ function ApiaclickHandler({
 
       try {
         // Query APIA MapServer (Layer 0: referinta_2024)
-        // Folosim proxy-ul care acum acceptă și apia.org.ro
+        // Folosim proxy-ul care acum accept─â ╚Öi apia.org.ro
         const apiaUrl = `https://inspire.apia.org.ro/network/rest/services/INSPIRE/LPIS_referinta_2024/MapServer/0/query`
           + `?f=json&geometry=${lng},${lat}&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&outSR=4326`;
         
@@ -77,7 +74,7 @@ function ApiaclickHandler({
 
         if (data.features && data.features.length > 0) {
           const feature = data.features[0];
-          // Conversie ArcGIS JSON → GeoJSON standard
+          // Conversie ArcGIS JSON ΓåÆ GeoJSON standard
           const geoJsonFeature = {
             type: 'Feature',
             geometry: {
@@ -86,7 +83,7 @@ function ApiaclickHandler({
             },
             properties: {
               ...feature.attributes,
-              // Mapăm câmpurile APIA la formatul nostru intern
+              // Map─âm c├ómpurile APIA la formatul nostru intern
               NATIONAL_CADASTRAL_REFERENCE: feature.attributes.fbid,
               UATS: feature.attributes.nume_com,
               judet: feature.attributes.judet,
@@ -94,7 +91,7 @@ function ApiaclickHandler({
             }
           };
           
-          // Verificăm dacă e deja selectat (pentru toggle)
+          // Verific─âm dac─â e deja selectat (pentru toggle)
           const isAlreadySelected = selectedFeatures.some(f => 
             f.properties?.NATIONAL_CADASTRAL_REFERENCE === geoJsonFeature.properties.NATIONAL_CADASTRAL_REFERENCE
           );
@@ -103,13 +100,13 @@ function ApiaclickHandler({
             setSelectedFeatures(selectedFeatures.filter(f => 
               f.properties?.NATIONAL_CADASTRAL_REFERENCE !== geoJsonFeature.properties.NATIONAL_CADASTRAL_REFERENCE
             ));
-            toast.success("Parcelă eliminată din selecție");
+            toast.success("Parcel─â eliminat─â din selec╚¢ie");
           } else {
             setSelectedFeatures([...selectedFeatures, geoJsonFeature]);
-            toast.success("Bloc fizic APIA adăugat la selecție!");
+            toast.success("Bloc fizic APIA ad─âugat la selec╚¢ie!");
           }
         } else {
-          toast.error("Nu s-a găsit niciun bloc fizic la această locație.");
+          toast.error("Nu s-a g─âsit niciun bloc fizic la aceast─â loca╚¢ie.");
         }
       } catch (err: any) {
         console.error("Eroare interogare APIA", err);
@@ -123,7 +120,7 @@ function ApiaclickHandler({
   return null;
 }
 
-// --- Componentă pentru interogare ANCPI la click ---
+// --- Component─â pentru interogare ANCPI la click ---
 function AncpiclickHandler({ 
   onParcelFound, 
   loading, 
@@ -159,7 +156,7 @@ function AncpiclickHandler({
 
         if (data.features && data.features.length > 0) {
           const feature = data.features[0];
-          // Conversie ArcGIS JSON → GeoJSON standard
+          // Conversie ArcGIS JSON ΓåÆ GeoJSON standard
           const geoJsonFeature = {
             type: 'Feature',
             geometry: {
@@ -169,7 +166,7 @@ function AncpiclickHandler({
             properties: feature.attributes
           };
 
-          // Verificăm dacă e deja selectat (pentru toggle)
+          // Verific─âm dac─â e deja selectat (pentru toggle)
           const isAlreadySelected = selectedFeatures.some(f => 
             (f.properties?.NATIONAL_CADASTRAL_REFERENCE || f.properties?.nr_cadastral) === 
             (geoJsonFeature.properties?.NATIONAL_CADASTRAL_REFERENCE || geoJsonFeature.properties?.nr_cadastral)
@@ -180,13 +177,13 @@ function AncpiclickHandler({
               (f.properties?.NATIONAL_CADASTRAL_REFERENCE || f.properties?.nr_cadastral) !== 
               (geoJsonFeature.properties?.NATIONAL_CADASTRAL_REFERENCE || geoJsonFeature.properties?.nr_cadastral)
             ));
-            toast.success("Parcelă eliminată din selecție");
+            toast.success("Parcel─â eliminat─â din selec╚¢ie");
           } else {
             setSelectedFeatures([...selectedFeatures, geoJsonFeature]);
-            toast.success("Parcelă ANCPI adăugată la selecție!");
+            toast.success("Parcel─â ANCPI ad─âugat─â la selec╚¢ie!");
           }
         } else {
-          toast.error("Nu s-a găsit nicio parcelă la această locație.");
+          toast.error("Nu s-a g─âsit nicio parcel─â la aceast─â loca╚¢ie.");
         }
       } catch (err: any) {
         console.error("Eroare interogare ANCPI", err);
@@ -200,19 +197,16 @@ function AncpiclickHandler({
   return null;
 }
 
-// --- Componentă pentru stratul ANCPI Imobile (WMS) ---
+// --- Component─â pentru stratul ANCPI Imobile (WMS) ---
 function ANCPITileLayer() {
-  const baseUrl = "https://geoportal.ancpi.ro/maps/rest/services/imobile/Imobile/MapServer/WMSServer";
-  const proxyUrl = `/api/ancpi/proxy?url=${encodeURIComponent(baseUrl)}`;
-
   return (
     <WMSTileLayer
-      url={proxyUrl}
+      url="https://geoportal.ancpi.ro/maps/rest/services/imobile/Imobile/MapServer/WMSServer"
       layers="1" // Stratul de imobile/parcele
       format="image/png"
       transparent={true}
       version="1.3.0"
-      attribution="© ANCPI"
+      attribution="┬⌐ ANCPI"
       opacity={0.7}
       minZoom={14}
     />
@@ -253,19 +247,19 @@ function SearchOverlay({
     const timer = setTimeout(async () => {
       setLoading(true);
       try {
-        // 1. Căutare Geografică (Nominatim)
+        // 1. C─âutare Geografic─â (Nominatim)
         const geoPromise = fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=ro&addressdetails=1&limit=3`)
           .then(r => r.json());
 
-        // 2. Căutare Cadastrală (ANCPI ArcGIS REST GeoJSON) prin PROXY
-        // Îmbunătățire logică: căutăm după număr și localitate dacă există spațiu
+        // 2. C─âutare Cadastral─â (ANCPI ArcGIS REST GeoJSON) prin PROXY
+        // ├Ämbun─ât─â╚¢ire logic─â: c─âut─âm dup─â num─âr ╚Öi localitate dac─â exist─â spa╚¢iu
         const cleanQuery = query.trim();
         const parts = cleanQuery.split(/\s+/);
         let whereClause = "";
         
         if (parts.length > 1) {
-          // Ex: "12345 Oradea" -> căutăm număr și UAT
-          // Încercăm ambele variante (nr-uat și uat-nr) pentru flexibilitate
+          // Ex: "12345 Oradea" -> c─âut─âm num─âr ╚Öi UAT
+          // ├Äncerc─âm ambele variante (nr-uat ╚Öi uat-nr) pentru flexibilitate
           whereClause = `(nr_cadastral LIKE '%${parts[0]}%' AND uats LIKE '%${parts[1]}%') OR (nr_cadastral LIKE '%${parts[1]}%' AND uats LIKE '%${parts[0]}%')`;
         } else {
           whereClause = `nr_cadastral LIKE '%${cleanQuery}%' OR uats LIKE '%${cleanQuery}%'`;
@@ -348,7 +342,7 @@ function SearchOverlay({
                 setCadastralResults([]);
               }}
             >
-              Către: {r.display_name}
+              C─âtre: {r.display_name}
             </div>
           ))}
         </div>
@@ -389,15 +383,15 @@ export function MapPolygonPicker({
   };
 
   const handleParcelSelect = (feature: any) => {
-    // Dacă e format GeoJSON (din căutare f=geojson) trebuie să normalizăm proprietățile
-    // pentru a se potrivi cu ce așteaptă restul aplicației (care primește ArcGIS JSON convertit)
+    // Dac─â e format GeoJSON (din c─âutare f=geojson) trebuie s─â normaliz─âm propriet─â╚¢ile
+    // pentru a se potrivi cu ce a╚Öteapt─â restul aplica╚¢iei (care prime╚Öte ArcGIS JSON convertit)
     const normalizedFeature = {
       ...feature,
       properties: {
         ...feature.properties,
         NATIONAL_CADASTRAL_REFERENCE: feature.properties?.nr_cadastral || feature.properties?.NATIONAL_CADASTRAL_REFERENCE,
         UATS: feature.properties?.uats || feature.properties?.UATS,
-        // Aliniem câmpurile pentru componenta de adăugare
+        // Aliniem c├ómpurile pentru componenta de ad─âugare
         uat: feature.properties?.uats || feature.properties?.UATS,
         cadastralNumber: feature.properties?.nr_cadastral || feature.properties?.NATIONAL_CADASTRAL_REFERENCE
       }
@@ -405,7 +399,7 @@ export function MapPolygonPicker({
 
     setSelectedFeatures([normalizedFeature]);
     
-    // Zoom la parcelă
+    // Zoom la parcel─â
     if (mapRef.current) {
       const leafletGeoJson = L.geoJSON(feature);
       const bounds = leafletGeoJson.getBounds();
@@ -413,11 +407,11 @@ export function MapPolygonPicker({
     }
   };
 
-  // Activare "Punct / Desen" manuală
+  // Activare "Punct / Desen" manual─â
   const handleManualDrawActivate = () => {
     setSelectedFeatures([]);
     setSelectionMode('manual');
-    // Mic delay pentru a ne asigura că re-render-ul s-a produs (optional, dar mai sigur)
+    // Mic delay pentru a ne asigura c─â re-render-ul s-a produs (optional, dar mai sigur)
     setTimeout(() => {
       const btn = document.querySelector('.leaflet-draw-draw-polygon') as HTMLElement;
       if (btn) btn.click();
@@ -432,99 +426,47 @@ export function MapPolygonPicker({
       if (selectionMode === 'manual_auto') {
         setLoadingParcel(true);
         try {
-          const bbox = turf.bbox(geoJson);
-          // Generăm o grilă de puncte (ex la fiecare 50m)
-          const grid = turf.pointGrid(bbox, 0.05, { units: 'kilometers', mask: geoJson });
+          // Convert GeoJSON to Esri Polygon
+          const rings = geoJson.geometry.coordinates;
+          const esriGeometry = { rings };
           
-          // Adăugăm și centrul + vârfurile pentru siguranță
-          const vertices = turf.explode(geoJson).features;
-          const center = turf.center(geoJson);
+          const ancpiUrl = `https://geoportal.ancpi.ro/maps/rest/services/imobile/Imobile/MapServer/1/query`
+            + `?f=json&geometry=${JSON.stringify(esriGeometry)}&geometryType=esriGeometryPolygon&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&outSR=4326`;
           
-          // Combinăm toate punctele candidate
-          const candidatePoints = [center, ...vertices, ...grid.features];
+          const response = await fetch(`/api/ancpi/proxy?url=${encodeURIComponent(ancpiUrl)}`);
+          if (!response.ok) throw new Error("Eroare server ANCPI");
           
-          // Filtrăm punctele să fie strict în interior și eliminăm duplicatele de coordonate
-          const uniquePoints = candidatePoints.filter((p, index) => {
-            const isInside = turf.booleanPointInPolygon(p, geoJson);
-            if (!isInside) return false;
-            
-            // Verificăm dacă am mai avut coordonata asta (simplificat)
-            const coords = p.geometry.coordinates;
-            return candidatePoints.findIndex(cp => 
-              cp.geometry.coordinates[0] === coords[0] && 
-              cp.geometry.coordinates[1] === coords[1]
-            ) === index;
-          }).slice(0, 30); // Limită de siguranță la 30 de puncte
-
-          const getParcelAtPoint = async (point: any) => {
-            const [lng, lat] = point.geometry.coordinates;
-            const queryParams = {
-              f: 'json',
-              geometry: `${lng},${lat}`,
-              geometryType: 'esriGeometryPoint',
-              inSR: '4326',
-              spatialRel: 'esriSpatialRelIntersects',
-              outFields: '*',
-              returnGeometry: 'true',
-              outSR: '4326'
-            };
-            
-            const ancpiUrl = `https://geoportal.ancpi.ro/maps/rest/services/imobile/Imobile/MapServer/1/query`;
-            const response = await fetch(`/api/ancpi/proxy?url=${encodeURIComponent(ancpiUrl)}`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(queryParams)
-            });
-            if (!response.ok) return [];
-            const data = await response.json();
-            return data.features || [];
-          };
-
-          // Executăm toate interogările în paralel
-          const allFeaturesResults = await Promise.all(uniquePoints.map(p => getParcelAtPoint(p)));
-          const flatFeatures = allFeaturesResults.flat();
-
-          // Deduplicăm rezultatele după numărul cadastral
-          const seen = new Set();
-          const uniqueFeatures = flatFeatures.filter(f => {
-            const id = f.attributes.NATIONAL_CADASTRAL_REFERENCE || f.attributes.nr_cadastral || JSON.stringify(f.geometry.rings);
-            if (seen.has(id)) return false;
-            seen.add(id);
-            return true;
-          });
-
-          if (uniqueFeatures.length > 0) {
-            const newFeatures = uniqueFeatures.map((f: any) => ({
+          const data = await response.json();
+          if (data.features && data.features.length > 0) {
+            const newFeatures = data.features.map((f: any) => ({
               type: 'Feature',
-              geometry: { 
-                type: 'Polygon', 
-                coordinates: f.geometry.rings 
-              },
+              geometry: { type: 'Polygon', coordinates: f.geometry.rings },
               properties: f.attributes
             }));
             
             setSelectedFeatures([...selectedFeatures, ...newFeatures]);
-            toast.success(`Am găsit ${newFeatures.length} parcele noi!`);
+            toast.success(`Am g─âsit ${newFeatures.length} parcele cadastrate!`);
           } else {
-            toast.error("Nu s-a găsit nicio parcelă în zona desenată.");
+            toast.error("Nu s-a g─âsit nicio parcel─â ├«n zona desenat─â.");
           }
         } catch (err) {
           console.error("Eroare magic mode", err);
-          toast.error("Eroare la interogarea automată.");
+          toast.error("Eroare la interogarea automat─â.");
         } finally {
           setLoadingParcel(false);
+          // Elimin─âm layer-ul desenat manual
           if (featureGroupRef.current) featureGroupRef.current.removeLayer(layer);
         }
         return;
       }
 
-      // Calculăm aria cu Turf.js (întoarce metri pătrați) -> convertim în Hectare
+      // Calcul─âm aria cu Turf.js (├«ntoarce metri p─âtra╚¢i) -> convertim ├«n Hectare
       const areaSqMeters = turf.area(geoJson);
       const areaHa = areaSqMeters / 10000;
       
       onPolygonComplete(geoJson, Number(areaHa.toFixed(2)));
 
-      // Eliminăm poligoanele vechi dacă fermierul desenează unul nou
+      // Elimin─âm poligoanele vechi dac─â fermierul deseneaz─â unul nou
       if (featureGroupRef.current) {
         featureGroupRef.current.eachLayer((l) => {
           if (l !== layer && (l as any)._leaflet_id !== layer._leaflet_id) {
@@ -555,10 +497,10 @@ export function MapPolygonPicker({
     onPolygonComplete(null, 0);
   };
 
-  // Centrare inițială bazată pe baseLat/baseLng dacă există
+  // Centrare ini╚¢ial─â bazat─â pe baseLat/baseLng dac─â exist─â
   const initialCenter: [number, number] = (baseLat && baseLng) 
     ? [baseLat, baseLng] 
-    : [45.9, 25.0]; // Centru România
+    : [45.9, 25.0]; // Centru Rom├ónia
   const initialZoom = (baseLat && baseLng) ? 14 : 6;
 
   return (
@@ -579,9 +521,9 @@ export function MapPolygonPicker({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="text-[11px] opacity-80" suppressHydrationWarning>
             {selectionMode === 'apia' && "Modul APIA (LPIS): Identificare blocuri fizice 2024 (Recomandat)."}
-            {selectionMode === 'auto' && "Modul Automat (ANCPI): Identificare direct din serverele naționale."}
-            {selectionMode === 'manual' && "Modul Manual: Desenează parcela punct cu punct pe hartă."}
-            {selectionMode === 'manual_auto' && "Mod Magic 🪄: Desenează un contur în jurul zonei lucrate și găsim automat restul."}
+            {selectionMode === 'auto' && "Modul Automat (ANCPI): Identificare direct din serverele na╚¢ionale."}
+            {selectionMode === 'manual' && "Modul Manual: Deseneaz─â parcela punct cu punct pe hart─â."}
+            {selectionMode === 'manual_auto' && "Mod Magic ≡ƒ¬ä: Deseneaz─â un contur ├«n jurul zonei lucrate ╚Öi g─âsim automat restul."}
           </div>
           <div className="flex bg-white/20 p-1 rounded-lg self-start">
             <Button
@@ -655,8 +597,11 @@ export function MapPolygonPicker({
           attribution="Tiles &copy; Esri"
           maxZoom={19}
         />
-        <ANCPITileLayer />
-        {selectionMode === 'apia' && <APIATileLayer />}
+        {/* 
+          Temporar dezactivate conform cererii user-ului deoarece nu merg corect 
+          <ANCPITileLayer />
+          {selectionMode === 'apia' && <APIATileLayer />}
+        */}
         
         <ApiaclickHandler 
           loading={loadingParcel}
@@ -694,12 +639,12 @@ export function MapPolygonPicker({
               <div className="p-2 space-y-2 min-w-[220px]">
                 <div className="border-b pb-2">
                   <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
-                    {selectedFeatures.length > 1 ? `${selectedFeatures.length} Parcele Selectate` : 'Parcelă Identificată'}
+                    {selectedFeatures.length > 1 ? `${selectedFeatures.length} Parcele Selectate` : 'Parcel─â Identificat─â'}
                   </div>
                   <div className="font-bold text-sm">
                     {selectedFeatures.length > 1 
-                      ? `${selectedFeatures.length} bucăți selectate`
-                      : (selectedFeatures[0].properties.NATIONAL_CADASTRAL_REFERENCE || 'Fără număr')}
+                      ? `${selectedFeatures.length} buc─â╚¢i selectate`
+                      : (selectedFeatures[0].properties.NATIONAL_CADASTRAL_REFERENCE || 'F─âr─â num─âr')}
                   </div>
                   <div className="text-[10px] opacity-70">
                     Total: {(selectedFeatures.reduce((acc, f) => {
@@ -714,10 +659,10 @@ export function MapPolygonPicker({
                     size="sm" 
                     className="flex-1 h-8 text-[11px] bg-orange-600 hover:bg-orange-700"
                     onClick={() => {
-                      // Combinăm toate geometriile într-un FeatureCollection sau MultiPolygon
+                      // Combin─âm toate geometriile ├«ntr-un FeatureCollection sau MultiPolygon
                       const totalAreaHa = selectedFeatures.reduce((acc, f) => acc + (turf.area(f) / 10000), 0);
                       
-                      // Luăm primul UAT/Localitate disponibilă
+                      // Lu─âm primul UAT/Localitate disponibil─â
                       const firstFeature = selectedFeatures[0];
                       const cadastralNumbers = selectedFeatures
                         .map(f => f.properties.NATIONAL_CADASTRAL_REFERENCE || f.properties.nr_cadastral)
@@ -733,7 +678,7 @@ export function MapPolygonPicker({
                         }
                       );
 
-                      // Adăugăm la FeatureGroup pentru vizualizare permanentă
+                      // Ad─âug─âm la FeatureGroup pentru vizualizare permanent─â
                       if (featureGroupRef.current) {
                         featureGroupRef.current.clearLayers();
                         selectedFeatures.forEach(f => {
@@ -745,7 +690,7 @@ export function MapPolygonPicker({
                       setSelectedFeatures([]);
                     }}
                   >
-                    <Plus className="w-3 h-3 mr-1" /> {selectedFeatures.length > 1 ? "Adaugă Tot" : "Adaugă"}
+                    <Plus className="w-3 h-3 mr-1" /> {selectedFeatures.length > 1 ? "Adaug─â Tot" : "Adaug─â"}
                   </Button>
                   <Button 
                     size="sm" 
@@ -753,7 +698,7 @@ export function MapPolygonPicker({
                     className="flex-1 h-8 text-[11px]"
                     onClick={() => setSelectedFeatures([])}
                   >
-                    <X className="w-3 h-3 mr-1" /> Anulează
+                    <X className="w-3 h-3 mr-1" /> Anuleaz─â
                   </Button>
                 </div>
               </div>
@@ -765,7 +710,7 @@ export function MapPolygonPicker({
           <div className="absolute inset-0 z-[1000] flex items-center justify-center bg-white/20 backdrop-blur-[1px]">
              <div className="bg-white p-4 rounded-full shadow-2xl border border-orange-100 flex items-center gap-3 animate-bounce">
                 <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
-                <span className="text-sm font-bold text-orange-700">Se caută în cadastru...</span>
+                <span className="text-sm font-bold text-orange-700">Se caut─â ├«n cadastru...</span>
              </div>
           </div>
         )}
@@ -817,7 +762,7 @@ export function MapPolygonPicker({
               }}
             >
               <Tooltip sticky>
-                <div className="text-[10px] font-bold">{p.name} (Existentă)</div>
+                <div className="text-[10px] font-bold">{p.name} (Existent─â)</div>
               </Tooltip>
             </Polygon>
           );
@@ -841,7 +786,7 @@ export function MapPolygonPicker({
                 align-items: center;
                 justify-content: center;
               ">
-                <span style="transform: rotate(45deg); font-size: 20px;">🏢</span>
+                <span style="transform: rotate(45deg); font-size: 20px;">≡ƒÅó</span>
               </div>
               `,
               className: 'custom-farm-marker',

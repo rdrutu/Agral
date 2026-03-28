@@ -3,8 +3,6 @@ import { Nunito, Raleway } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import { CookieBanner } from "@/components/common/CookieBanner";
-import { Analytics } from "@vercel/analytics/react";
-import { SpeedInsights } from "@vercel/speed-insights/next";
 import Script from "next/script";
 
 // Raleway — matching logo-ul Agral (geometric, bold caps)
@@ -65,6 +63,9 @@ const jsonLd = {
   }
 };
 
+import { CookieProvider } from "@/context/CookieContext";
+import { ConsentTracking } from "@/components/common/ConsentTracking";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -73,47 +74,48 @@ export default function RootLayout({
   return (
     <html lang="ro" suppressHydrationWarning>
       <body className={`${raleway.variable} ${nunito.variable} antialiased`} suppressHydrationWarning>
-        <Script
-          id="json-ld"
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
-        <Toaster position="top-center" reverseOrder={false} />
-        {/* Mitigation for browser extensions injecting attributes that break hydration (e.g. Bitdefender) */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                const clean = (el) => {
-                  if (el.removeAttribute) {
-                    el.removeAttribute('bis_skin_checked');
-                    el.removeAttribute('bis_size');
-                    el.removeAttribute('bis_id');
-                  }
-                };
-                const observer = new MutationObserver((mutations) => {
-                  for (const mutation of mutations) {
-                    for (const node of mutation.addedNodes) {
-                      if (node.nodeType === 1) {
-                        clean(node);
-                        const children = node.querySelectorAll('[bis_skin_checked], [bis_size], [bis_id]');
-                        for (const child of children) clean(child);
+        <CookieProvider>
+          <Script
+            id="json-ld"
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          />
+          <Toaster position="top-center" reverseOrder={false} />
+          {/* Mitigation for browser extensions injecting attributes that break hydration (e.g. Bitdefender) */}
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `
+                (function() {
+                  const clean = (el) => {
+                    if (el.removeAttribute) {
+                      el.removeAttribute('bis_skin_checked');
+                      el.removeAttribute('bis_size');
+                      el.removeAttribute('bis_id');
+                    }
+                  };
+                  const observer = new MutationObserver((mutations) => {
+                    for (const mutation of mutations) {
+                      for (const node of mutation.addedNodes) {
+                        if (node.nodeType === 1) {
+                          clean(node);
+                          const children = node.querySelectorAll('[bis_skin_checked], [bis_size], [bis_id]');
+                          for (const child of children) clean(child);
+                        }
                       }
                     }
-                  }
-                });
-                observer.observe(document.documentElement, { childList: true, subtree: true });
-                // Initial clean
-                const initial = document.querySelectorAll('[bis_skin_checked], [bis_size], [bis_id]');
-                for (const el of initial) clean(el);
-              })();
-            `,
-          }}
-        />
-        {children}
-        <CookieBanner />
-        <Analytics />
-        <SpeedInsights />
+                  });
+                  observer.observe(document.documentElement, { childList: true, subtree: true });
+                  // Initial clean
+                  const initial = document.querySelectorAll('[bis_skin_checked], [bis_size], [bis_id]');
+                  for (const el of initial) clean(el);
+                })();
+              `,
+            }}
+          />
+          {children}
+          <CookieBanner />
+          <ConsentTracking />
+        </CookieProvider>
       </body>
     </html>
   );

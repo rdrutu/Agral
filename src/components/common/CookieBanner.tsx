@@ -4,22 +4,29 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Cookie, X } from "lucide-react";
 import Link from "next/link";
+import { useCookieConsent } from "@/context/CookieContext";
 
 export function CookieBanner() {
+  const { consent, acceptCookies, declineCookies } = useCookieConsent();
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    // Verificăm dacă utilizatorul a acceptat deja cookies
-    const consent = localStorage.getItem("agral_cookie_consent");
-    if (!consent) {
+    if (consent === "pending") {
       // Afișăm banner-ul după un scurt delay pentru un UX mai bun
       const timer = setTimeout(() => setIsVisible(true), 1500);
       return () => clearTimeout(timer);
+    } else {
+      setIsVisible(false);
     }
-  }, []);
+  }, [consent]);
 
   const handleAccept = () => {
-    localStorage.setItem("agral_cookie_consent", "accepted");
+    acceptCookies();
+    setIsVisible(false);
+  };
+
+  const handleDecline = () => {
+    declineCookies();
     setIsVisible(false);
   };
 
@@ -45,7 +52,7 @@ export function CookieBanner() {
         <div className="flex items-center gap-3 shrink-0 w-full md:w-auto">
           <Button 
             variant="ghost" 
-            onClick={() => setIsVisible(false)}
+            onClick={handleDecline}
             className="hidden md:flex font-bold text-muted-foreground rounded-xl"
           >
             Mai târziu
@@ -59,7 +66,7 @@ export function CookieBanner() {
         </div>
 
         <button 
-          onClick={() => setIsVisible(false)}
+          onClick={handleDecline}
           className="absolute top-4 right-4 text-muted-foreground/50 hover:text-foreground transition-colors"
         >
           <X className="w-4 h-4" />
