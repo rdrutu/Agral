@@ -1,0 +1,98 @@
+{
+  "displayFieldName": "INSPIRE_ID",
+  "fieldAliases": {
+    "OBJECTID": "OBJECTID",
+    "INSPIRE_ID": "INSPIRE_ID",
+    "NATIONAL_CADASTRAL_REFERENCE": "NATIONAL_CADASTRAL_REFERENCE",
+    "IMMOVABLE_ID": "IMMOVABLE_ID"
+  },
+  "geometryType": "esriGeometryPolygon",
+  "spatialReference": {
+    "wkid": 4326,
+    "latestWkid": 4326
+  },
+  "fields": [
+    {
+      "name": "OBJECTID",
+      "type": "esriFieldTypeOID",
+      "alias": "OBJECTID"
+    },
+    {
+      "name": "INSPIRE_ID",
+      "type": "esriFieldTypeString",
+      "alias": "INSPIRE_ID",
+      "length": 30
+    },
+    {
+      "name": "NATIONAL_CADASTRAL_REFERENCE",
+      "type": "esriFieldTypeString",
+      "alias": "NATIONAL_CADASTRAL_REFERENCE",
+      "length": 20
+    },
+    {
+      "name": "IMMOVABLE_ID",
+      "type": "esriFieldTypeDouble",
+      "alias": "IMMOVABLE_ID"
+    }
+  ],
+  "features": [
+    {
+      "attributes": {
+        "OBJECTID": 69377217,
+        "INSPIRE_ID": "RO.127.54975.256892",
+        "NATIONAL_CADASTRAL_REFERENCE": "256892",
+        "IMMOVABLE_ID": 1714436
+      },
+      "geometry": {
+        "rings": [
+          [
+            [
+              23.589547412676346,
+              46.771248037937774
+            ],
+            [
+              23.58954306751035,
+              46.771252978659874
+            ],
+            [
+              23.589482679977912,
+              46.77132165930532
+            ],
+            [
+              23.589686370305476,
+              46.77137446258137
+            ],
+            [
+              23.589719451999883,
+              46.771318404674346
+            ],
+            [
+              23.58972364345763,
+              46.771311311517415
+            ],
+            [
+              23.589861045748062,
+              46.771078692724316
+            ],
+            [
+              23.589885413478058,
+              46.771037455902515
+            ],
+            [
+              23.589831290076553,
+              46.77101210231171
+            ],
+            [
+              23.589778138983057,
+              46.77098561784394
+            ],
+            [
+              23.589547412676346,
+              46.771248037937774
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

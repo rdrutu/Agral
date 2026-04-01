@@ -11,6 +11,7 @@ import { Loader2, ArrowRight, ArrowLeft, CheckCircle2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
+import { toast } from "react-hot-toast";
 
 const BaseLocationPicker = dynamic(() => import("@/components/profil/BaseLocationPicker"), {
   ssr: false,
@@ -54,6 +55,54 @@ export function OnboardingClient() {
   
   const [lat, setLat] = useState<number | null>(null);
   const [lng, setLng] = useState<number | null>(null);
+
+  const [lookupLoading, setLookupLoading] = useState(false);
+
+  const handleCuiLookup = async () => {
+    if (!cui || cui.length < 2) {
+      toast.error("Introdu un CUI valid");
+      return;
+    }
+    
+    setLookupLoading(true);
+    try {
+      const response = await fetch("/api/anaf/lookup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cui }),
+      });
+
+      const result = await response.json();
+
+      if (result.success && result.data) {
+        const data = result.data;
+        setLegalName(data.denumire || "");
+        setRegistrationNumber(data.nrRegCom || "");
+        setCaen(data.codCAEN || "");
+        setIban(data.iban || "");
+        
+        // Compoziție adresă
+        if (data.sediu) {
+          const s = data.sediu;
+          setCounty(s.judet || "");
+          setCity(s.localitate || "");
+          setAddress(`${s.strada || ""} ${s.numar || ""} ${s.detalii || ""}`.trim());
+          if (s.tara) setWebsite(s.tara === "ROMANIA" ? "" : s.tara);
+        } else if (data.adresa) {
+          setAddress(data.adresa);
+        }
+
+        toast.success("Datele firmei au fost preluate din ANAF!");
+      } else {
+        toast.error(result.error || "Firma nu a fost găsită");
+      }
+    } catch (error) {
+      console.error("CUI Lookup error:", error);
+      toast.error("Eroare la conectarea cu serviciul de verificare");
+    } finally {
+      setLookupLoading(false);
+    }
+  };
 
   const [parcelData, setParcelData] = useState<{ geoJson: any; areaHa: number } | null>(null);
   const [parcelName, setParcelName] = useState("");
@@ -252,7 +301,23 @@ export function OnboardingClient() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label className="font-black text-[10px] uppercase tracking-widest text-slate-400 ml-1">CUI / CIF <span className="text-red-500">*</span></Label>
-                      <Input placeholder="RO1234..." value={cui} onChange={e => setCui(e.target.value)} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner font-bold tracking-widest uppercase" />
+                      <div className="flex gap-2">
+                        <Input 
+                          placeholder="RO1234..." 
+                          value={cui} 
+                          onChange={e => setCui(e.target.value)} 
+                          className="h-12 rounded-xl bg-slate-50 border-none shadow-inner font-bold tracking-widest uppercase flex-1" 
+                        />
+                        <Button 
+                          type="button" 
+                          onClick={handleCuiLookup} 
+                          disabled={lookupLoading || cui.length < 2}
+                          variant="secondary"
+                          className="h-12 rounded-xl px-4 font-bold text-[10px] uppercase tracking-widest bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200"
+                        >
+                          {lookupLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Caută"}
+                        </Button>
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <Label className="font-black text-[10px] uppercase tracking-widest text-slate-400 ml-1">Reg. Comertului</Label>

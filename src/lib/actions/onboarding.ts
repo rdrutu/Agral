@@ -35,14 +35,26 @@ export async function submitOnboarding(data: {
 
   if (!user) throw new Error("Neautorizat.");
 
-  const dbUser = await prisma.user.upsert({
-    where: { id: user.id },
-    update: {},
-    create: {
-      id: user.id,
-      email: user.email || "",
-    }
+  let dbUser = await prisma.user.findUnique({
+    where: { id: user.id }
   });
+
+  if (!dbUser) {
+    try {
+      dbUser = await prisma.user.create({
+        data: {
+          id: user.id,
+          email: user.email || "",
+        }
+      });
+    } catch (err) {
+      dbUser = await prisma.user.findUnique({
+        where: { id: user.id }
+      });
+    }
+  }
+
+  if (!dbUser) throw new Error("Eroare la crearea profilului.");
 
   if (dbUser.orgId) {
     // Dacă are deja, doar îl trimitem în dashboard (se poate întâmpla prin repetare apel)

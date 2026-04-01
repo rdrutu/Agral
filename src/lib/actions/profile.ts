@@ -11,13 +11,8 @@ export const getCurrentUser = cache(async () => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const dbUser = await prisma.user.upsert({
+  let dbUser = await prisma.user.findUnique({
     where: { id: user.id },
-    update: {}, // Nu actualizăm nimic dacă există deja
-    create: {
-      id: user.id,
-      email: user.email || "",
-    },
     include: { 
       organization: {
         include: {
@@ -28,6 +23,40 @@ export const getCurrentUser = cache(async () => {
       } 
     }
   });
+
+  if (!dbUser) {
+    try {
+      dbUser = await prisma.user.create({
+        data: {
+          id: user.id,
+          email: user.email || "",
+        },
+        include: { 
+          organization: {
+            include: {
+              payments: {
+                orderBy: { date: 'desc' }
+              }
+            }
+          } 
+        }
+      });
+    } catch (err) {
+      // Dacă a fost creat între timp de alt request
+      dbUser = await prisma.user.findUnique({
+        where: { id: user.id },
+        include: { 
+          organization: {
+            include: {
+              payments: {
+                orderBy: { date: 'desc' }
+              }
+            }
+          } 
+        }
+      });
+    }
+  }
 
   return JSON.parse(JSON.stringify(dbUser));
 });

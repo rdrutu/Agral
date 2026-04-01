@@ -12,21 +12,22 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Missing URL parameter' }, { status: 400 });
     }
 
-    if (!baseUrl.includes('ancpi.ro') && !baseUrl.includes('apia.org.ro')) {
+    const isAncpi = baseUrl.includes('ancpi.ro');
+    const isApia = baseUrl.includes('apia.org.ro');
+    const isArcgis = baseUrl.includes('arcgis.com') || baseUrl.includes('arcgisonline.com');
+
+    if (!isAncpi && !isApia && !isArcgis) {
       return NextResponse.json({ error: 'Invalid target domain' }, { status: 400 });
     }
 
     // Identificăm Referer-ul potrivit
-    const isApia = baseUrl.includes('apia.org.ro');
-    const referer = isApia 
-      ? 'https://inspire.apia.org.ro/' 
-      : 'https://geoportal.ancpi.ro/';
+    let referer = 'https://geoportal.ancpi.ro/';
+    if (isApia) referer = 'https://inspire.apia.org.ro/';
+    if (isArcgis) referer = 'https://www.arcgis.com/';
 
     const targetUrl = new URL(baseUrl);
-    // Forțăm HTTPS pentru ANCPI/APIA dacă e cazul, dar respectăm protocolul dacă e deja HTTPS
-    if (targetUrl.protocol !== 'https:') {
-      targetUrl.protocol = 'https:';
-    }
+    // NU mai forțăm HTTPS dacă sursa e HTTP (unele servere ANCPI au SSL defect)
+    // targetUrl.protocol = 'https:';
 
     searchParams.forEach((value, key) => {
       if (key !== 'url') {
@@ -34,32 +35,38 @@ export async function GET(request: Request) {
       }
     });
 
-    console.log(`[ANCPI Proxy GET] Fetching: ${targetUrl.toString()}`);
+    const fullUrl = targetUrl.toString();
+    console.log(`[ANCPI Proxy GET] Fetching: ${fullUrl}`);
 
-    const response = await fetch(targetUrl.toString(), {
+    const response = await fetch(fullUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
         'Referer': referer,
-        'Accept': '*/*',
+        'Origin': new URL(referer).origin,
+        'Accept': 'image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
       },
       cache: 'no-store',
       signal: AbortSignal.timeout(60000),
     });
 
+    if (!response.ok) {
+      console.warn(`[ANCPI Proxy GET] Target ${fullUrl} returned ${response.status}`);
+    }
+
     const buffer = await response.arrayBuffer();
-    const contentType = response.headers.get('content-type') || 'application/json';
+    const contentType = response.headers.get('content-type') || 'image/png';
 
     return new NextResponse(buffer, {
       status: response.status,
       headers: {
         'Content-Type': contentType,
-        'Cache-Control': 'public, max-age=3600',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
         'X-Proxy-Target': targetUrl.origin,
       },
     });
 
   } catch (error: any) {
-    console.error(`[ANCPI Proxy GET] Error: ${error.message}`);
+    console.error(`[ANCPI Proxy GET] Fatal Error: ${error.message}`);
     return NextResponse.json({
       error: 'Proxy Error',
       message: error.message,
