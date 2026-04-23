@@ -382,6 +382,21 @@ export function MapPolygonPicker({
     img.src = 'https://geoportal.ancpi.ro/maps/rest/services/ANCPI/CP_Yellow_vt/MapServer/tile/10/14218/14227?blankTile=false';
   }, []);
 
+  // Încărcare poligon inițial (pentru EDITARE)
+  useEffect(() => {
+    if (initialPolygon && featureGroupRef.current && mapRef.current) {
+      featureGroupRef.current.clearLayers();
+      const layer = L.geoJSON(initialPolygon, {
+        style: { color: "#16a34a", fillOpacity: 0.4, weight: 3 }
+      });
+      layer.addTo(featureGroupRef.current);
+      const bounds = layer.getBounds();
+      if (bounds.isValid()) {
+        mapRef.current.fitBounds(bounds, { padding: [50, 50] });
+      }
+    }
+  }, [initialPolygon]);
+
   const handleSelectLocation = (lat: number, lng: number) => {
     if (mapRef.current) {
       mapRef.current.flyTo([lat, lng], 15);

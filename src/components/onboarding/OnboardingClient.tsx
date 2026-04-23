@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { submitOnboarding } from "@/lib/actions/onboarding";
+import { submitOnboarding, cancelOnboarding } from "@/lib/actions/onboarding";
 import { Loader2, ArrowRight, ArrowLeft, CheckCircle2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
@@ -82,14 +82,20 @@ export function OnboardingClient() {
         setIban(data.iban || "");
         
         // Compoziție adresă
-        if (data.sediu) {
+        if (data.adresa) {
+          setAddress(data.adresa);
+        } else if (data.sediu) {
           const s = data.sediu;
           setCounty(s.judet || "");
           setCity(s.localitate || "");
           setAddress(`${s.strada || ""} ${s.numar || ""} ${s.detalii || ""}`.trim());
+        }
+        
+        if (data.sediu) {
+          const s = data.sediu;
+          setCounty(s.judet || "");
+          setCity(s.localitate || "");
           if (s.tara) setWebsite(s.tara === "ROMANIA" ? "" : s.tara);
-        } else if (data.adresa) {
-          setAddress(data.adresa);
         }
 
         toast.success("Datele firmei au fost preluate din ANAF!");
@@ -121,7 +127,7 @@ export function OnboardingClient() {
   });
 
   const handleNext = () => {
-    if (step < 5) setStep((s) => s + 1);
+    if (step < 4) setStep((s) => s + 1);
   };
   const handlePrev = () => {
     if (step > 1) setStep((s) => s - 1);
@@ -144,12 +150,22 @@ export function OnboardingClient() {
     representativeCnp.length === 13;
 
   const isStep4Valid = lat !== null && lng !== null;
-  const isStep5Valid = parcelData !== null;
 
   const handleCancel = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push("/");
+    if (!confirm("Ești sigur că vrei să anulezi? Contul tău va fi șters definitiv.")) return;
+    
+    setLoading(true);
+    try {
+      await cancelOnboarding();
+      const supabase = createClient();
+      await supabase.auth.signOut();
+      router.push("/");
+    } catch (error) {
+      console.error(error);
+      toast.error("Eroare la ștergerea contului.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -178,9 +194,9 @@ export function OnboardingClient() {
         representativeRole,
         lat,
         lng,
-        parcelData,
-        parcelName,
-        parcelOwnership,
+        parcelData: null,
+        parcelName: "",
+        parcelOwnership: "owned",
       });
       // Redirect to dashboard on success
       router.push("/dashboard");
@@ -191,6 +207,8 @@ export function OnboardingClient() {
       setLoading(false);
     }
   };
+
+  const progressPercentage = (step / 4) * 100;
 
   return (
     <div className="w-full max-w-5xl mx-auto p-1 md:p-2 flex flex-col items-center pt-0 mt-0">
@@ -207,7 +225,7 @@ export function OnboardingClient() {
 
       {/* Progress Bar Header */}
       <div className="mb-1 p-4 bg-white/90 backdrop-blur-md rounded-2xl border border-border shadow-lg flex items-center justify-between relative overflow-hidden w-full">
-        <div className="absolute top-0 left-0 h-1 bg-green-500 transition-all duration-500" style={{ width: `${(step / 5) * 100}%` }} />
+        <div className="absolute top-0 left-0 h-1 bg-green-500 transition-all duration-500" style={{ width: `${progressPercentage}%` }} />
         <div className={`flex flex-col flex-1 items-center text-center ${step >= 1 ? 'text-green-700' : 'text-muted-foreground'}`}>
           <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold mb-1 ${step >= 1 ? 'bg-green-100 text-green-700' : 'bg-muted text-muted-foreground'}`}>1</div>
           <span className="text-[10px] font-semibold">Cont & Brand</span>
@@ -226,11 +244,6 @@ export function OnboardingClient() {
         <div className={`flex flex-col flex-1 items-center text-center ${step >= 4 ? 'text-green-700' : 'text-muted-foreground'}`}>
           <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold mb-1 ${step >= 4 ? 'bg-green-100 text-green-700' : 'bg-muted text-muted-foreground'}`}>4</div>
           <span className="text-[10px] font-semibold">Sediu</span>
-        </div>
-        <div className="w-px h-8 bg-border"></div>
-        <div className={`flex flex-col flex-1 items-center text-center ${step >= 5 ? 'text-green-700' : 'text-muted-foreground'}`}>
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold mb-1 ${step >= 5 ? 'bg-green-100 text-green-700' : 'bg-muted text-muted-foreground'}`}>5</div>
-          <span className="text-[10px] font-semibold">Parcelă</span>
         </div>
       </div>
 
@@ -423,82 +436,10 @@ export function OnboardingClient() {
             </CardContent>
             <CardFooter className="flex justify-between py-6 border-t bg-slate-50/50">
               <Button variant="outline" onClick={handlePrev} className="rounded-xl px-8 h-12 font-bold uppercase text-[10px] tracking-widest">Înapoi</Button>
-              <Button onClick={handleNext} disabled={!isStep4Valid} size="lg" className="agral-gradient w-56 h-14 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-primary/20">
-                Următorul Pas <ArrowRight className="w-5 h-5 ml-2" />
+              <Button onClick={handleSubmit} disabled={!isStep4Valid || loading} size="lg" className="agral-gradient w-56 h-14 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-primary/20">
+                {loading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <CheckCircle2 className="w-5 h-5 mr-2" />}
+                Finalizează
               </Button>
-            </CardFooter>
-          </>
-        )}
-
-        {step === 5 && (
-          <>
-            <CardHeader className="text-center">
-              <CardTitle className="text-2xl text-foreground">Tutorial: Desenează Prima Parcelă</CardTitle>
-              <CardDescription className="text-base">Găsiți zona pe hartă și folosiți instrumentul de poligon ⬟ pentru a contura limitele parcelei.</CardDescription>
-            </CardHeader>
-            <CardContent>
-               <div className="h-[350px] w-full rounded-2xl overflow-hidden border-2 border-green-200 shadow-inner">
-                <MapPolygonPicker 
-                  onPolygonComplete={(geoJson, area) => setParcelData({ geoJson, areaHa: area })} 
-                  baseLat={lat} 
-                  baseLng={lng} 
-                />
-              </div>
-              {parcelData && (
-                <div className="mt-8 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  <div className="flex items-center gap-2 text-green-700 bg-green-50 p-3 rounded-xl border border-green-200 shadow-sm">
-                    <CheckCircle2 className="w-5 h-5" />
-                    <span className="font-bold text-sm">Parcelă detectată: {parcelData.areaHa.toFixed(2)} Ha</span>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="parcelName" className="font-black text-[10px] uppercase tracking-widest text-slate-400 ml-1">Nume Parcelă <span className="text-red-500">*</span></Label>
-                      <Input 
-                        id="parcelName" 
-                        placeholder="Ex: Tarlaua 14 / Solă 5" 
-                        value={parcelName} 
-                        onChange={(e) => setParcelName(e.target.value)} 
-                        className="h-12 rounded-xl bg-slate-50 border-none shadow-inner font-bold"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="font-black text-[10px] uppercase tracking-widest text-slate-400 ml-1">Regim Juridic</Label>
-                      <div className="flex bg-slate-50 p-1 rounded-xl shadow-inner h-12">
-                        <button 
-                          type="button"
-                          onClick={() => setParcelOwnership("owned")}
-                          className={`flex-1 rounded-lg text-xs font-black uppercase tracking-tighter transition-all ${parcelOwnership === 'owned' ? 'bg-white shadow-sm text-green-700' : 'text-slate-400'}`}
-                        >
-                          Proprietate
-                        </button>
-                        <button 
-                          type="button"
-                          onClick={() => setParcelOwnership("rented")}
-                          className={`flex-1 rounded-lg text-xs font-black uppercase tracking-tighter transition-all ${parcelOwnership === 'rented' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-400'}`}
-                        >
-                          Arendă
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  <p className="text-[10px] text-slate-400 italic text-center">Aceste detalii pot fi modificate ulterior din meniul de management al parcelei.</p>
-                </div>
-              )}
-            </CardContent>
-            <CardFooter className="flex justify-between pt-4 pb-10">
-              <Button variant="outline" onClick={handlePrev} className="rounded-xl px-8 h-12 font-bold uppercase text-[10px] tracking-widest">Înapoi</Button>
-              <div className="flex gap-4">
-                {!parcelData && (
-                  <Button variant="ghost" onClick={handleSubmit} disabled={loading} size="lg" className="text-muted-foreground hover:text-foreground">
-                    Sari peste acest pas
-                  </Button>
-                )}
-                <Button onClick={handleSubmit} disabled={loading || !parcelData} size="lg" className="agral-gradient font-bold px-8">
-                  {loading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <CheckCircle2 className="w-5 h-5 mr-2" />}
-                  Finalizează și Intră în Cont
-                </Button>
-              </div>
             </CardFooter>
           </>
         )}

@@ -2,6 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function submitOnboarding(data: {
   firstName: string;
@@ -41,10 +42,12 @@ export async function submitOnboarding(data: {
 
   if (!dbUser) {
     try {
+      const userCount = await prisma.user.count();
       dbUser = await prisma.user.create({
         data: {
           id: user.id,
           email: user.email || "",
+          role: userCount === 0 ? "superadmin" : "owner",
         }
       });
     } catch (err) {
@@ -112,4 +115,31 @@ export async function submitOnboarding(data: {
   }
 
   return { success: true };
+}
+
+export async function cancelOnboarding() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) return { success: true };
+
+  try {
+    const adminClient = createAdminClient();
+    
+    // 1. Delete from Prisma (will cascade to related data)
+    await prisma.user.delete({
+      where: { id: user.id }
+    }).catch(() => {
+      // Ignorăm dacă nu exista în DB
+    });
+
+    // 2. Delete from Supabase Auth
+    const { error } = await adminClient.auth.admin.deleteUser(user.id);
+    if (error) throw error;
+
+    return { success: true };
+  } catch (err: any) {
+    console.error("Error canceling onboarding:", err);
+    return { success: false, error: err.message };
+  }
 }

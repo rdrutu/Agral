@@ -14,6 +14,7 @@ import {
   Calendar
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import prisma from "@/lib/prisma";
 import { redirect } from "next/navigation";
@@ -64,47 +65,37 @@ export default async function DashboardPage() {
   let greeting = "Bună ziua";
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto pb-10 min-h-screen p-4 md:p-8 rounded-[2.5rem]" suppressHydrationWarning>
-      {/* Refined Header - Rendered immediately */}
-      <div className="relative overflow-hidden rounded-[1.5rem] md:rounded-[2.5rem] bg-gradient-to-br from-green-900 via-green-800 to-emerald-900 p-6 md:p-8 text-white shadow-2xl shadow-green-900/20" suppressHydrationWarning>
-        <div className="absolute top-0 right-0 p-12 opacity-10 blur-2xl hidden md:block" suppressHydrationWarning>
-          <Sprout className="w-64 h-64 rotate-12" />
-        </div>
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6" suppressHydrationWarning>
-          <div suppressHydrationWarning>
-            <div className="flex items-center gap-3 mb-2 md:mb-3" suppressHydrationWarning>
-              <div className="h-1 w-1 rounded-full bg-white/40" suppressHydrationWarning />
-              <span className="text-[10px] md:text-xs font-bold text-white/60 uppercase tracking-tighter" suppressHydrationWarning>
-                {formatDate(new Date())}
-              </span>
-            </div>
-            <h2 className="text-2xl md:text-4xl font-black tracking-tight mb-2" suppressHydrationWarning>Bună ziua, {firstName}!</h2>
-            <p className="text-sm md:text-base text-green-100/70 font-medium max-w-md" suppressHydrationWarning>
-              Monitorizarea fermei tale este activă. Verifică situația actualizată mai jos.
-            </p>
-          </div>
-        </div>
+    <div className="space-y-8 max-w-7xl mx-auto pb-10 min-h-screen p-4 md:p-8 relative overflow-hidden" suppressHydrationWarning>
+      {/* Background Layer */}
+      <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+        <Image 
+          src="/dashboard_bg.png" 
+          alt="Dashboard Background" 
+          fill 
+          className="object-cover opacity-10 blur-[40px] scale-105"
+          priority
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-background/0 via-background/60 to-background" />
       </div>
 
       {/* Dynamic Content - Wrapped in Suspense so everything appears at once */}
       <Suspense fallback={<DashboardSkeleton />}>
-        <DashboardDynamicContent dbUser={dbUser} />
+        <DashboardDynamicContent dbUser={dbUser} firstName={firstName} />
       </Suspense>
     </div>
   );
 }
 
-async function DashboardDynamicContent({ dbUser }: { dbUser: any }) {
+async function DashboardDynamicContent({ dbUser, firstName }: { dbUser: any, firstName: string }) {
+  // 1. FAST: Auth & Organization logic (already done in parent or above)
   const org = dbUser?.organization;
   const orgId = org?.id || "00000000-0000-0000-0000-000000000000";
 
-  // Run ALL asynchronous data fetching in a massive parallel burst
+  // 2. MEDIUM: Database queries - these are relatively fast, we await them together
   const [
     kpisResult,
     recentParcels,
     expiringContracts,
-    weather,
-    news,
     systemAlerts
   ] = await Promise.all([
     // 0: KPIs (nested Promise.all)
@@ -130,15 +121,17 @@ async function DashboardDynamicContent({ dbUser }: { dbUser: any }) {
       take: 2
     }),
 
-    // 3: Weather
-    getWeatherData(((org as any)?.baseLat ? Number((org as any).baseLat) : null) || countyCoords[(org as any)?.county || "Olt"].lat, ((org as any)?.baseLng ? Number((org as any).baseLng) : null) || countyCoords[(org as any)?.county || "Olt"].lon).catch(() => null),
-
-    // 4: News
-    getAgriNews(),
-
-    // 5: System Alerts
+    // 3: System Alerts
     getSystemAlerts()
   ]);
+
+  // 3. SLOW: External fetches - DO NOT AWAIT, pass as promises
+  const weatherPromise = getWeatherData(
+    ((org as any)?.baseLat ? Number((org as any).baseLat) : null) || countyCoords[(org as any)?.county || "Olt"].lat, 
+    ((org as any)?.baseLng ? Number((org as any).baseLng) : null) || countyCoords[(org as any)?.county || "Olt"].lon
+  ).catch(() => null);
+
+  const newsPromise = getAgriNews();
 
   const [totalArea, parcelCount, activeSeason, operationalExpenses, hrExpenses] = kpisResult;
 
@@ -178,9 +171,9 @@ async function DashboardDynamicContent({ dbUser }: { dbUser: any }) {
     },
     {
       title: "Sezon Activ",
-      value: activeSeason?.startDate ? new Date(activeSeason.startDate).getFullYear().toString() : "2024",
+      value: activeSeason?.startDate ? new Date(activeSeason.startDate).getFullYear().toString() : "---",
       unit: "",
-      desc: activeSeason?.name || "Niciun sezon activ",
+      desc: activeSeason?.name || "Niciun sezon definit",
       icon: Sprout,
       color: "text-blue-600",
       bg: "bg-blue-50",
@@ -220,33 +213,73 @@ async function DashboardDynamicContent({ dbUser }: { dbUser: any }) {
   ];
 
   if (combinedAlerts.length === 0) {
-    combinedAlerts.push({ type: "success", text: "Toate sistemele sunt în parametri optimi.", href: "#" });
+    combinedAlerts.push({ type: "success", text: "Sistemul nu a detectat nicio alertă activă.", href: "#" });
   }
 
   const dashboardConfig = (dbUser as any)?.dashboardConfig;
 
   return (
-    <>
+    <div className="space-y-8 animate-in fade-in duration-700">
+      {/* Hero Header */}
+      <div className="relative overflow-hidden rounded-2xl bg-slate-900 shadow-xl group border border-white/10" suppressHydrationWarning>
+        <Image 
+          src="/dashboard_bg.png" 
+          alt="Hero" 
+          fill 
+          className="object-cover opacity-60 group-hover:scale-105 transition-transform duration-[15s] ease-out"
+          priority
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/80 via-slate-900/40 to-transparent" />
+        
+        <div className="relative z-10 p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6" suppressHydrationWarning>
+          <div className="space-y-3" suppressHydrationWarning>
+            <div className="flex items-center gap-3 animate-in fade-in slide-in-from-left-4 duration-700" suppressHydrationWarning>
+              <span className="text-xs font-bold text-white/60 uppercase tracking-widest" suppressHydrationWarning>
+                {formatDate(new Date())}
+              </span>
+            </div>
+            
+            <div className="space-y-1 animate-in fade-in slide-in-from-left-4 duration-700 delay-100" suppressHydrationWarning>
+              <h2 className="text-2xl md:text-4xl font-black tracking-tight text-white leading-none font-sans" suppressHydrationWarning>
+                Salut, <span className="text-emerald-400">{firstName}</span>.
+              </h2>
+              <p className="text-sm md:text-base text-slate-300 font-medium max-w-lg" suppressHydrationWarning>
+                Sistemul nu a detectat nicio alertă activă. Ai <span className="text-white font-bold">{combinedAlerts.length} notificări</span> de verificat.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* KPI Section */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700" suppressHydrationWarning>
-        {kpis.map((kpi) => (
-          <Card key={kpi.title} className={cn("border-none shadow-lg hover:shadow-xl transition-all duration-300 group overflow-hidden", kpi.bg)} suppressHydrationWarning>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300" suppressHydrationWarning>
+        {kpis.map((kpi, idx) => (
+          <Card 
+            key={kpi.title} 
+            className={cn(
+              "border border-slate-200 shadow-md transition-all duration-500 group overflow-hidden bg-white hover:shadow-xl hover:-translate-y-1 rounded-2xl",
+            )} 
+            suppressHydrationWarning
+          >
             <CardContent className="p-6 relative" suppressHydrationWarning>
-              <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform duration-500" suppressHydrationWarning>
-                <kpi.icon className={cn("w-16 h-16", kpi.color)} />
-              </div>
               <div className="flex items-start justify-between mb-4" suppressHydrationWarning>
-                <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center shadow-inner", kpi.bg, kpi.color, "bg-white/50 border", kpi.border)} suppressHydrationWarning>
-                  <kpi.icon className="w-6 h-6" />
+                <div className={cn(
+                  "w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-500 group-hover:scale-110", 
+                  kpi.bg, kpi.color, "border border-slate-100"
+                )} suppressHydrationWarning>
+                  <kpi.icon className="w-6 h-6" strokeWidth={1.5} />
                 </div>
               </div>
+              
               <div className="space-y-1" suppressHydrationWarning>
-                <div className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground/60" suppressHydrationWarning>{kpi.title}</div>
-                <div className="flex items-baseline gap-1" suppressHydrationWarning>
-                  <span className="text-3xl font-black tracking-tighter text-foreground tabular-nums" suppressHydrationWarning>{kpi.value}</span>
-                  <span className="text-xs font-bold text-muted-foreground uppercase" suppressHydrationWarning>{kpi.unit}</span>
+                <div className="text-xs font-black uppercase tracking-widest text-slate-600" suppressHydrationWarning>{kpi.title}</div>
+                <div className="flex items-baseline gap-1.5" suppressHydrationWarning>
+                  <span className="text-3xl font-black tracking-tighter text-slate-900 tabular-nums" suppressHydrationWarning>{kpi.value}</span>
+                  <span className="text-sm font-black text-slate-400 uppercase tracking-widest">{kpi.unit}</span>
                 </div>
-                <p className="text-[10px] font-bold text-muted-foreground/50 uppercase tracking-tighter" suppressHydrationWarning>{kpi.desc}</p>
+                <div className="flex items-center gap-2 mt-2">
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-tight" suppressHydrationWarning>{kpi.desc}</p>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -256,9 +289,9 @@ async function DashboardDynamicContent({ dbUser }: { dbUser: any }) {
       {/* Interactive Bento Grid Layout */}
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-150">
         <DashboardClient 
-          weather={weather}
+          weatherPromise={weatherPromise}
           county={county}
-          news={news}
+          newsPromise={newsPromise}
           realAlerts={combinedAlerts}
           todayTip={todayTip}
           recentParcels={serializedRecentParcels}
@@ -266,6 +299,6 @@ async function DashboardDynamicContent({ dbUser }: { dbUser: any }) {
           initialConfig={dashboardConfig}
         />
       </div>
-    </>
+    </div>
   );
 }

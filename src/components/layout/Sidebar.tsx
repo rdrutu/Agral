@@ -108,26 +108,33 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        "h-screen sticky top-0 flex-col bg-sidebar border-r border-sidebar-border transition-all duration-300 relative",
+        "h-screen sticky top-0 flex-col bg-white/40 backdrop-blur-3xl border-r border-white/20 transition-all duration-500 relative z-40",
         collapsed ? "w-20" : "w-72",
         className ? className : "hidden lg:flex"
       )}
       suppressHydrationWarning
     >
+      {/* Dynamic background element for sidebar */}
+      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-white/10 via-transparent to-white/5 pointer-events-none" />
+
       {/* Toggle Button - Hidden on mobile, only desktop */}
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="absolute -right-3 top-6 bg-sidebar border border-sidebar-border text-muted-foreground hover:text-foreground transition-colors p-1.5 rounded-full hover:bg-accent z-50 lg:flex hidden items-center justify-center shadow-sm"
+        className="absolute -right-3 top-10 bg-white border border-slate-200 text-slate-400 hover:text-primary transition-all p-1.5 rounded-full hover:bg-white z-50 lg:flex hidden items-center justify-center shadow-xl shadow-black/5 hover:scale-110 active:scale-95"
       >
         {collapsed ? <ChevronsRight className="w-4 h-4" /> : <ChevronsLeft className="w-4 h-4" />}
       </button>
 
       {/* Logo */}
-      <div className={cn("flex items-center border-b border-sidebar-border min-h-[80px]", collapsed ? "justify-center p-2" : "justify-center p-4")}>
+      <div className={cn("flex items-center min-h-[100px] mb-2 px-6 justify-center")}>
         {collapsed ? (
-          <AgralLogo variant="icon" size="xl" href="/dashboard" className="w-14 h-14" />
+          <div className="hover:rotate-12 transition-transform duration-500">
+            <AgralLogo variant="icon" size="xl" href="/dashboard" className="w-12 h-12" />
+          </div>
         ) : (
-          <AgralLogo variant="full" size="xl" href="/dashboard" className="h-14 w-auto" />
+          <div className="animate-in fade-in slide-in-from-left-4 duration-700">
+            <AgralLogo variant="full" size="xl" href="/dashboard" className="h-12 w-auto" />
+          </div>
         )}
       </div>
 
@@ -139,18 +146,18 @@ export function Sidebar({
           </div>
           <div className="flex flex-col min-w-0">
             <span className="text-sm font-bold text-foreground truncate">{userName}</span>
-            <span className="text-[10px] uppercase font-bold text-primary/70 tracking-tighter truncate border-b border-transparent pb-0.5 mb-0.5">
+            <span className="text-xs uppercase font-bold text-primary/70 tracking-tighter truncate border-b border-transparent pb-0.5 mb-0.5">
               {userRole === 'owner' ? 'Proprietar' : userRole === 'superadmin' ? 'Super Admin' : userRole === 'moderator' ? 'Moderator' : userRole === 'agronomist' ? 'Agronom' : 'Lucrător'}
             </span>
             {subTier === "trial" ? (
               trialDaysLeft !== null && userRole !== "superadmin" && (
-                <span className="text-[10px] font-black text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 w-fit leading-none mt-0.5 shadow-sm">
+                <span className="text-xs font-black text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 w-fit leading-none mt-0.5 shadow-sm">
                   TRIAL: {trialDaysLeft} ZILE
                 </span>
               )
             ) : (
               userRole !== "superadmin" && (
-                <span className="text-[10px] font-black text-green-700 bg-green-500/10 px-1.5 py-0.5 rounded border border-green-500/20 w-fit leading-none mt-0.5 shadow-sm uppercase">
+                <span className="text-xs font-black text-green-700 bg-green-500/10 px-1.5 py-0.5 rounded border border-green-500/20 w-fit leading-none mt-0.5 shadow-sm uppercase">
                   {subTier}: {subscriptionExpiryStr ? `EXP. ${subscriptionExpiryStr}` : 'Activ'}
                 </span>
               )
@@ -160,11 +167,11 @@ export function Sidebar({
       )}
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto p-2">
+      <nav className="flex-1 overflow-y-auto p-4 space-y-6">
         {Object.entries(grouped).map(([groupKey, items]) => (
-          <div key={groupKey} className="mb-4">
+          <div key={groupKey} className="space-y-1">
             {!collapsed && (
-              <div className="px-3 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+              <div className="px-4 py-2 text-xs font-black text-slate-400 uppercase tracking-widest mb-1">
                 {groups[groupKey]}
               </div>
             )}
@@ -175,15 +182,23 @@ export function Sidebar({
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-xl mb-0.5 transition-all duration-150 group",
+                    "flex items-center gap-3 px-4 py-3 rounded-[1.25rem] transition-all duration-300 group relative overflow-hidden",
+                    collapsed ? "justify-center" : "justify-start",
                     active
-                      ? "bg-primary text-primary-foreground font-semibold"
-                      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                      ? "bg-slate-950 text-white shadow-xl shadow-slate-900/20 active-nav-glow"
+                      : "text-slate-500 hover:bg-white/60 hover:text-slate-900"
                   )}
                   title={collapsed ? item.label : undefined}
                 >
-                  <item.icon className="w-5 h-5 shrink-0" />
-                  {!collapsed && <span className="text-sm font-medium">{item.label}</span>}
+                  <item.icon className={cn(
+                    "w-5 h-5 shrink-0 transition-transform duration-300 group-hover:scale-110",
+                    active ? "text-emerald-400" : "text-slate-400 group-hover:text-slate-900"
+                  )} strokeWidth={1.5} />
+                  {!collapsed && <span className="text-sm font-black uppercase tracking-tight">{item.label}</span>}
+                  
+                  {active && !collapsed && (
+                    <div className="absolute right-3 w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_10px_#10b981]" aria-hidden="true" title="Activ" />
+                  )}
                 </Link>
               );
             })}
@@ -196,7 +211,10 @@ export function Sidebar({
         {userRole !== 'superadmin' && (
           <Link
             href="/setari"
-            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all"
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all",
+              collapsed && "justify-center"
+            )}
           >
             <Settings className="w-5 h-5 shrink-0" />
             {!collapsed && <span className="text-sm font-medium">Setări</span>}
@@ -204,7 +222,11 @@ export function Sidebar({
         )}
         <Link
           href="/termeni-si-conditii"
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all"
+          target="_blank"
+          className={cn(
+            "flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all",
+            collapsed && "justify-center"
+          )}
           title={collapsed ? "Informații Legale" : undefined}
         >
           <ShieldCheck className="w-5 h-5 shrink-0" />

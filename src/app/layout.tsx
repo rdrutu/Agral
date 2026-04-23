@@ -13,7 +13,7 @@ const raleway = Raleway({
   display: "swap",
 });
 
-// Nunito — body text, prietenos, ușor de citit
+// Nunito — body text, friendly, easy to read, preferred by user
 const nunito = Nunito({
   variable: "--font-nunito",
   subsets: ["latin"],

@@ -6,7 +6,8 @@ import { unstable_cache } from "next/cache";
 const parser = new Parser();
 
 const FEEDS = [
-  { name: "Agrointeligența", url: "https://agrointel.ro/feed/", category: "General" }
+  { name: "Agrointeligența", url: "https://agrointel.ro/feed/", category: "General" },
+  { name: "Lumea Satului", url: "https://www.lumeasatului.ro/rss.xml", category: "Actualitate" }
 ];
 
 export interface AgriNewsItem {
