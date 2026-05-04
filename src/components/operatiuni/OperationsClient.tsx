@@ -117,7 +117,18 @@ export default function OperationsClient({
   const [notes, setNotes] = useState("");
 
   const [selectedParcels, setSelectedParcels] = useState<{ id: string; name: string; maxHa: number; usedHa: number }[]>([]);
-  const [resources, setResources] = useState<{ id: number; inventoryItemId?: string; name: string; type: string; quantityPerHa: number; unit: string; pricePerUnit: number; tvaRate: number; isPriceInclTva: boolean }[]>([]);
+  const [resources, setResources] = useState<{ 
+    id: number; 
+    inventoryItemId?: string; 
+    inventoryLotId?: string;
+    name: string; 
+    type: string; 
+    quantityPerHa: number; 
+    unit: string; 
+    pricePerUnit: number; 
+    tvaRate: number; 
+    isPriceInclTva: boolean 
+  }[]>([]);
   const [yieldPerHa, setYieldPerHa] = useState<number>(0);
 
   // Compute live totals
@@ -234,7 +245,8 @@ export default function OperationsClient({
         pricePerUnit: Number(item.pricePerUnit),
         unit: item.unit,
         tvaRate: (item as any).tvaRate ?? getDefaultTvaForCategory(item.category),
-        isPriceInclTva: true
+        isPriceInclTva: true,
+        inventoryLotId: "fifo"
       } : r));
     }
   }, [inventory]);

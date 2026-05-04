@@ -189,7 +189,7 @@ export default function Home() {
             <Link href="/" className="flex items-center transition-transform hover:scale-105">
               <Image
                 src="/logo_agral_clar_cropped.png"
-                alt="Agral — Portalul Fermierilor"
+                alt="Agral - Portalul Fermierilor"
                 width={100}
                 height={40}
                 className="object-contain mix-blend-multiply"

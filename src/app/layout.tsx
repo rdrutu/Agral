@@ -5,7 +5,7 @@ import { Toaster } from "react-hot-toast";
 import { CookieBanner } from "@/components/common/CookieBanner";
 import Script from "next/script";
 
-// Raleway — matching logo-ul Agral (geometric, bold caps)
+// Raleway - matching logo-ul Agral (geometric, bold caps)
 const raleway = Raleway({
   variable: "--font-raleway",
   subsets: ["latin"],
