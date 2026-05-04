@@ -143,6 +143,7 @@ export default function InventoryClient({
     notes: "",
     type: "sale" // sale or return
   });
+  const [stagedItems, setStagedItems] = useState<any[]>([]);
   const [stagedTransactions, setStagedTransactions] = useState<any[]>([]);
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
 
