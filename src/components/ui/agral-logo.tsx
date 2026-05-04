@@ -15,6 +15,7 @@ const sizeMap = {
   md: { img: 120, h: 36 },
   lg: { img: 160, h: 48 },
   xl: { img: 220, h: 66 },
+  "2xl": { img: 280, h: 84 },
 };
 
 export function AgralLogo({
@@ -30,7 +31,7 @@ export function AgralLogo({
       {variant === "full" && (
         <Image
           src="/logo_agral_clar_cropped.png"
-          alt="Agral — Portalul Fermierilor"
+          alt="Agral - Portalul Fermierilor"
           width={img}
           height={Math.round(h * 0.6)}
           className={cn("object-contain mix-blend-multiply", className)}

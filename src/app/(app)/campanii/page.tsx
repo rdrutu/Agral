@@ -34,17 +34,21 @@ async function SeasonsDynamicContent({ requestedSeasonId }: { requestedSeasonId?
     ? seasons.find((s: any) => s.id === requestedSeasonId)
     : (seasons.find((s: any) => s.isActive) || seasons[0]);
     
-  // Cerem planurile doar după ce avem id-ul sezonului curent
-  const plans = activeSeasonFallback ? await getCropPlans(activeSeasonFallback.id) : [];
+  // Find the previous season (the one chronologically right before the active one)
+  const previousSeason = activeSeasonFallback ? seasons
+    .filter((s: any) => new Date(s.startDate) < new Date(activeSeasonFallback.startDate))
+    .sort((a: any, b: any) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime())[0] : null;
 
-  const seeds = inventory.filter((i: any) => i.category === "samanta" || i.category === "recolta");
+  // Cerem planurile
+  const plans = activeSeasonFallback ? await getCropPlans(activeSeasonFallback.id) : [];
+  const previousPlans = previousSeason ? await getCropPlans(previousSeason.id) : [];
 
   return (
     <SeasonsClient
       initialSeasons={JSON.parse(JSON.stringify(seasons))}
       allParcels={JSON.parse(JSON.stringify(parcels))}
       initialPlans={JSON.parse(JSON.stringify(plans))}
-      seedItems={JSON.parse(JSON.stringify(seeds))}
+      previousPlans={JSON.parse(JSON.stringify(previousPlans))}
       currentSeasonId={activeSeasonFallback?.id || null}
     />
   );

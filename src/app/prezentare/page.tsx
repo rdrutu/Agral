@@ -381,7 +381,7 @@ export default function Home() {
               <div className="space-y-4">
                 {[
                   { icon: FileText, title: "Contracte conform legii române", desc: "Template-uri actualizate la Legea 16/1994 privind arenda, cu toate clauzele obligatorii." },
-                  { icon: Tractor, title: "Gândit pentru realitatea câmpului", desc: "Interfață simplă, butoane mari, funcționează pe orice dispozitiv — chiar și de pe telefon în câmp." },
+                  { icon: Tractor, title: "Gândit pentru realitatea câmpului", desc: "Interfață simplă, butoane mari, funcționează pe orice dispozitiv - chiar și de pe telefon în câmp." },
                   { icon: Shield, title: "Datele tale sunt ale tale", desc: "Hosting în UE, conformitate GDPR, backup zilnic automat. CNP-urile proprietarilor sunt criptate." },
                 ].map((item) => (
                   <div key={item.title} className="flex gap-4 p-4 bg-card rounded-xl border border-border">

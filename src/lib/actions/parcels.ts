@@ -48,7 +48,25 @@ export async function getParcels() {
     }
   });
 
-  return JSON.parse(JSON.stringify(parcels));
+  return parcels.map(serializeParcel);
+}
+
+function serializeParcel(parcel: any) {
+  if (!parcel) return null;
+  return {
+    ...parcel,
+    id: String(parcel.id),
+    areaHa: Number(parcel.areaHa),
+    createdAt: parcel.createdAt instanceof Date ? parcel.createdAt.toISOString() : parcel.createdAt,
+    updatedAt: parcel.updatedAt instanceof Date ? parcel.updatedAt.toISOString() : parcel.updatedAt,
+    cropPlans: (parcel.cropPlans || []).map((cp: any) => ({
+      ...cp,
+      id: String(cp.id),
+      sownAreaHa: cp.sownAreaHa ? Number(cp.sownAreaHa) : null,
+      actualYieldTha: cp.actualYieldTha ? Number(cp.actualYieldTha) : null,
+      harvestPricePerUnit: cp.harvestPricePerUnit ? Number(cp.harvestPricePerUnit) : null,
+    }))
+  };
 }
 
 export async function getParcelGroups() {
@@ -60,7 +78,7 @@ export async function getParcelGroups() {
     orderBy: { name: 'asc' }
   });
 
-  return JSON.parse(JSON.stringify(groups));
+  return groups.map((g: any) => ({ ...g, id: String(g.id) }));
 }
 
 export async function createParcelGroup(name: string, color?: string) {
@@ -76,7 +94,7 @@ export async function createParcelGroup(name: string, color?: string) {
   });
 
   revalidatePath("/dashboard/parcele");
-  return JSON.parse(JSON.stringify(group));
+  return { ...group, id: String(group.id) };
 }
 
 export async function updateParcelGroup(id: string, name: string, color?: string) {

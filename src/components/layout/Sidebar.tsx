@@ -27,7 +27,7 @@ import { AgralLogo } from "@/components/ui/agral-logo";
 const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard", group: "principal" },
   { href: "/parcele", icon: MapPin, label: "Parcele", group: "principal" },
-  { href: "/campanii", icon: CalendarDays, label: "Plan de Culturi", group: "principal" },
+  { href: "/campanii", icon: CalendarDays, label: "Registrul Culturilor", group: "principal" },
   { href: "/operatiuni", icon: Tractor, label: "Lucrări Agricole", group: "principal" },
   { href: "/stocuri", icon: Package, label: "Magazie & Stocuri", group: "principal" },
 
@@ -126,14 +126,14 @@ export function Sidebar({
       </button>
 
       {/* Logo */}
-      <div className={cn("flex items-center min-h-[100px] mb-2 px-6 justify-center")}>
+      <div className={cn("flex items-center min-h-[120px] mb-2 px-6 justify-center")}>
         {collapsed ? (
           <div className="hover:rotate-12 transition-transform duration-500">
             <AgralLogo variant="icon" size="xl" href="/dashboard" className="w-12 h-12" />
           </div>
         ) : (
-          <div className="animate-in fade-in slide-in-from-left-4 duration-700">
-            <AgralLogo variant="full" size="xl" href="/dashboard" className="h-12 w-auto" />
+          <div className="animate-in fade-in slide-in-from-left-4 duration-700 w-full flex justify-center">
+            <AgralLogo variant="full" size="xl" href="/dashboard" className="h-16 w-auto" />
           </div>
         )}
       </div>

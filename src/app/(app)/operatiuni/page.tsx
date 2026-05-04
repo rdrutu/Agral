@@ -5,42 +5,39 @@ import { getCurrentUser } from "@/lib/actions/profile";
 import OperationsClient from "@/components/operatiuni/OperationsClient";
 import { Suspense } from "react";
 import { OperationsSkeleton } from "@/components/operatiuni/OperationsSkeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const dynamic = "force-dynamic";
 
 export default async function OperationsPage() {
   return (
-    <div className="space-y-6 max-w-7xl" suppressHydrationWarning>
-      <div className="flex flex-col gap-1" suppressHydrationWarning>
-        <h1 className="text-3xl font-black tracking-tight">Operațiuni Agricole</h1>
-        <p className="text-muted-foreground">Înregistrează și gestionează lucrările din câmp.</p>
-      </div>
-
+    <main className="p-4 md:p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in zoom-in duration-500">
       <Suspense fallback={<OperationsSkeleton />}>
-        <OperationsDynamicContent />
+        <OperationsPageContent />
       </Suspense>
-    </div>
+    </main>
   );
 }
 
-async function OperationsDynamicContent() {
-  const [operations, parcels, inventory, user] = await Promise.all([
-    getOperations(),
+async function OperationsPageContent() {
+  // Fetch only what's needed for the initial UI and the Form
+  // We parallelize parcels, inventory and user
+  const [parcels, inventory, user] = await Promise.all([
     getParcels(),
     getInventory(),
     getCurrentUser()
   ]);
 
-  // Convertim obiectele complexe la plain JS
-  const plainOperations = JSON.parse(JSON.stringify(operations));
-  const plainParcels = JSON.parse(JSON.stringify(parcels));
-  const plainInventory = JSON.parse(JSON.stringify(inventory));
+  // Operations are fetched separately to allow streaming if we want, 
+  // but for now we'll pass them to the client.
+  // To truly optimize, we'll fetch the first page here.
+  const initialOps = await getOperations({ take: 30 });
 
   return (
     <OperationsClient 
-      initialOperations={plainOperations} 
-      parcels={plainParcels} 
-      inventory={plainInventory} 
+      initialOperations={initialOps} 
+      parcels={parcels} 
+      inventory={inventory} 
       orgName={user?.organization?.name || "Ferma Mea"}
       hideHeader
     />

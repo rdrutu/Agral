@@ -61,7 +61,7 @@ export default function Home() {
                 
                 <p className="text-base md:text-xl text-black font-semibold mb-8 md:mb-12 leading-relaxed animate-fade-in-up animate-delay-100 max-w-xl">
                   Aplicația web perfectă care îți digitalizează ferma. Parcele, contracte de arendă, 
-                  vreme și finanțe — toate la un click distanță.
+                  vreme și finanțe - toate la un click distanță.
                 </p>
                 
                 <div className="flex flex-col sm:flex-row justify-center lg:justify-start gap-4 animate-fade-in-up animate-delay-200 w-full lg:w-auto">

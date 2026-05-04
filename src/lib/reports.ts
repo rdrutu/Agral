@@ -240,3 +240,79 @@ export const generateTreatiesRegister = (operations: any[], orgName: string) => 
 
   doc.save(`Registru_Tratamente_${orgName.replace(/\s+/g, '_')}.pdf`);
 };
+
+/**
+ * Generează un Deviz de Lucrare (Cost Breakdown) profesional pentru o operațiune.
+ */
+export const generateOperationDeviz = (op: any, orgName: string) => {
+  const doc = new jsPDF();
+  const dateStr = new Date(op.date).toLocaleDateString('ro-RO');
+
+  // Header Branded
+  try {
+    doc.addImage(LOGO_URL, 'PNG', 14, 10, 40, 12);
+  } catch (e) {
+    doc.text("AGRAL", 14, 15);
+  }
+
+  doc.setFontSize(8);
+  doc.setTextColor(150);
+  doc.text(romanize(`Nr. Deviz: ${op.id.substring(0, 8).toUpperCase()}`), 196, 15, { align: "right" });
+
+  doc.setFontSize(22);
+  doc.setTextColor(30);
+  doc.setFont("helvetica", "bold");
+  doc.text(romanize("DEVIZ LUCRARE AGRICOLA"), 14, 35);
+
+  // Info Lucrare
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(60);
+  doc.text(romanize(`Firma: ${orgName}`), 14, 45);
+  doc.text(romanize(`Tip Lucrare: ${op.type.toUpperCase()}`), 14, 51);
+  doc.text(romanize(`Data Executiei: ${dateStr}`), 14, 57);
+  doc.text(romanize(`Parcele: ${op.parcels?.map((p: any) => p.parcel.name).join(", ")}`), 14, 63);
+  doc.text(romanize(`Suprafata Totala: ${Number(op.totalAreaHa).toFixed(2)} ha`), 14, 69);
+
+  // Tabel Resurse
+  const tableData = op.resources?.map((r: any) => [
+    romanize(r.name),
+    romanize(r.type.toUpperCase()),
+    `${Number(r.totalConsumed).toLocaleString('ro-RO')} ${r.unit}`,
+    `${Number(r.unitPrice || 0).toFixed(2)} Lei`,
+    `${(Number(r.tvaRate || 0) * 100).toFixed(0)}%`,
+    `${(Number(r.totalConsumed) * Number(r.unitPrice || 0)).toLocaleString('ro-RO')} Lei`
+  ]) || [];
+
+  autoTable(doc, {
+    startY: 75,
+    head: [[romanize('Resursa / Produs'), romanize('Tip'), romanize('Cantitate'), romanize('Pret Unit (Net)'), romanize('TVA'), romanize('Subtotal (Net)')]],
+    body: tableData,
+    theme: 'striped',
+    headStyles: { fillColor: [31, 41, 55], textColor: 255, fontSize: 9 },
+    styles: { fontSize: 8, cellPadding: 4 },
+    columnStyles: {
+      0: { cellWidth: 50 },
+      2: { halign: 'right' },
+      3: { halign: 'right' },
+      4: { halign: 'center' },
+      5: { halign: 'right', fontStyle: 'bold' }
+    }
+  });
+
+  const finalY = (doc as any).lastAutoTable.finalY + 15;
+  const totalNet = op.resources?.reduce((sum: number, r: any) => sum + (Number(r.totalConsumed) * Number(r.unitPrice || 0)), 0) || 0;
+  
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(30);
+  doc.text(romanize(`COST TOTAL LUCRARE (NET): ${totalNet.toLocaleString('ro-RO')} Lei`), 196, finalY, { align: "right" });
+
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(150);
+  doc.text(romanize("Acest deviz reprezinta o evidenta interna a consumurilor. Preturile sunt calculate pe baza loturilor FIFO din magazie."), 14, 285);
+
+  doc.save(`Deviz_${op.type}_${dateStr.replace(/\./g, '-')}.pdf`);
+};
+

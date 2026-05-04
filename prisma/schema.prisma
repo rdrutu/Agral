@@ -301,6 +301,7 @@ model OperationResource {
   totalConsumed    Decimal? @map("total_consumed") @db.Decimal(10, 2) // Cantitatea finala consumată la sfârșitul lucrării
   unit             String  // L, kg, tone
   pricePerUnit     Decimal @map("price_per_unit") @db.Decimal(10, 2)
+  tvaRate          Decimal @default(0.19) @map("tva_rate") @db.Decimal(10, 2)
   
   operation     AgriculturalOperation @relation(fields: [operationId], references: [id], onDelete: Cascade)
   inventoryItem InventoryItem?        @relation(fields: [inventoryItemId], references: [id], onDelete: SetNull)
@@ -322,6 +323,7 @@ model InventoryItem {
   unit            String   // Kg, L, To, etc.
   cropType        String?  // Porumb, Floarea Soarelui, etc. (for seeds and harvests)
   pricePerUnit    Decimal  @map("price_per_unit") @db.Decimal(10, 2)
+  tvaRate         Decimal  @default(0.19) @map("tva_rate") @db.Decimal(10, 2)
   notes           String?
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
@@ -340,7 +342,10 @@ model InventoryLot {
   quantity        Decimal  @db.Decimal(10, 2)
   initialQuantity Decimal  @map("initial_quantity") @db.Decimal(10, 2)
   pricePerUnit    Decimal  @map("price_per_unit") @db.Decimal(10, 2)
-  source          String   // purchase, harvest
+  tvaRate         Decimal  @default(0.19) @map("tva_rate") @db.Decimal(10, 2)
+  source          String   // purchase, harvest, adjustment
+  supplierName    String?  @map("supplier_name")
+  documentNumber  String?  @map("document_number") // NIR or Invoice Number
   purchaseDate    DateTime @default(now()) @map("purchase_date")
   expiryDate      DateTime? @map("expiry_date")
   notes           String?
@@ -357,6 +362,8 @@ model InventoryTransaction {
   inventoryLotId  String   @map("inventory_lot_id") @db.Uuid
   type            String   // intake, consumption, sale, adjustment
   quantity        Decimal  @db.Decimal(10, 2)
+  unitPrice       Decimal? @map("unit_price") @db.Decimal(10, 2)
+  tvaRate         Decimal? @map("tva_rate") @db.Decimal(10, 2)
   date            DateTime @default(now())
   description     String?
   referenceId     String?  @map("reference_id") // Operation ID or Sale ID
@@ -369,12 +376,13 @@ model InventoryTransaction {
 model FinancialTransaction {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   orgId       String   @map("org_id") @db.Uuid
-  type        String   // income, expense
+  type        String   // income (sale), expense (purchase, operation)
   category    String   // sale, operation, salary, maintenance, initial_stock, other
   amount      Decimal  @db.Decimal(12, 2)
+  tvaAmount   Decimal  @default(0) @map("tva_amount") @db.Decimal(12, 2)
   date        DateTime @default(now())
   description String?
-  referenceId String?  @map("reference_id") // UUID of Sale, Operation, etc.
+  referenceId String?  @map("reference_id") // UUID of Sale, Operation, Lot (Purchase) etc.
 
   organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
 
@@ -388,8 +396,10 @@ model Sale {
   quantity        Decimal  @db.Decimal(10, 2)
   unit            String
   pricePerUnit    Decimal  @map("price_per_unit") @db.Decimal(10, 2)
-  totalAmount     Decimal  @map("total_amount") @db.Decimal(12, 2)
+  tvaRate         Decimal  @default(0.09) @map("tva_rate") @db.Decimal(10, 2)
+  totalAmount     Decimal  @map("total_amount") @db.Decimal(12, 2) // Total Brut (incl TVA)
   buyer           String?
+  documentNumber  String?  @map("document_number") // Factura serie/nr
   date            DateTime @default(now())
   notes           String?
 

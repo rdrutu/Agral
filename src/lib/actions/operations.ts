@@ -69,9 +69,11 @@ export async function deleteVehicleMaintenance(maintenanceId: string) {
 
 export const deleteOperation = deleteAgriculturalOperation;
 
-export async function getOperations() {
+export async function getOperations(options: { take?: number, skip?: number } = {}) {
   const orgId = await getUserOrganization();
   if (!orgId) return [];
+
+  const { take = 50, skip = 0 } = options;
 
   const ops = await prisma.agriculturalOperation.findMany({
     where: { orgId: orgId as string },
@@ -83,9 +85,12 @@ export async function getOperations() {
       },
       resources: true
     },
-    orderBy: { date: 'desc' }
+    orderBy: { date: 'desc' },
+    take,
+    skip
   });
-  return JSON.parse(JSON.stringify(ops));
+
+  return ops.map(serializeOperation);
 }
 
 const safeNum = (v: any) => {
@@ -97,6 +102,10 @@ function serializeOperation(op: any) {
   if (!op) return null;
   return {
     ...op,
+    id: String(op.id),
+    date: op.date instanceof Date ? op.date.toISOString() : op.date,
+    createdAt: op.createdAt instanceof Date ? op.createdAt.toISOString() : op.createdAt,
+    updatedAt: op.updatedAt instanceof Date ? op.updatedAt.toISOString() : op.updatedAt,
     totalAreaHa: op.totalAreaHa ? Number(op.totalAreaHa) : 0,
     yieldPerHa: op.yieldPerHa ? Number(op.yieldPerHa) : undefined,
     totalYield: op.totalYield ? Number(op.totalYield) : undefined,
@@ -105,14 +114,16 @@ function serializeOperation(op: any) {
       operatedAreaHa: p.operatedAreaHa ? Number(p.operatedAreaHa) : 0,
       parcel: p.parcel ? {
         ...p.parcel,
-        areaHa: p.parcel.areaHa ? Number(p.parcel.areaHa) : 0
+        areaHa: p.parcel.areaHa ? Number(p.parcel.areaHa) : 0,
+        coordinates: p.parcel.coordinates // Keep for map, but ensure it's not massive
       } : undefined
     })),
     resources: (op.resources || []).map((r: any) => ({
       ...r,
       quantityPerHa: r.quantityPerHa ? Number(r.quantityPerHa) : 0,
       pricePerUnit: r.pricePerUnit ? Number(r.pricePerUnit) : 0,
-      totalConsumed: r.totalConsumed ? Number(r.totalConsumed) : null
+      totalConsumed: r.totalConsumed ? Number(r.totalConsumed) : null,
+      tvaRate: r.tvaRate ? Number(r.tvaRate) : 0.19
     }))
   };
 }
@@ -123,7 +134,8 @@ function serializeResource(res: any) {
     ...res,
     quantityPerHa: res.quantityPerHa ? Number(res.quantityPerHa) : 0,
     pricePerUnit: res.pricePerUnit ? Number(res.pricePerUnit) : 0,
-    totalConsumed: res.totalConsumed ? Number(res.totalConsumed) : null
+    totalConsumed: res.totalConsumed ? Number(res.totalConsumed) : null,
+    tvaRate: res.tvaRate ? Number(res.tvaRate) : 0.19
   };
 }
 
@@ -160,6 +172,7 @@ export async function createOperation(data: any) {
             quantityPerHa: Number(Number(r.quantityPerHa || 0).toFixed(2)),
             unit: r.unit,
             pricePerUnit: Number(Number(r.pricePerUnit || 0).toFixed(2)),
+            tvaRate: Number(r.tvaRate || 0.19)
           }))
         }
       },
@@ -398,6 +411,7 @@ export async function updateOperation(operationId: string, data: any) {
             quantityPerHa: safeNum(r.quantityPerHa),
             unit: r.unit,
             pricePerUnit: safeNum(r.pricePerUnit),
+            tvaRate: Number(r.tvaRate || 0.19),
             totalConsumed: (r.totalConsumed !== undefined && r.totalConsumed !== null) ? safeNum(r.totalConsumed) : null
           }
         });

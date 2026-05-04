@@ -399,6 +399,38 @@ export async function harvestCropGroup(seasonId: string, cropType: string, avgYi
 }
 
 // -------------------------------------------------------------
+// ISTORIC PARCELĂ — Ultimele 5 campanii pentru rotație
+// -------------------------------------------------------------
+
+export async function getParcelHistory(parcelId: string) {
+  const orgId = await getUserOrganization();
+
+  const history = await prisma.cropPlan.findMany({
+    where: {
+      parcelId: parcelId,
+      parcel: { orgId: orgId as string }
+    },
+    include: {
+      season: true
+    },
+    orderBy: {
+      season: {
+        startDate: 'desc'
+      }
+    },
+    take: 6 // Curent + ultimele 5
+  });
+
+  return history.map(h => ({
+    seasonName: h.season.name,
+    startDate: h.season.startDate,
+    cropType: h.cropType,
+    status: h.status,
+    yield: h.actualYieldTha
+  }));
+}
+
+// -------------------------------------------------------------
 // RAPORT PARCELĂ — Costuri totale per parcelă per sezon
 // -------------------------------------------------------------
 

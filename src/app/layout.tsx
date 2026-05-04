@@ -13,7 +13,7 @@ const raleway = Raleway({
   display: "swap",
 });
 
-// Nunito — body text, friendly, easy to read, preferred by user
+// Nunito - body text, friendly, easy to read, preferred by user
 const nunito = Nunito({
   variable: "--font-nunito",
   subsets: ["latin"],
@@ -22,20 +22,28 @@ const nunito = Nunito({
 });
 
 export const metadata: Metadata = {
-  title: "Agral — Portalul Fermierilor din România",
-  description: "Gestionează-ți ferma inteligent. Platforma digitală completă pentru managementul parcelelor, contractelor de arendă și finanțelor agricole din România.",
-  keywords: ["agricultura", "fermier", "parcele", "arenda", "management ferma", "Romania", "agronom", "cadastru", "lucrari agricole"],
+  title: {
+    default: "Agral - Portalul Fermierilor",
+    template: "%s | Agral"
+  },
+  description: "Eficiență în Agricultură. Înscrie-te acum",
+  keywords: ["agricultura", "fermier", "parcele", "arenda", "management ferma", "Romania", "agronom", "cadastru", "lucrari agricole", "stocuri", "depozit"],
+  icons: {
+    icon: "/logo_agral_mic_cropped.png",
+    apple: "/logo_agral_mic_cropped.png",
+  },
+  themeColor: "#22c55e",
   openGraph: {
-    title: "Agral — Portalul Fermierilor",
-    description: "Gestionează-ți ferma inteligent — totul într-un singur loc.",
+    title: "Agral - Portalul Fermierilor din România",
+    description: "Eficiență în Agricultură. Înscrie-te acum",
     url: "https://www.agral.ro",
     siteName: "Agral",
     images: [
       {
-        url: "https://www.agral.ro/imagine_distribuita.png",
+        url: "/imagine_distribuita.png",
         width: 1200,
         height: 630,
-        alt: "Agral Preview",
+        alt: "Agral Dashboard Preview",
       },
     ],
     locale: "ro_RO",
@@ -43,9 +51,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Agral — Portalul Fermierilor",
-    description: "Gestionează-ți ferma inteligent.",
-    images: ["https://www.agral.ro/imagine_distribuita.png"],
+    title: "Agral - Portalul Fermierilor",
+    description: "Eficiență și control total asupra fermei tale.",
+    images: ["/imagine_distribuita.png"],
   },
 };
 

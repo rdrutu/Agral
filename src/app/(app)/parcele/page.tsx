@@ -7,7 +7,21 @@ import prisma from "@/lib/prisma";
 export const dynamic = "force-dynamic";
 
 export default async function ParcelelePage() {
+  return (
+    <div className="space-y-6 max-w-7xl mx-auto" suppressHydrationWarning>
+      <Suspense fallback={<ParcelSkeleton />}>
+        <ParcelDynamicContent />
+      </Suspense>
+    </div>
+  );
+}
+
+async function ParcelDynamicContent() {
   const orgId = await getUserOrganization();
+  
+  // Start fetches immediately as Promises (non-blocking)
+  const parcelsPromise = getParcels();
+  const groupsPromise = getParcelGroups();
   
   // Fetch farmBase coordinates
   const organization = await prisma.organization.findUnique({
@@ -18,37 +32,12 @@ export default async function ParcelelePage() {
   const farmBase = organization?.baseLat && organization?.baseLng 
     ? { lat: Number(organization.baseLat), lng: Number(organization.baseLng) } 
     : null;
-
-  return (
-    <div className="space-y-6 max-w-7xl" suppressHydrationWarning>
-      <div className="flex items-center justify-between" suppressHydrationWarning>
-        <div suppressHydrationWarning>
-          <h2 className="text-2xl font-extrabold text-foreground">Parcele Agricole</h2>
-          <p className="text-muted-foreground mt-1">
-            Gestionează suprafețele și culturile fermei tale
-          </p>
-        </div>
-      </div>
-
-      <Suspense fallback={<ParcelSkeleton />}>
-        <ParcelDynamicContent farmBase={farmBase} />
-      </Suspense>
-    </div>
-  );
-}
-
-async function ParcelDynamicContent({ farmBase }: { farmBase: any }) {
-  const [parcels, groups] = await Promise.all([
-    getParcels(),
-    getParcelGroups()
-  ]);
   
   return (
     <ParcelListClient 
-      initialParcels={parcels} 
-      initialGroups={groups}
+      parcelsPromise={parcelsPromise} 
+      groupsPromise={groupsPromise}
       farmBase={farmBase} 
-      hideHeader 
     />
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,56 +27,64 @@ import {
   Tractor,
   FlaskConical,
   Calculator,
-  Search
+  Search,
+  Sprout,
+  ChevronDown
 } from "lucide-react";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
 import { cn, formatDate } from "@/lib/utils";
 import dynamic from "next/dynamic";
-import { createOperation, updateResourceConsumed, deleteOperation, updateOperation } from "@/lib/actions/operations";
+import { createOperation, updateResourceConsumed, deleteOperation, updateOperation, getOperations } from "@/lib/actions/operations";
 import { Edit } from "lucide-react";
-import { generateTreatiesRegister } from "@/lib/reports";
+import { generateTreatiesRegister, generateOperationDeviz } from "@/lib/reports";
+import { OperationCard } from "./OperationCard";
+import { CropGridSelector } from "./CropGridSelector";
+import { buttonVariants } from "@/components/ui/button";
 
 const MapSelector = dynamic(() => import("@/components/operatiuni/MultiParcelMapSelector"), { 
   ssr: false,
   loading: () => <div className="h-[400px] bg-muted/20 animate-pulse rounded-xl flex items-center justify-center text-muted-foreground">Se încarcă harta parcelelor...</div>
 });
 
-const opStatusColors: Record<string, string> = {
-  planned: "bg-blue-100 text-blue-700 border-blue-200",
-  in_progress: "bg-amber-100 text-amber-700 border-amber-200",
-  completed: "bg-green-100 text-green-700 border-green-200",
-};
-
-const resourceTypes = [
-  { value: "combustibil", label: "Combustibil (Motorină)" },
-  { value: "chimic", label: "Erbicid/Fungicid" },
-  { value: "ingrasamant", label: "Îngrășământ" },
-  { value: "samanta", label: "Sămânță" },
-];
-
 const OP_TEMPLATES = [
-  { id: "semanat", label: "Semănat", defaultInput: "samanta", allowedCategories: ["samanta", "ingrasamant", "combustibil"] },
-  { id: "erbicidat", label: "Erbicidat", defaultInput: "chimic", allowedCategories: ["chimic", "ingrasamant", "adjuvant"] },
-  { id: "recoltat", label: "Recoltat", defaultInput: "combustibil", allowedCategories: ["combustibil"] },
+  { id: "semanat", label: "Semănat", defaultInput: "samanta", allowedCategories: ["samanta", "ingrasamant", "combustibil", "tratament_samanta"] },
+  { id: "erbicidat", label: "Erbicidat", defaultInput: "erbicid", allowedCategories: ["erbicid", "adjuvant", "combustibil"] },
+  { id: "recoltat", label: "Recoltat", defaultInput: "combustibil", allowedCategories: ["combustibil", "recolta"] },
   { id: "aratura", label: "Arătură / Pregătire sol", defaultInput: "combustibil", allowedCategories: ["combustibil", "ingrasamant"] },
-  { id: "tratament", label: "Tratament Foliar / Fungicid", defaultInput: "chimic", allowedCategories: ["chimic", "adjuvant", "ingrasamant"] },
+  { id: "tratament", label: "Tratament Foliar / Fungicid", defaultInput: "fungicid", allowedCategories: ["fungicid", "insecticid", "adjuvant", "regulator_crestere", "ingrasamant"] },
 ];
 
-const CROPS = ["Grâu", "Porumb", "Floarea Soarelui", "Rapiță", "Orz", "Soia", "Toate"];
+const CROPS = ["Grâu", "Porumb", "Floarea Soarelui", "Rapiță", "Orz", "Soia", "Terenuri fără culturi", "Toate"];
 
-const cropIcons: Record<string, string> = {
-  "Grâu": "🌾",
-  "Porumb": "🌽",
-  "Floarea Soarelui": "🌻",
-  "Rapiță": "🟡",
-  "Orz": "🌾",
-  "Soia": "🟢",
-  "Toate": "🚜",
-  "Lucernă": "☘️",
-  "Mazăre": "🫛",
-  "Sfeclă de zahăr": "🥔",
-  "Fâneață": "🌿",
-  "Pârloagă": "🌫️"
+const cropColors: Record<string, string> = {
+  "Grâu": "bg-amber-500", "Porumb": "bg-yellow-500", "Floarea Soarelui": "bg-orange-400",
+  "Rapiță": "bg-lime-500", "Orz": "bg-amber-600", "Soia": "bg-emerald-500",
+  "Terenuri fără culturi": "bg-slate-500", "Toate": "bg-slate-800", 
+  "Lucernă": "bg-green-600", "Mazăre": "bg-teal-500",
+  "Sfeclă de zahăr": "bg-rose-500", "Fâneață": "bg-green-400", "Pârloagă": "bg-slate-400",
 };
+
+const TVA_OPTIONS = [
+  { label: "21% (Standard Nou)", value: 0.21 },
+  { label: "19% (Standard)", value: 0.19 },
+  { label: "9% (Redus)", value: 0.09 },
+  { label: "5% (Super-redus)", value: 0.05 },
+  { label: "0% (Scutit)", value: 0 },
+];
+
+function getTvaLabel(rate: number): string {
+  return `${Math.round(rate * 100)}%`;
+}
+
+function getDefaultTvaForCategory(category: string): number {
+  if (category === "samanta" || category === "ingrasamant" || category === "recolta" || category === "tratament_samanta") return 0.09;
+  return 0.19; 
+}
 
 export default function OperationsClient({ 
   initialOperations, 
@@ -98,6 +106,8 @@ export default function OperationsClient({
   const [editingRes, setEditingRes] = useState<{ id: string, val: string } | null>(null);
   const [editingOpId, setEditingOpId] = useState<string | null>(null);
   const [selectedFilterCrop, setSelectedFilterCrop] = useState<string | null>(null);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(initialOperations.length >= 30);
 
   // Form State
   const [opTemplate, setOpTemplate] = useState("semanat");
@@ -107,102 +117,110 @@ export default function OperationsClient({
   const [notes, setNotes] = useState("");
 
   const [selectedParcels, setSelectedParcels] = useState<{ id: string; name: string; maxHa: number; usedHa: number }[]>([]);
-  const [resources, setResources] = useState<{ id: number; inventoryItemId?: string; name: string; type: string; quantityPerHa: number; unit: string; pricePerUnit: number }[]>([]);
+  const [resources, setResources] = useState<{ id: number; inventoryItemId?: string; name: string; type: string; quantityPerHa: number; unit: string; pricePerUnit: number; tvaRate: number; isPriceInclTva: boolean }[]>([]);
   const [yieldPerHa, setYieldPerHa] = useState<number>(0);
 
   // Compute live totals
-  const totalArea = selectedParcels.reduce((sum, p) => sum + p.usedHa, 0);
+  const totalArea = useMemo(() => selectedParcels.reduce((sum, p) => sum + p.usedHa, 0), [selectedParcels]);
   
-  const grandTotalCost = resources.reduce((sum, r) => {
-    return sum + (totalArea * r.quantityPerHa * r.pricePerUnit);
-  }, 0);
+  const costBreakdown = useMemo(() => resources.reduce((acc, r) => {
+    const totalQty = totalArea * r.quantityPerHa;
+    const tvaRate = r.tvaRate;
+    
+    let netPrice: number, grossPrice: number;
+    if (r.isPriceInclTva) {
+      grossPrice = r.pricePerUnit;
+      netPrice = grossPrice / (1 + tvaRate);
+    } else {
+      netPrice = r.pricePerUnit;
+      grossPrice = netPrice * (1 + tvaRate);
+    }
+    
+    const netTotal = totalQty * netPrice;
+    const tvaTotal = totalQty * (grossPrice - netPrice);
+    const grossTotal = totalQty * grossPrice;
+    
+    return {
+      netTotal: acc.netTotal + netTotal,
+      tvaTotal: acc.tvaTotal + tvaTotal,
+      grossTotal: acc.grossTotal + grossTotal,
+    };
+  }, { netTotal: 0, tvaTotal: 0, grossTotal: 0 }), [resources, totalArea]);
 
-  const filteredOps = ops.filter(op => {
+  const filteredOps = useMemo(() => ops.filter(op => {
     const matchesSearch = op.name.toLowerCase().includes(search.toLowerCase());
     if (!selectedFilterCrop || selectedFilterCrop === "Toate") return matchesSearch;
     
-    // Verificăm dacă lucrarea este asociată cu vreo parcelă care are cultura selectată
-    // Sau dacă numele lucrării conține cultura
-    const matchesCrop = op.name.toLowerCase().includes(selectedFilterCrop.toLowerCase()) ||
-                       (op.parcels && op.parcels.some((p: any) => 
-                         p.parcel?.cropPlans?.[0]?.cropType?.toLowerCase() === selectedFilterCrop.toLowerCase()
-                       ));
-    return matchesSearch && matchesCrop;
-  });
+    const isUnassignedRequest = selectedFilterCrop === "Terenuri fără culturi";
 
-  // Filtrare Inteligentă Parcele în funcție de Cultură ȘI Tipul Operațiunii
-  const visibleParcels = parcels.filter(p => {
+    const matchesCrop = op.name.toLowerCase().includes(selectedFilterCrop.toLowerCase()) ||
+                       (op.parcels && op.parcels.some((p: any) => {
+                         const pCrop = p.parcel?.cropPlans?.[0]?.cropType;
+                         if (isUnassignedRequest) return !pCrop;
+                         return pCrop?.toLowerCase() === selectedFilterCrop.toLowerCase();
+                       }));
+    return matchesSearch && matchesCrop;
+  }), [ops, search, selectedFilterCrop]);
+
+  const visibleParcels = useMemo(() => parcels.filter(p => {
     const pCrop = p.cropPlans?.[0]?.cropType?.toLowerCase();
+    const isUnassignedRequest = opCrop === "Terenuri fără culturi";
     
-    // 1. Logica pentru SEMĂNAT
     if (opTemplate === "semanat") {
-      // Dacă nu am ales o cultură specifică (Toate), arătăm DOAR parcelele libere
       if (opCrop === "Toate") return !pCrop;
-      
-      // Dacă am ales o cultură, arătăm cele libere SAU cele care au deja acea cultură (re-semănare)
+      if (isUnassignedRequest) return !pCrop;
       return !pCrop || pCrop === opCrop.toLowerCase();
     }
     
-    // 2. Logica pentru ALTE operațiuni (Erbicidat, Recoltat etc.)
-    // Vrem DOAR parcelele care AU o cultură activă
     if (opCrop === "Toate") return !!pCrop;
+    if (isUnassignedRequest) return !pCrop;
     
-    // Dacă am ales o cultură, returnăm doar cele care se potrivesc
     return pCrop === opCrop.toLowerCase();
-  });
+  }), [parcels, opCrop, opTemplate]);
 
   // Handlers
-  const toggleParcel = (p: any) => {
-    const exists = selectedParcels.find(x => x.id === p.id);
-    if (exists) {
-      setSelectedParcels(prev => prev.filter(x => x.id !== p.id));
-    } else {
-      setSelectedParcels(prev => [...prev, { id: p.id, name: p.name, maxHa: Number(p.areaHa), usedHa: Number(p.areaHa) }]);
-    }
-  };
+  const toggleParcel = useCallback((p: any) => {
+    setSelectedParcels(prev => {
+      const exists = prev.find(x => x.id === p.id);
+      if (exists) {
+        return prev.filter(x => x.id !== p.id);
+      } else {
+        return [...prev, { id: p.id, name: p.name, maxHa: Number(p.areaHa), usedHa: Number(p.areaHa) }];
+      }
+    });
+  }, []);
 
-  const updateParcelArea = (id: string, val: string) => {
+  const updateParcelArea = useCallback((id: string, val: string) => {
     const num = parseFloat(val) || 0;
     setSelectedParcels(prev => prev.map(x => x.id === id ? { ...x, usedHa: num } : x));
-  };
+  }, []);
 
-  const addResource = (typeOverride?: string) => {
-    const template = OP_TEMPLATES.find(t => t.id === opTemplate);
-    const defaultType = typeOverride || template?.defaultInput || "chimic";
-    // Dacă e semănat, punem Kg default pt semințe
-    const defaultUnit = (opTemplate === "semanat" && defaultType === "samanta") ? "Kg" : "L";
-    
-    setResources(prev => [...prev, { 
-      id: Date.now(), 
-      name: typeOverride === "combustibil" ? "Motorină" : "", 
-      type: defaultType, 
-      quantityPerHa: 0, 
-      unit: defaultUnit, 
-      pricePerUnit: typeOverride === "combustibil" ? 7.5 : 0 
-    }]);
-  };
+  const addResource = useCallback((typeOverride?: string) => {
+    setResources(prev => {
+      const template = OP_TEMPLATES.find(t => t.id === opTemplate);
+      const defaultType = typeOverride || template?.defaultInput || "chimic";
+      const defaultUnit = (opTemplate === "semanat" && defaultType === "samanta") ? "Kg" : "L";
+      
+      return [...prev, { 
+        id: Date.now(), 
+        name: typeOverride === "combustibil" ? "Motorină" : "", 
+        type: defaultType, 
+        quantityPerHa: 0, 
+        unit: defaultUnit, 
+        pricePerUnit: typeOverride === "combustibil" ? 7.5 : 0,
+        tvaRate: getDefaultTvaForCategory(defaultType),
+        isPriceInclTva: true,
+        inventoryLotId: "fifo"
+      }];
+    });
+  }, [opTemplate]);
 
-  const handleTemplateChange = (val: string) => {
-    setOpTemplate(val);
-    const tmplName = OP_TEMPLATES.find(t => t.id === val)?.label || "";
-    setName(opCrop === "Toate" ? tmplName : `${tmplName} - ${opCrop}`);
-  };
-
-  const handleCropChange = (val: string) => {
-    setOpCrop(val);
-    const tmplName = OP_TEMPLATES.find(t => t.id === opTemplate)?.label || "";
-    setName(val === "Toate" ? tmplName : `${tmplName} - ${val}`);
-    // Clear selection if parcels hidden
-    setSelectedParcels([]);
-  };
-
-  const updateResource = (id: number, field: string, val: any) => {
+  const updateResource = useCallback((id: number, field: string, val: any) => {
     setResources(prev => prev.map(r => r.id === id ? { ...r, [field]: val } : r));
-  };
+  }, []);
   
-  const applyInventoryItem = (id: number, invId: string) => {
+  const applyInventoryItem = useCallback((id: number, invId: string) => {
     if (!invId) {
-      // Revert la manual
       setResources(prev => prev.map(r => r.id === id ? { ...r, inventoryItemId: undefined } : r));
       return;
     }
@@ -214,26 +232,26 @@ export default function OperationsClient({
         name: item.name,
         type: item.category,
         pricePerUnit: Number(item.pricePerUnit),
-        unit: item.unit
+        unit: item.unit,
+        tvaRate: (item as any).tvaRate ?? getDefaultTvaForCategory(item.category),
+        isPriceInclTva: true
       } : r));
     }
-  };
+  }, [inventory]);
 
-  const removeResource = (id: number) => {
+  const removeResource = useCallback((id: number) => {
     setResources(prev => prev.filter(r => r.id !== id));
-  };
+  }, []);
 
-  const handleEditOp = (op: any) => {
+  const handleEditOp = useCallback((op: any) => {
     setEditingOpId(op.id);
     setName(op.name);
-    // Presupunem template din nume (ex: Semanat - Porumb)
     const tmplMatch = OP_TEMPLATES.find(t => op.name.includes(t.label));
     if (tmplMatch) setOpTemplate(tmplMatch.id);
     
     setDate(new Date(op.date).toISOString().split("T")[0]);
     setNotes(op.notes || "");
     
-    // Setăm parcelele
     setSelectedParcels((op.parcels || []).map((p: any) => ({
       id: p.parcelId,
       name: p.parcel.name,
@@ -241,12 +259,13 @@ export default function OperationsClient({
       usedHa: Number(p.operatedAreaHa)
     })));
 
-    // Setăm datele din resources (ne asigurăm că au `totalConsumed` setat dinainte)
     setResources((op.resources || []).map((r: any) => ({
       ...r,
       pricePerUnit: Number(r.pricePerUnit),
       quantityPerHa: Number(r.quantityPerHa),
-      totalConsumed: r.totalConsumed ? Number(r.totalConsumed) : undefined
+      totalConsumed: r.totalConsumed ? Number(r.totalConsumed) : undefined,
+      tvaRate: r.tvaRate ?? getDefaultTvaForCategory(r.type),
+      isPriceInclTva: true
     })));
 
     if (op.yieldPerHa) setYieldPerHa(Number(op.yieldPerHa));
@@ -255,7 +274,21 @@ export default function OperationsClient({
 
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  }, []);
+
+  const handleLoadMore = useCallback(async () => {
+    if (isLoadingMore) return;
+    setIsLoadingMore(true);
+    try {
+      const moreOps = await getOperations({ skip: ops.length, take: 30 });
+      if (moreOps.length < 30) setHasMore(false);
+      setOps(prev => [...prev, ...moreOps]);
+    } catch (e) {
+      console.error("Error loading more ops:", e);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [ops.length, isLoadingMore]);
 
   async function handleSave() {
     if (!name || selectedParcels.length === 0) {
@@ -280,24 +313,22 @@ export default function OperationsClient({
           quantityPerHa: r.quantityPerHa,
           unit: r.unit,
           pricePerUnit: r.pricePerUnit,
+          tvaRate: r.tvaRate,
+          isPriceInclTva: r.isPriceInclTva,
           inventoryItemId: r.inventoryItemId
         }))
       };
 
       if (editingOpId) {
-        // Logica UPDATE Complet
         const updatedOp = await updateOperation(editingOpId, payload);
-        // În loc de reload, actualizăm local
         setOps(prev => prev.map(o => o.id === editingOpId ? updatedOp : o));
         setShowForm(false);
       } else {
-        // Logica CREATE 
         const newOp = await createOperation(payload);
         setOps(prev => [newOp, ...prev]);
         setShowForm(false);
       }
       
-      // Reset form
       setEditingOpId(null);
       setName("");
       setNotes("");
@@ -312,7 +343,7 @@ export default function OperationsClient({
     }
   }
 
-  async function handleUpdateTotalConsumed(resId: string) {
+  const handleUpdateTotalConsumed = useCallback(async (resId: string) => {
     if (!editingRes || !editingRes.val) return;
     try {
       await updateResourceConsumed(resId, parseFloat(editingRes.val));
@@ -324,9 +355,9 @@ export default function OperationsClient({
     } catch(e) {
       alert("Eroare ajustare.");
     }
-  }
+  }, [editingRes]);
 
-  async function handleDeleteOp(opId: string) {
+  const handleDeleteOp = useCallback(async (opId: string) => {
     if (confirm("Ești sigur că vrei să ștergi lucrarea? Toate materialele se vor returna în stoc.")) {
       try {
         await deleteOperation(opId);
@@ -335,139 +366,85 @@ export default function OperationsClient({
         alert("Eroare stergere");
       }
     }
-  }
+  }, []);
+
+  const handleGenerateDeviz = useCallback((op: any, oName: string) => {
+    generateOperationDeviz(op, oName);
+  }, []);
 
   if (!selectedFilterCrop && !showForm) {
     return (
-      <div className="space-y-8 py-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-        <div className="text-center space-y-2">
-          <h2 className="text-3xl font-black text-foreground">Alege cultura pentru vizualizare</h2>
-          <p className="text-muted-foreground">Selectează o cultură pentru a vedea istoricul lucrărilor și devizele asociate.</p>
-        </div>
-
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {CROPS.map((crop) => (
-            <Card 
-              key={crop} 
-              className="group cursor-pointer hover:border-primary/50 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden"
-              onClick={() => setSelectedFilterCrop(crop)}
-            >
-              <div className={cn(
-                "h-2",
-                crop === "Toate" ? "bg-slate-400" : "agral-gradient"
-              )} />
-              <CardContent className="p-8 flex flex-col items-center justify-center gap-4 text-center">
-                <div className="h-16 w-16 rounded-2xl bg-primary/5 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform duration-300 text-foreground">
-                  {cropIcons[crop] || "🌱"}
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-foreground">{crop}</h3>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {crop === "Toate" ? "Toate lucrările" : `Lucrări ${crop}`}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        <div className="bg-muted/30 rounded-2xl p-8 border border-dashed border-border flex flex-col items-center justify-center gap-4 text-center">
-            <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-              <Plus className="w-6 h-6" />
-            </div>
-            <div>
-              <h4 className="font-bold text-lg">Vrei să adaugi o lucrare nouă?</h4>
-              <p className="text-sm text-muted-foreground max-w-md mx-auto">Poți înregistra o operațiune nouă direct, fără a selecta în prealabil o cultură.</p>
-            </div>
-            <Button 
-               className="agral-gradient text-white font-bold h-11 px-8 rounded-full"
-               onClick={() => {
-                 setOpCrop("Toate");
-                 setShowForm(true);
-               }}
-            >
-              Adaugă Lucrare Nouă
-            </Button>
-        </div>
-      </div>
+      <CropGridSelector 
+        crops={CROPS}
+        cropColors={cropColors}
+        onSelect={setSelectedFilterCrop}
+        onAddOperation={() => {
+          setOpCrop("Toate");
+          setShowForm(true);
+        }}
+      />
     );
   }
 
   return (
-    <div className="space-y-6 max-w-7xl" suppressHydrationWarning>
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-muted/30 p-4 rounded-xl border border-border/50">
+    <div className="space-y-8 max-w-7xl" suppressHydrationWarning>
+      {/* Page Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="space-y-1">
+          <div className="flex items-center gap-3">
+            <div className={cn("h-12 w-12 rounded-2xl flex items-center justify-center text-white shadow-xl", cropColors[selectedFilterCrop || ""] || "bg-emerald-600", selectedFilterCrop !== "Toate" && "shadow-emerald-600/20")}>
+              {selectedFilterCrop === "Toate" ? <Tractor className="w-6 h-6" /> : <Sprout className="w-6 h-6" />}
+            </div>
+            <div>
+              <h1 className="text-3xl font-black text-slate-900 tracking-tighter">Lucrări: <span className="text-emerald-600">{selectedFilterCrop}</span></h1>
+              <p className="text-slate-500 font-bold uppercase text-[10px] tracking-[0.2em] ml-0.5">{filteredOps.length} operațiuni înregistrate</p>
+            </div>
+          </div>
+        </div>
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-2xl">
-            {cropIcons[selectedFilterCrop || ""] || "🌱"}
-          </div>
-          <div>
-            <h3 className="font-bold text-lg leading-none">{selectedFilterCrop}</h3>
-            <p className="text-xs text-muted-foreground mt-1">Sunt afișate {filteredOps.length} lucrări</p>
-          </div>
-        </div>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="h-9 gap-2 text-xs font-bold"
-          onClick={() => setSelectedFilterCrop(null)}
-        >
-          <Layers className="w-3.5 h-3.5" />
-          Schimbă Cultura
-        </Button>
-      </div>
-      {/* Header */}
-      {!hideHeader && (
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-extrabold text-foreground flex items-center gap-2">
-              <Tractor className="w-7 h-7 text-primary" />
-              Lucrări Agricole
-            </h2>
-            <p className="text-muted-foreground mt-1">Gestionează operațiunile din câmp și calculează automat consumurile și devizele (Motorină, Îngrășăminte, Tratamente).</p>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              className="border-primary/20 text-primary font-semibold gap-2"
-              onClick={() => generateTreatiesRegister(ops, orgName)}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className={cn(
+                buttonVariants({ variant: "outline" }),
+                "border-border/50 text-slate-600 font-black uppercase tracking-tight text-[10px] h-11 px-5 rounded-xl gap-2 hover:bg-slate-50 cursor-pointer"
+              )}
             >
-              <FileText className="w-4 h-4" /> Registru Tratamente (PDF)
-            </Button>
-            <Button
-              className="agral-gradient text-white font-semibold gap-2"
-              onClick={() => {
-                if (showForm) {
-                  setShowForm(false);
-                  setEditingOpId(null);
-                } else {
-                  setEditingOpId(null);
-                  setShowForm(true);
-                  setResources([]);
-                  setSelectedParcels([]);
-                  setName("Semănat");
-                }
-              }}
-            >
-              {showForm ? "Anulează" : <><Plus className="w-4 h-4" /> Nouă Lucrare</>}
-            </Button>
-          </div>
-        </div>
-      )}
+              <Layers className="w-4 h-4" /> Schimbă Cultura <ChevronDown className="w-3 h-3 ml-1 opacity-50" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 rounded-xl p-2 shadow-2xl border-primary/10">
+              <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 px-2 py-1.5">Selectează Cultura</div>
+              {CROPS.map((crop) => (
+                <DropdownMenuItem 
+                  key={crop}
+                  className="rounded-lg font-bold text-sm cursor-pointer py-2.5 px-3 focus:bg-primary/5 focus:text-primary transition-colors"
+                  onClick={() => setSelectedFilterCrop(crop)}
+                >
+                  <div className={cn("w-2.5 h-2.5 rounded-full mr-3", cropColors[crop] || "bg-slate-300")} />
+                  {crop}
+                </DropdownMenuItem>
+              ))}
+              <div className="h-px bg-slate-100 my-1" />
+              <DropdownMenuItem 
+                className="rounded-lg font-bold text-sm cursor-pointer py-2.5 px-3 text-slate-400 focus:bg-slate-50"
+                onClick={() => setSelectedFilterCrop(null)}
+              >
+                Înapoi la ecranul principal
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-      {hideHeader && (
-        <div className="flex justify-end gap-2" suppressHydrationWarning>
           <Button
             variant="outline"
-            className="border-primary/20 text-primary font-semibold gap-2"
+            className="border-primary/20 text-primary font-black uppercase tracking-tight text-[10px] h-11 px-5 rounded-xl gap-2 hover:bg-primary/5"
             onClick={() => {
               // @ts-ignore
               import("@/lib/reports").then(m => m.generateTreatiesRegister(ops, orgName));
             }}
           >
-            <FileText className="w-4 h-4" /> Registru Tratamente (PDF)
+            <FileText className="w-4 h-4" /> Export PDF
           </Button>
           <Button
-            className="agral-gradient text-white font-semibold gap-2"
+            className="agral-gradient text-white font-black uppercase tracking-widest text-[11px] h-11 px-6 rounded-xl shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all gap-2"
             onClick={() => {
               if (showForm) {
                 setShowForm(false);
@@ -484,509 +461,320 @@ export default function OperationsClient({
             {showForm ? "Anulează" : <><Plus className="w-4 h-4" /> Nouă Lucrare</>}
           </Button>
         </div>
-      )}
+      </div>
 
-      {/* COMPONENTA FORMULAR (Deviz Interactiv) */}
       {showForm && (
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* Coloana Stânga: Detalii și Parcele */}
-          <div className="lg:col-span-2 space-y-4">
-            <Card className="border-primary/20 shadow-md">
-              <CardHeader className="pb-3 border-b bg-muted/20">
-                <CardTitle className="text-lg">{editingOpId ? `Modifică Deviz #${editingOpId.slice(-4)}` : "Detalii Operațiune Nouă"}</CardTitle>
-              </CardHeader>
-              <CardContent className="p-5 space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground opacity-70">Tipul Lucrării</Label>
-                    <select 
-                      className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm focus:ring-2 focus:ring-primary/20"
-                      value={opTemplate}
-                      onChange={e => handleTemplateChange(e.target.value)}
-                    >
-                      {OP_TEMPLATES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground opacity-70">Pentru Cultura</Label>
-                    <select 
-                      className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm focus:ring-2 focus:ring-primary/20"
-                      value={opCrop}
-                      onChange={e => handleCropChange(e.target.value)}
-                    >
-                      {CROPS.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground opacity-70">Data Lucrării *</Label>
-                    <Input type="date" className="h-10 focus:ring-2 focus:ring-primary/20" value={date} onChange={e => setDate(e.target.value)} />
-                  </div>
+        <div className="space-y-6 animate-in slide-in-from-top-4 duration-500">
+          <Card className="border-primary/20 shadow-md">
+            <CardHeader className="pb-3 border-b bg-muted/20">
+              <CardTitle className="text-lg">{editingOpId ? `Modifică Lucrare #${editingOpId.slice(-4)}` : "1. Detalii Generale Lucrare"}</CardTitle>
+            </CardHeader>
+            <CardContent className="p-5">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-start">
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Tipul Lucrării</Label>
+                  <select 
+                    className="w-full h-12 rounded-2xl border border-input bg-background px-4 text-sm font-bold shadow-sm focus:ring-2 focus:ring-primary/20 transition-all"
+                    value={opTemplate}
+                    onChange={(e) => {
+                      setOpTemplate(e.target.value);
+                      const tmplName = OP_TEMPLATES.find(t => t.id === e.target.value)?.label || "";
+                      setName(opCrop === "Toate" ? tmplName : `${tmplName} - ${opCrop}`);
+                    }}
+                  >
+                    {OP_TEMPLATES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+                  </select>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-[1fr_2fr] gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground opacity-70">Nume Deviz (Salvat)</Label>
-                    <Input className="font-semibold text-primary focus:ring-2 focus:ring-primary/20" value={name} onChange={e => setName(e.target.value)} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground opacity-70">Observații</Label>
-                    <Input placeholder="ex: Vânt moderat 12km/h, norma de apă..." className="focus:ring-2 focus:ring-primary/20" value={notes} onChange={e => setNotes(e.target.value)} />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
 
-            <Card className="border-primary/20 shadow-md">
-              <CardHeader className="pb-3 border-b bg-muted/20 flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle className="text-lg">1. Selectează Terenul Lucrat</CardTitle>
-                  <CardDescription>Alege parcelele pe care se desfășoară lucrarea.</CardDescription>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Cultura</Label>
+                  <select 
+                    className="w-full h-12 rounded-2xl border border-input bg-background px-4 text-sm font-bold shadow-sm focus:ring-2 focus:ring-primary/20 transition-all"
+                    value={opCrop}
+                    onChange={(e) => {
+                      setOpCrop(e.target.value);
+                      const tmplName = OP_TEMPLATES.find(t => t.id === opTemplate)?.label || "";
+                      setName(e.target.value === "Toate" ? tmplName : `${tmplName} - ${e.target.value}`);
+                      setSelectedParcels([]);
+                    }}
+                  >
+                    {CROPS.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
                 </div>
-                <Badge className="bg-primary/10 text-primary border-primary/20 text-sm px-3 py-1">
-                  Suprafață Sumată: {totalArea.toFixed(2)} ha
-                </Badge>
-              </CardHeader>
-              <CardContent className="p-0 sm:p-5">
-                <div className="mb-6 w-full rounded-xl overflow-hidden border">
-                  {/* HARTA INTERACTIVĂ A PARCELELOR FILTRATE */}
-                  <MapSelector 
-                    parcels={parcels} 
-                    availableIds={visibleParcels.map(p => p.id)}
-                    selectedIds={selectedParcels.map(p => p.id)} 
-                    onToggleParcel={(id) => {
-                      const p = parcels.find(x => x.id === id);
-                      const isAvailable = visibleParcels.some(x => x.id === id);
-                      if (p && isAvailable) toggleParcel(p);
-                    }} 
+
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Data Lucrării</Label>
+                  <Input type="date" className="h-12 rounded-2xl font-bold shadow-sm" value={date} onChange={e => setDate(e.target.value)} />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Note / Observații</Label>
+                  <Input 
+                    placeholder="ex: Vânt moderat, sol umed..." 
+                    className="h-12 rounded-2xl font-bold shadow-sm" 
+                    value={notes} 
+                    onChange={e => setNotes(e.target.value)} 
                   />
                 </div>
+              </div>
+            </CardContent>
+          </Card>
 
-                {selectedParcels.length > 0 ? (
-                  <div className="bg-muted/30 p-4 rounded-xl space-y-3">
-                    <h4 className="font-semibold text-sm border-b pb-2">Ajustează suprafața lucrată (Dacă lucrarea a fost parțială)</h4>
+          <Card className="border-primary/20 shadow-md">
+            <CardHeader className="pb-3 border-b bg-muted/20">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg font-black tracking-tight">2. Selectează Terenul Lucrat</CardTitle>
+                  <CardDescription className="text-[10px] font-bold uppercase tracking-tight text-slate-500">Suprafața totală se calculează automat</CardDescription>
+                </div>
+                <Badge variant="outline" className="font-black text-primary border-primary/20 bg-primary/5 px-5 py-2.5 text-base rounded-2xl">
+                  {totalArea.toFixed(2)} ha total
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="p-5 space-y-6">
+              <div className="h-[350px] md:h-[450px] w-full rounded-2xl overflow-hidden border shadow-inner">
+                <MapSelector 
+                  parcels={parcels} 
+                  availableIds={visibleParcels.map(p => p.id)}
+                  selectedIds={selectedParcels.map(p => p.id)} 
+                  onToggleParcel={(id) => {
+                    const p = parcels.find(x => x.id === id);
+                    const isAvailable = visibleParcels.some(x => x.id === id);
+                    if (p && isAvailable) toggleParcel(p);
+                  }} 
+                />
+              </div>
+
+              {selectedParcels.length > 0 ? (
+                <div className="bg-slate-50 border border-slate-100 p-5 rounded-2xl space-y-4 shadow-inner">
+                  <h4 className="font-black text-xs uppercase tracking-widest text-slate-500 border-b pb-3">Ajustare Suprafețe Parțiale (ha)</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {selectedParcels.map(sp => (
-                      <div key={sp.id} className="flex items-center gap-3">
-                        <MapPin className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-sm font-medium w-32 truncate">{sp.name}</span>
-                        <div className="flex items-center gap-2 flex-1">
+                      <div key={sp.id} className="bg-white p-3 rounded-xl border shadow-sm flex flex-col gap-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-black uppercase truncate text-slate-700">{sp.name}</span>
+                          <span className="text-[10px] font-bold text-slate-400">{sp.maxHa} ha max</span>
+                        </div>
+                        <div className="flex items-center gap-2">
                           <Input 
                             type="number" 
                             step="0.01" 
-                            className="h-8 w-24" 
+                            className="h-9 rounded-lg font-black text-primary border-primary/20" 
                             value={sp.usedHa} 
                             onChange={(e) => updateParcelArea(sp.id, e.target.value)} 
                           />
-                          <span className="text-xs text-muted-foreground">din {sp.maxHa} ha</span>
+                          <span className="text-xs font-bold text-slate-500">ha</span>
                         </div>
                       </div>
                     ))}
                   </div>
-                ) : (
-                  <div className="text-center py-6 text-muted-foreground text-sm px-4">
-                    Faceți click pe parcelele din hartă pentru a le adăuga în acest deviz. Suprafața va fi calculată automat.
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+                </div>
+              ) : (
+                <div className="text-center py-10 bg-slate-50/50 border-2 border-dashed rounded-3xl text-slate-400 font-bold text-sm px-4">
+                  Faceți click pe parcelele din hartă pentru a le adăuga în acest deviz.
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-          {/* Coloana Dreapta: Produse & Deviz Total */}
-          <div className="space-y-4 font-sans">
-            <Card className="border-primary/20 shadow-md sticky top-20">
-              <CardHeader className="pb-3 border-b bg-amber-50/50">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <FlaskConical className="w-5 h-5 text-amber-600" />
-                  {opTemplate === "semanat" ? "2. Semințe / Input-uri" : 
-                   opTemplate === "recoltat" ? "2. Detalii Recoltă & Consum" : "2. Input-uri / Tratamente"}
-                </CardTitle>
-                <CardDescription>Calculator automat normă/hectar</CardDescription>
-              </CardHeader>
-              <CardContent className="p-5 space-y-4">
-                
-                {opTemplate === "recoltat" && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3 mb-4">
-                    <h4 className="text-sm font-bold text-amber-800 flex items-center gap-2">
-                      <Calculator className="w-4 h-4" /> Producție la Hectar
-                    </h4>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Tone / Hectar</Label>
-                        <Input 
-                          type="number" 
-                          step="0.01" 
-                          placeholder="ex: 6.5" 
-                          className="h-9" 
-                          value={yieldPerHa || ""}
-                          onChange={(e) => setYieldPerHa(parseFloat(e.target.value) || 0)}
-                        />
-                      </div>
-                      <div className="space-y-1.5 text-right">
-                        <Label className="text-xs">Total Estimat</Label>
-                        <div className="text-xl font-black text-amber-700">
-                          {(yieldPerHa * totalArea).toFixed(2)} <span className="text-xs">Tone</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-                <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-4 mb-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-bold text-primary flex items-center gap-2">
-                       <Tractor className="w-4 h-4" /> Consum Motorină (Opțional)
-                    </h4>
-                    <span className="text-[10px] font-black uppercase tracking-tighter text-muted-foreground opacity-70">
-                      Input Direct
-                    </span>
-                  </div>
-                  
+          <Card className="border-primary/20 shadow-lg bg-slate-50/30">
+            <CardHeader className="pb-3 border-b bg-amber-50/50">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <FlaskConical className="w-5 h-5 text-amber-600" />
+                {opTemplate === "recoltat" ? "3. Detalii Recoltă & Consum" : "3. Input-uri / Tratamente"}
+              </CardTitle>
+              <CardDescription>Calculator automat normă/hectar</CardDescription>
+            </CardHeader>
+            <CardContent className="p-5 space-y-4">
+              {opTemplate === "recoltat" && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3 mb-4">
+                  <h4 className="text-sm font-bold text-amber-800 flex items-center gap-2">
+                    <Calculator className="w-4 h-4" /> Producție la Hectar
+                  </h4>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <Label className="text-xs">Litri / Hectar</Label>
-                      <Input 
-                        type="number" 
-                        step="0.1" 
-                        placeholder="ex: 12.5" 
-                        className="h-9" 
-                        onChange={(e) => {
-                          const val = parseFloat(e.target.value);
-                          if (!isNaN(val)) {
-                            // Căutăm dacă există deja o resursă 'Motorină'
-                            const fuelIndex = resources.findIndex(r => r.name.toLowerCase().includes('motorină'));
-                            if (fuelIndex >= 0) {
-                              updateResource(resources[fuelIndex].id, "quantityPerHa", val);
-                            } else {
-                              // Adăugăm una nouă
-                              const id = Date.now();
-                              setResources(prev => [...prev, { 
-                                id, 
-                                name: "Motorină", 
-                                type: "combustibil", 
-                                quantityPerHa: val, 
-                                unit: "L", 
-                                pricePerUnit: 7.5 
-                              }]);
-                            }
-                          }
-                        }}
-                      />
+                      <Label className="text-xs">Tone / Hectar</Label>
+                      <Input type="number" step="0.01" className="h-9" value={yieldPerHa || ""} onChange={(e) => setYieldPerHa(parseFloat(e.target.value) || 0)} />
                     </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Preț / Litr (RON)</Label>
-                      <Input 
-                        type="number" 
-                        step="0.01" 
-                        placeholder="7.50" 
-                        className="h-9"
-                        onChange={(e) => {
-                          const val = parseFloat(e.target.value);
-                          if (!isNaN(val)) {
-                            const fuelIndex = resources.findIndex(r => r.name.toLowerCase().includes('motorină'));
-                            if (fuelIndex >= 0) {
-                              updateResource(resources[fuelIndex].id, "pricePerUnit", val);
-                            }
-                          }
-                        }}
-                      />
+                    <div className="space-y-1.5 text-right">
+                      <Label className="text-xs">Total Estimat</Label>
+                      <div className="text-xl font-black text-amber-700">{(yieldPerHa * totalArea).toFixed(2)} Tone</div>
                     </div>
-                  </div>
-                  
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Sursă Motorină</Label>
-                    <select 
-                      className="w-full h-9 rounded-md border border-input bg-white px-3 text-sm"
-                      onChange={(e) => {
-                        const invId = e.target.value;
-                        const fuelIndex = resources.findIndex(r => r.name.toLowerCase().includes('motorină'));
-                        if (fuelIndex >= 0) {
-                          applyInventoryItem(resources[fuelIndex].id, invId);
-                        }
-                      }}
-                    >
-                      <option value="">🛒 Alimentare Externă (Preț manual)</option>
-                      {inventory.filter(i => i.category === "combustibil").map(inv => (
-                        <option key={inv.id} value={inv.id}>Din Magazie: {inv.name} ({Number(inv.stockQuantity)} L)</option>
-                      ))}
-                    </select>
                   </div>
                 </div>
-
-                {resources.length === 0 ? (
-                  <div className="text-center py-6 pb-2 text-muted-foreground text-sm border-2 border-dashed rounded-xl">
-                    Niciun produs adăugat. Adaugă motorină sau inputuri pentru a genera devizul.
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-                    {resources.map((res, index) => {
-                      const totalQty = totalArea * res.quantityPerHa;
-                      const costValue = totalQty * res.pricePerUnit;
-                      
-                      const activeTemplateDef = OP_TEMPLATES.find(t => t.id === opTemplate);
-                      const filteredInventory = inventory.filter(inv => {
-                        if (!activeTemplateDef || !activeTemplateDef.allowedCategories) return true;
-                        
-                        // 1. Filtrare pe categorie (Erbicid, Sămânță etc.)
-                        const categoryMatch = activeTemplateDef.allowedCategories.includes(inv.category);
-                        if (!categoryMatch) return false;
-
-                        // 2. Filtrare Contextuală pe Cultură (DOAR pentru semințe)
-                        if (opTemplate === "semanat" && opCrop !== "Toate" && inv.category === "samanta") {
-                          const cropLower = opCrop.toLowerCase();
-                          const invCropLower = inv.cropType?.toLowerCase();
-                          const invNameLower = inv.name.toLowerCase();
-
-                          // Arătăm dacă:
-                          // - Are cropType setat și se potrivește
-                          // - NU are cropType setat, dar numele conține cultura (ex: "Sămânță Porumb")
-                          // - SAU dacă e un prod nou fără cropType încă (permisivitate la început)
-                          if (invCropLower) {
-                            return invCropLower === cropLower;
-                          }
-                          return invNameLower.includes(cropLower) || !inv.cropType;
-                        }
-
-                        return true;
-                      });
-
-                      return (
-                        <div key={res.id} className="relative p-3 pt-6 bg-muted/20 border rounded-xl space-y-3">
-                          <Button 
-                            variant="destructive" 
-                            size="icon" 
-                            className="absolute -top-3 -right-3 w-7 h-7 rounded-full shadow-md"
-                            onClick={() => removeResource(res.id)}
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </Button>
-
-                          <div className="space-y-1">
-                            <Label className="text-xs text-muted-foreground">Sursă Produs / Nume</Label>
-                            <div className="flex gap-2">
-                              <select 
-                                className="h-9 w-1/2 md:w-1/3 rounded-md border border-input bg-background px-2 text-sm shrink-0"
-                                value={res.inventoryItemId || ""}
-                                onChange={(e) => applyInventoryItem(res.id, e.target.value)}
-                              >
-                                <option value="">🛒 Produs Manual (Fără stoc)</option>
-                                {filteredInventory.length > 0 && (
-                                  <optgroup label="Din Magazie (Scade Stoc)">
-                                    {filteredInventory.map(inv => (
-                                      <option key={inv.id} value={inv.id}>{inv.name} ({Number(inv.stockQuantity)} {inv.unit})</option>
-                                    ))}
-                                  </optgroup>
-                                )}
-                              </select>
-                              <Input 
-                                placeholder="Nume produs" 
-                                className="h-9 flex-1" 
-                                value={res.name}
-                                onChange={(e) => updateResource(res.id, "name", e.target.value)}
-                                disabled={!!res.inventoryItemId}
-                              />
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1">
-                              <Label className="text-xs text-muted-foreground">
-                                {opTemplate === "semanat" && res.type === "samanta" ? "Normă (Kg / Ha)" : "Normă (Cant. / Hectar)"}
-                              </Label>
-                              <div className="flex flex-col sm:flex-row gap-2">
-                                <Input 
-                                  type="number" step="0.1" className="h-9 focus:ring-2 focus:ring-primary/20" 
-                                  value={res.quantityPerHa || ""}
-                                  onChange={(e) => updateResource(res.id, "quantityPerHa", parseFloat(e.target.value)||0)}
-                                />
-                                <select 
-                                  className="h-9 w-full sm:w-16 rounded-md border border-input bg-background px-1 text-sm shrink-0 text-center"
-                                  value={res.unit}
-                                  onChange={(e) => updateResource(res.id, "unit", e.target.value)}
-                                >
-                                  <option value="L">L</option><option value="Kg">Kg</option><option value="Miez">Miez</option>
-                                </select>
-                              </div>
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs text-muted-foreground">Preț (\u20AC sau RON / unitate)</Label>
-                              <Input 
-                                type="number" step="0.1" className="h-9" 
-                                value={res.pricePerUnit || ""}
-                                onChange={(e) => updateResource(res.id, "pricePerUnit", parseFloat(e.target.value)||0)}
-                                disabled={!!res.inventoryItemId}
-                              />
-                            </div>
-                          </div>
-                          
-                          <div className="bg-primary/5 p-2 rounded flex justify-between items-center text-sm border border-primary/10">
-                            <span className="text-muted-foreground font-medium">Necesar total: 
-                              <b className="text-foreground ml-1">{totalQty.toFixed(1)} {res.unit}</b>
-                            </span>
-                            <span className="font-bold text-primary">{costValue.toFixed(2)} Lei</span>
-                          </div>
+              )}
+              
+              <div className="space-y-6">
+                {resources.map((res) => {
+                  const totalQty = totalArea * res.quantityPerHa;
+                  return (
+                    <div key={res.id} className="relative p-4 bg-white border rounded-2xl shadow-sm space-y-4">
+                      <Button variant="destructive" size="icon" className="absolute -top-3 -right-3 w-8 h-8 rounded-full" onClick={() => removeResource(res.id)}>
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <Label className="text-xs font-black uppercase text-slate-500">Sursă Produs</Label>
+                          <select className="h-12 w-full rounded-2xl border bg-white px-4 text-sm font-black" value={res.inventoryItemId || ""} onChange={(e) => applyInventoryItem(res.id, e.target.value)}>
+                            <option value="">Manual (Fără stoc)</option>
+                            {inventory.filter(i => i.category === res.type).map(inv => (
+                              <option key={inv.id} value={inv.id}>{inv.name} ({Number(inv.stockQuantity)} {inv.unit})</option>
+                            ))}
+                          </select>
                         </div>
-                      )
-                    })}
-                  </div>
-                )}
+                        {res.inventoryItemId && (
+                          <div className="space-y-2">
+                            <Label className="text-xs font-black uppercase text-slate-500">Lot Specific</Label>
+                            <select 
+                              className="h-12 w-full rounded-2xl border bg-slate-50 px-4 text-sm font-bold" 
+                              value={res.inventoryLotId || "fifo"} 
+                              onChange={(e) => updateResource(res.id, "inventoryLotId", e.target.value)}
+                            >
+                              <option value="fifo">FIFO (Cel mai vechi)</option>
+                              {inventory.find(i => i.id === res.inventoryItemId)?.lots?.filter((l: any) => Number(l.quantity) > 0).map((lot: any) => (
+                                <option key={lot.id} value={lot.id}>
+                                  Lot: {lot.documentNumber || lot.id.slice(0,8)} ({Number(lot.quantity)} {res.unit})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                        <div className="space-y-2">
+                          <Label className="text-xs font-black uppercase text-slate-500">Nume Produs</Label>
+                          <Input className="h-12 rounded-2xl font-black" value={res.name} onChange={(e) => updateResource(res.id, "name", e.target.value)} disabled={!!res.inventoryItemId} />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="space-y-2">
+                          <Label className="text-xs font-black uppercase text-slate-500">Normă (Cant/Ha)</Label>
+                          <Input type="number" step="0.1" className="h-12 rounded-2xl font-black text-lg" value={res.quantityPerHa || ""} onChange={(e) => updateResource(res.id, "quantityPerHa", parseFloat(e.target.value)||0)} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs font-black uppercase text-slate-500">Preț Unitar</Label>
+                          <Input type="number" step="0.1" className="h-12 rounded-2xl font-black text-lg" value={res.pricePerUnit || ""} onChange={(e) => updateResource(res.id, "pricePerUnit", parseFloat(e.target.value)||0)} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs font-black uppercase text-slate-500">TVA (%)</Label>
+                          <select className="h-12 w-full rounded-2xl border bg-white px-4 font-black" value={res.tvaRate} onChange={(e) => updateResource(res.id, "tvaRate", parseFloat(e.target.value))}>
+                            {TVA_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
 
+              <div className="flex flex-wrap gap-2 pt-2">
+                {OP_TEMPLATES.find(t => t.id === opTemplate)?.allowedCategories.map(cat => (
+                  <Button 
+                    key={cat}
+                    variant="outline" 
+                    size="sm"
+                    className="flex-1 min-w-[140px] border-dashed border-2 gap-2 h-10 rounded-xl font-black uppercase text-[9px] hover:bg-slate-50" 
+                    onClick={() => addResource(cat)}
+                  >
+                    <Plus className="w-3 h-3" /> {cat.replace('_', ' ')}
+                  </Button>
+                ))}
                 <Button 
                   variant="outline" 
-                  className={`w-full border-dashed border-2 gap-2 ${opTemplate === "recoltat" ? "text-amber-700 border-amber-200 hover:bg-amber-50" : ""}`} 
-                  onClick={() => addResource(opTemplate === "recoltat" ? "combustibil" : undefined)}
+                  size="sm"
+                  className="flex-1 min-w-[140px] border-dashed border-2 gap-2 h-10 rounded-xl font-black uppercase text-[9px] hover:bg-slate-50" 
+                  onClick={() => addResource()}
                 >
-                  <Plus className="w-4 h-4" /> 
-                  {opTemplate === "recoltat" ? "Adaugă Consum Motorină" : "Adaugă Consum / Input"}
+                  <Plus className="w-3 h-3" /> Altul
                 </Button>
+              </div>
 
-                {/* Final DEVIZ */}
-                <div className="bg-foreground text-background rounded-xl p-4 mt-6">
-                  <div className="flex items-center justify-between font-medium text-sm text-muted-foreground/80 mb-1">
-                    <span>Estimare Totală Operațiune</span>
-                    <Calculator className="w-4 h-4" />
-                  </div>
-                  <div className="text-3xl font-extrabold pb-4 border-b border-background/20 mb-4">
-                    {grandTotalCost.toFixed(2)} Lei
-                  </div>
-                  
-                  <Button 
-                    variant="default" 
-                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold h-12 text-md gap-2"
-                    onClick={handleSave}
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
-                    {editingOpId ? "Salvează Modificările" : "Salvează și Închide Devizul"}
-                  </Button>
+              <div className="bg-slate-900 text-white rounded-2xl p-6 mt-6 space-y-4">
+                <div className="flex justify-between text-sm opacity-70">
+                  <span>Subtotal (Net)</span>
+                  <span>{costBreakdown.netTotal.toFixed(2)} Lei</span>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+                <div className="flex justify-between text-sm opacity-70">
+                  <span>TVA Total</span>
+                  <span className="text-amber-400">+{costBreakdown.tvaTotal.toFixed(2)} Lei</span>
+                </div>
+                <div className="h-px bg-white/10" />
+                <div className="flex justify-between items-center">
+                  <span className="font-black uppercase tracking-widest text-xs">Total de plată</span>
+                  <span className="text-3xl font-black text-emerald-400">{costBreakdown.grossTotal.toFixed(2)} Lei</span>
+                </div>
+                <Button className="w-full h-14 bg-emerald-500 hover:bg-emerald-600 text-white font-black uppercase tracking-widest rounded-xl text-md shadow-xl shadow-emerald-500/20" onClick={handleSave} disabled={isSubmitting}>
+                  {isSubmitting ? <Loader2 className="w-6 h-6 animate-spin" /> : <CheckCircle2 className="w-6 h-6 mr-2" />}
+                  {editingOpId ? "Actualizează Lucrarea" : "Finalizează Devizul"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 
-      {/* Tabela Operațiuni Înregistrate */}
-      {!showForm && (
-        <>
-          <div className="flex gap-3" suppressHydrationWarning>
-            <div className="relative flex-1 max-w-sm" suppressHydrationWarning>
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Caută lucrare..."
-                className="pl-9 h-11"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
+      {!showForm && !selectedFilterCrop && (
+        <CropGridSelector 
+          crops={CROPS}
+          cropColors={cropColors}
+          onSelect={setSelectedFilterCrop}
+          onAddOperation={() => setShowForm(true)}
+        />
+      )}
+
+      {!showForm && selectedFilterCrop && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="relative max-w-md flex-1">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Input placeholder="Caută lucrare..." className="pl-12 h-12 rounded-2xl border-slate-200 font-bold" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
+            <Button 
+              variant="ghost" 
+              className="font-black uppercase text-[10px] tracking-widest text-slate-400 gap-2"
+              onClick={() => setSelectedFilterCrop(null)}
+            >
+              <ArrowRight className="w-3 h-3 rotate-180" /> Înapoi la selecție
+            </Button>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4" suppressHydrationWarning>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredOps.map((op) => (
-              <Card key={op.id} className="card-hover">
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-bold text-foreground text-lg leading-tight">{op.name}</h3>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-primary hover:bg-primary/10" onClick={() => handleEditOp(op)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10" onClick={() => handleDeleteOp(op.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Calendar className="w-3.5 h-3.5" />
-                        {formatDate(op.date)}
-                      </div>
-                    </div>
-                    <Badge className={`text-xs border shrink-0 ${opStatusColors[op.status] || ""}`}>
-                      {op.status === "completed" ? "Finalizată" : "În plan"}
-                    </Badge>
-                  </div>
-
-                  <div className="mb-4 space-y-2">
-                    <div className="flex items-center gap-2 text-sm text-foreground bg-muted/50 p-2 rounded-md">
-                      <MapPin className="w-4 h-4 text-primary shrink-0" />
-                      <span className="font-medium">{Number(op.totalAreaHa).toFixed(2)} Hectare lucrate</span>
-                    </div>
-                    {op.parcels?.length > 0 && (
-                      <div className="text-xs text-muted-foreground italic truncate pl-2">
-                        {op.parcels.map((p: any) => p.parcel.name).join(", ")}
-                      </div>
-                    )}
-                    {op.type === "recoltat" && op.totalYield && (
-                      <div className="mt-3 p-2 bg-amber-50 border border-amber-100 rounded-lg flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-2 text-amber-800">
-                          <Calculator className="w-4 h-4" />
-                          <span className="font-semibold">Producție:</span>
-                        </div>
-                        <div className="font-bold text-amber-900">
-                          {Number(op.totalYield).toFixed(2)} Tone <span className="text-[10px] font-normal text-amber-700">({Number(op.yieldPerHa).toFixed(2)} t/ha)</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {(op.resources && op.resources.length > 0) && (
-                    <div className="border-t pt-3 mt-3">
-                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Input_uri aplicate</p>
-                      <div className="space-y-1.5">
-                        {op.resources.map((r: any) => {
-                          const initialCalc = r.quantityPerHa ? Number(r.quantityPerHa) * Number(op.totalAreaHa) : 0;
-                          const finalTotalText = r.totalConsumed ? Number(r.totalConsumed) : initialCalc;
-                          const isCustomized = !!r.totalConsumed;
-
-                          return (
-                            <div key={r.id} className="flex flex-col gap-1 text-sm bg-background border p-2 rounded-lg relative group">
-                              <div className="flex justify-between items-center">
-                                <span className="font-medium text-foreground">{r.name} 
-                                  <span className="text-muted-foreground ml-1">({r.type})</span>
-                                </span>
-                                
-                                {editingRes?.id === r.id ? (
-                                  <div className="flex items-center gap-1">
-                                    <Input 
-                                      type="number" step="0.1" 
-                                      className="h-6 w-16 text-right px-1 text-xs" 
-                                      value={editingRes?.val || ""} 
-                                      onChange={e => setEditingRes({ id: r.id, val: e.target.value })} 
-                                    />
-                                    <Button size="sm" className="h-6 px-2 text-xs" onClick={() => handleUpdateTotalConsumed(r.id)}>OK</Button>
-                                    <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setEditingRes(null)}>X</Button>
-                                  </div>
-                                ) : (
-                                  <div className="font-bold text-primary flex items-center gap-2 cursor-pointer" onClick={() => setEditingRes({ id: r.id, val: finalTotalText.toString() })}>
-                                    <span className={isCustomized ? "text-amber-600 underline decoration-dotted" : ""}>
-                                      {finalTotalText.toFixed(1)} {r.unit} total
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                              <div className="text-[10px] text-muted-foreground flex justify-between">
-                                  <span>Normă: {Number(r.quantityPerHa).toFixed(1)} {r.unit}/ha</span>
-                                  {isCustomized && <span className="text-amber-600 italic">Ajustat post-lucrare</span>}
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )}
-                  
-                </CardContent>
-              </Card>
+              <OperationCard 
+                key={op.id}
+                op={op}
+                orgName={orgName}
+                editingRes={editingRes}
+                setEditingRes={setEditingRes}
+                handleUpdateTotalConsumed={handleUpdateTotalConsumed}
+                handleEditOp={handleEditOp}
+                handleDeleteOp={handleDeleteOp}
+                generateOperationDeviz={handleGenerateDeviz}
+              />
             ))}
           </div>
 
-          {filteredOps.length === 0 && (
-            <div className="text-center py-12 border-2 border-dashed rounded-xl" suppressHydrationWarning>
-              <Tractor className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
-              <p className="text-muted-foreground font-medium text-lg">Nicio lucrare înregistrată</p>
-              <p className="text-sm text-muted-foreground mt-1">Acestea vor apărea aici după ce le creezi.</p>
+          {hasMore && (
+            <div className="flex justify-center pt-8">
+              <Button 
+                variant="outline" 
+                className="h-12 px-10 rounded-2xl font-black uppercase tracking-widest text-[10px] border-slate-200 hover:bg-slate-50 gap-2 shadow-sm"
+                onClick={handleLoadMore}
+                disabled={isLoadingMore}
+              >
+                {isLoadingMore ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronDown className="w-4 h-4" />}
+                {isLoadingMore ? "Se încarcă..." : "Încarcă mai multe lucrări"}
+              </Button>
             </div>
           )}
-        </>
+
+          {filteredOps.length === 0 && (
+            <div className="py-20 text-center bg-white rounded-3xl border border-dashed border-slate-200">
+              <Tractor className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+              <h3 className="text-lg font-black text-slate-900">Nicio lucrare găsită</h3>
+              <p className="text-sm text-slate-400 font-bold">Încercați să schimbați cultura sau filtrul de căutare.</p>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

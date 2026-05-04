@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState, use } from "react";
 import { Plus, MapPin, Loader2, List, LayoutGrid, Table as TableIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "react-hot-toast";
@@ -41,14 +41,17 @@ import {
 } from "@/components/ui/dialog";
 
 export default function ParcelListClient({
-  initialParcels,
-  initialGroups = [],
+  parcelsPromise,
+  groupsPromise,
   farmBase
 }: {
-  initialParcels: any[];
-  initialGroups?: any[];
+  parcelsPromise: Promise<any[]>;
+  groupsPromise: Promise<any[]>;
   farmBase?: { lat: number; lng: number } | null;
 }) {
+  const initialParcels = use(parcelsPromise);
+  const initialGroups = use(groupsPromise);
+
   const [parcels, setParcels] = useState(initialParcels);
   const [groups, setGroups] = useState(initialGroups);
   const [viewMode, setViewMode] = useState<"grid" | "map" | "table">("grid");
