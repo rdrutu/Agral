@@ -96,6 +96,7 @@ export default function InventoryClient({
   hideHeader?: boolean
 }) {
   const [items, setItems] = useState(initialInventory);
+  const router = useRouter();
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
